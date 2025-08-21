@@ -1,0 +1,47 @@
+[tool.poetry]
+name = "cwms-cli"
+repository = "https://github.com/HydrologicEngineeringCenter/cwms-cli"
+
+version = "0.1.0"
+
+
+packages = [
+    { include = "cwmsutils" },
+]
+description = "Command line utilities used for Corps Water Management Systems (CWMS) processes"
+readme = "README.md"
+license = "LICENSE"
+keywords = ["USACE", "CWMS"]
+authors = ["Hydrologic Engineering Center"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+click = "^8.2.1"
+hecdss  = { version = ">=0.1.24", optional = true }  # Via https://github.com/HydrologicEngineeringCenter/hec-python-library/blob/main/hec/shared.py#L9-10
+cwms-python = { version = ">=0.8.1", optional = true}
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.2.0"
+isort = "^5.13.2"
+mypy = "^1.9.0"
+pre-commit = "^3.6.2"
+#pytest = "^8.1.1"
+#pytest-cov = "^4.1.0"
+#pandas-stubs = "^2.2.1.240316"
+yamlfix = "^1.16.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+profile = "black"
+
+[tool.yamlfix]
+comments_min_spaces_from_content = 1
+whitelines = 1
+explicit_start = false
+preserve_quotes = true
+
+[tool.poetry.scripts]
+cwms-cli = "cwmsutils.__main__:cli"
