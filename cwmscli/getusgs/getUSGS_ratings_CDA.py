@@ -1,12 +1,12 @@
 import logging
-import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
 from json import loads
-import cwms
-from dataretrieval import nwis
-import requests
 
+import cwms
+import numpy as np
+import pandas as pd
+import requests
+from dataretrieval import nwis
 
 
 def getusgs_rating_cda(api_root, office_id, days_back, api_key):
@@ -312,17 +312,17 @@ def cwms_write_ratings(updated_ratings):
                     )
     logging.info(
         f"A total of {total_recs} ratings were updated by the USGS over the lookback period."
-    ) 
+    )
     logging.info(
         f"Of those {total_recs} ratings {same_effective} were already stored in the CWMS database"
-    )    
+    )
     if len(saved_ratings) > 0:
         logging.info(
             f"A total of {saved} ratings were new and saved successfully to the database"
-        )   
+        )
         logging.info(
             f"Rating ids saved successfully to the database were: {saved_ratings}"
-        )             
+        )
     if len(usgsapiErr) > 0:
         logging.info(
             f"The following ratings errored out when accessing the USGS API: {usgsapiErr}"

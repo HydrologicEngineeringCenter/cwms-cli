@@ -1,8 +1,9 @@
 import logging
-import pandas as pd
-import numpy as np
 from datetime import datetime, timedelta
+
 import cwms
+import numpy as np
+import pandas as pd
 import requests
 
 
@@ -10,7 +11,9 @@ def getusgs_cda(api_root, office_id, days_back, api_key):
     api_key = "apikey " + api_key
     cwms.api.init_session(api_root=api_root, api_key=api_key)
     logging.info(f"CDA connection: {api_root}")
-    logging.info(f"Data will be grabbed and stored from USGS for past {days_back} days for office: {office_id}")
+    logging.info(
+        f"Data will be grabbed and stored from USGS for past {days_back} days for office: {office_id}"
+    )
     execution_date = datetime.now()
 
     USGS_ts = get_CMWS_TS_Loc_Data(office_id)
@@ -222,12 +225,12 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method):
         USGS_data_row = None
         if (USGS_Id_param in USGS_data.index) and pd.isna(row.USGS_Method_TS):
             USGS_data_row = USGS_data.loc[USGS_Id_param]
-        elif (USGS_Id_param in USGS_data_method.index):
+        elif USGS_Id_param in USGS_data_method.index:
             USGS_data_row = USGS_data_method.loc[USGS_Id_param]
         if USGS_data_row is not None:
             try:
 
-            # grab the time series values obtained from USGS API.
+                # grab the time series values obtained from USGS API.
                 values_df = pd.DataFrame(USGS_data_row["values"])
                 if values_df.shape[0] > 1:
                     if pd.isna(row.USGS_Method_TS):
@@ -269,8 +272,10 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method):
                         )
                     # if values are present grab information needed to save to CWMS database using CDA
                     else:
-                        values = values.reindex(columns=["dateTime", "value", "qualifiers"])
-    
+                        values = values.reindex(
+                            columns=["dateTime", "value", "qualifiers"]
+                        )
+
                         # adjust column names to fit cwms-python format.
                         values = values.rename(
                             columns={
@@ -281,7 +286,7 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method):
                         units = USGS_data_row["variable"]["unit"]["unitCode"]
                         office = row["office-id"]
                         values["quality-code"] = 0
-    
+
                         # write values to CWMS database
                         try:
                             data = cwms.timeseries_df_to_json(
@@ -299,8 +304,8 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method):
                             )
             except Exception as error:
                 logging.error(
-                                f"FAIL Unspecified Error when trying to save USGS data -->  {ts_id},{USGS_Id_param} error = {error}"
-                            )  
+                    f"FAIL Unspecified Error when trying to save USGS data -->  {ts_id},{USGS_Id_param} error = {error}"
+                )
         else:
             NotinAPI.append([ts_id, USGS_Id_param])
             logging.warning(
@@ -320,4 +325,3 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method):
     logging.info(
         f"The following ts_ids errored because multiple method TSID were present for the USGS station. A USGS method TSID needs to be defined in the time series group in CWMS or an incorrect TSID is defined. {mult_ids}"
     )
-

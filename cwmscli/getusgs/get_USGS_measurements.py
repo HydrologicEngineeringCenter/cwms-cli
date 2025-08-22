@@ -1,14 +1,15 @@
-import pandas as pd
-from datetime import datetime, timedelta, timezone
-import pytz
-import math
-import numpy as np
-import cwms
 import logging
+import math
+from collections import defaultdict
+from datetime import datetime, timedelta, timezone
+
+import cwms
+import numpy as np
+import pandas as pd
+import pytz
+import requests
 from dataretrieval import nwis
 from dotenv import load_dotenv
-import requests
-from collections import defaultdict
 
 # --- Constants ---
 CWMS_MISSING_VALUE = -340282346638528859811704183484516925440
@@ -865,7 +866,9 @@ def backfill_mode(BACKFILL_LIST, measurement_site_df):
         logging.info("")
 
     logging.info(f"TOTAL MEASUREMENTS SAVED ACROSS ALL SITES: {total_saved_all_sites}")
-    logging.info(f"TOTAL MEASUREMENTS FAILED ACROSS ALL SITES: {total_failed_all_sites}")
+    logging.info(
+        f"TOTAL MEASUREMENTS FAILED ACROSS ALL SITES: {total_failed_all_sites}"
+    )
 
     # Summary of failed measurements
     if overall_failed_stores:
@@ -957,4 +960,3 @@ def getUSGS_measurement_cda(
         backfill_mode(backfill_list, measurement_site_df)
     else:
         realtime_mode(days_back_collected, days_back_modified, measurement_site_df)
-

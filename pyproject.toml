@@ -16,9 +16,9 @@ authors = ["Hydrologic Engineering Center"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
-click = "^8.2.1"
+click = "^8.1.8"
 hecdss  = { version = ">=0.1.24", optional = true }  # Via https://github.com/HydrologicEngineeringCenter/hec-python-library/blob/main/hec/shared.py#L9-10
-cwms-python = { version = ">=0.8.1", optional = true}
+cwms-python = { version = ">=0.8.0", optional = true}
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.2.0"

@@ -1,15 +1,16 @@
+import logging
 import re
 from typing import Dict, List
-import pandas as pd
+
 import cwms
-import logging
+import pandas as pd
 
 
 def import_shef_critfile(
     file_path: str,
     office_id: str,
-    api_root:str,
-    api_key:str,
+    api_root: str,
+    api_key: str,
     group_id: str = "SHEF Data Acquisition",
     category_id: str = "Data Acquisition",
     group_office_id: str = "CWMS",
@@ -46,7 +47,7 @@ def import_shef_critfile(
     # Parse the file and get the parsed data
     parsed_data = parse_crit_file(file_path)
     logging.info("CRIT file has been parsed")
-    #df = pd.DataFrame()
+    # df = pd.DataFrame()
     logging.info(f"Saving Timeseries IDs to group: {group_id}")
     for data in parsed_data:
         # Create DataFrame for the current row
@@ -70,11 +71,11 @@ def import_shef_critfile(
             )
             logging.info(
                 f'SUCCESS Stored timeseries ID {data["Timeseries ID"]} to {group_id}'
-                )
+            )
         except Exception as error:
             logging.error(
                 f'FAIL Data could not be stored to CWMS database for -->  {data["Timeseries ID"]},{data["Alias"]} error = {error}'
-                )
+            )
 
 
 def parse_crit_file(file_path: str) -> List[Dict[str, str]]:
@@ -115,9 +116,8 @@ def parse_crit_file(file_path: str) -> List[Dict[str, str]]:
 
     return parsed_data
 
-def create_df(
-    office_id: str, ts_id: str, alias: str
-) -> pd.DataFrame:
+
+def create_df(office_id: str, ts_id: str, alias: str) -> pd.DataFrame:
     """
     Appends a row to the DataFrame.
 
@@ -141,6 +141,6 @@ def create_df(
         "timeseries-id": [ts_id],
         "alias-id": [alias],
     }
-    #df = pd.concat([df, pd.DataFrame(data)])
+    # df = pd.concat([df, pd.DataFrame(data)])
     df = pd.DataFrame(data)
     return df
