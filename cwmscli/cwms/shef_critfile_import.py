@@ -2,24 +2,10 @@ import re
 from typing import Dict, List
 import pandas as pd
 import cwms
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
-import logging as lg
+import logging
 
 
-# create logging for logging
-logging = lg.getLogger()
-if (logging.hasHandlers()):
-    logging.handlers.clear()
-handler = lg.StreamHandler()
-formatter = lg.Formatter(
-    "%(asctime)s;%(levelname)s;%(message)s", "%Y-%m-%d %H:%M:%S")
-handler.setFormatter(formatter)
-logging.addHandler(handler)
-logging.setLevel(lg.INFO)
-logging.propagate = False
-
-
-def import_critfile_to_ts_group(
+def import_shef_critfile(
     file_path: str,
     office_id: str,
     api_root:str,
@@ -158,41 +144,3 @@ def create_df(
     #df = pd.concat([df, pd.DataFrame(data)])
     df = pd.DataFrame(data)
     return df
-
-def main():
-    parser = ArgumentParser(formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-f", "--filename", default="1", help="fileaname of ini file to be processed")
-    parser.add_argument("-o", "--office", default="1", help="Office ID to save data under")
-    parser.add_argument("-a", "--api_root", required=True, type=str, help="Api Root for CDA (Required).")
-    parser.add_argument("-k", "--api_key", default=None, type=str, help="api key. one of api_key or api_key_loc are required")
-    parser.add_argument("-kl", "--api_key_loc", default=None, type=str, help="file storing Api Key. One of api_key or api_key_loc are required")
-    args = vars(parser.parse_args())
-
-    APIROOT = args["api_root"]
-    # place a file in .cwms names api_key that holds you apikey
-    # to be used to write data to the database using CDA
-    if args["api_key_loc"] is not None:
-        api_key_loc = args["api_key_loc"]
-        with open(api_key_loc, "r") as f:
-            APIKEY = f.readline().strip()
-    elif args["api_key"] is not None:
-        APIKEY=args["api_key"]
-    else:
-        raise Exception("must add a value to either --api_key(-a) or --api_key_loc(-al)") 
-
-    # Days back is defined as a argument to the program.
-    # run program by typing python3 getUSGS.py 5
-    # the 5 would mean grab data starting 5 days ago to now
-    CRIT_FILENAME = args["filename"]
-    OFFICE_ID = args['office']
-
-    import_critfile_to_ts_group(
-        file_path = CRIT_FILENAME,
-        office_id = OFFICE_ID,
-        api_root=APIROOT,
-        api_key=APIKEY,
-    )
-
-
-if __name__ == "__main__":
-    main()

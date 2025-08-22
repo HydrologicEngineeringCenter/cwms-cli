@@ -6,7 +6,7 @@ version = "0.1.0"
 
 
 packages = [
-    { include = "cwmsutils" },
+    { include = "cwmscli" },
 ]
 description = "Command line utilities used for Corps Water Management Systems (CWMS) processes"
 readme = "README.md"
@@ -44,4 +44,4 @@ explicit_start = false
 preserve_quotes = true
 
 [tool.poetry.scripts]
-cwms-cli = "cwmsutils.__main__:cli"
+cwms-cli = "cwmscli.__main__:cli"
