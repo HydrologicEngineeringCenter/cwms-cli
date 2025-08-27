@@ -1,0 +1,3 @@
+# CSV2CWMS Ignore Files
+!timeseries_map.csv
+*.log*

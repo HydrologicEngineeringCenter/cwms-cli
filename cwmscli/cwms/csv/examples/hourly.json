@@ -1,0 +1,243 @@
+{
+    "interval": 3600,
+    "projects": {
+        "BROK": {
+            "dir": "BB",
+            "file": "BBdaily.csv",
+            "timeseries": {
+                "BROK-Turbine1.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U1_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "BROK-Turbine2.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U2_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "BROK.Elev.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "HEADWATER",
+                    "units": "ft",
+                    "precision": 0
+                },
+                "BROK.Elev-Tailwater.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "TAILWATER",
+                    "units": "ft",
+                    "precision": 2
+                }
+            }
+        },
+        "FGIB": {
+            "dir": "FTG",
+            "file": "fgdaily.csv",
+            "timeseries": {
+                "FGIB-Turbine1.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "Un1MWH_Out",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "FGIB-Turbine2.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "Un2MWH_Out",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "FGIB-Turbine3.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "Un3MWH_Out",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "FGIB-Turbine4.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "Un4MWH_Out",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "FGIB.Elev.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "headwater",
+                    "units": "ft",
+                    "precision": 0
+                },
+                "FGIB.Elev-Tailwater.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "tailwater",
+                    "units": "ft",
+                    "precision": 2
+                }
+            }
+        },
+        "DENI": {
+            "dir": "DEN",
+            "file": "DenDaily.csv",
+            "timeseries": {
+                "DENI-Turbine1.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U1_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "DENI-Turbine2.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U2_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "DENI.Elev.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "HEADWATER",
+                    "units": "ft",
+                    "precision": 0
+                },
+                "DENI.Elev-Tailwater.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "TAILWATER",
+                    "units": "ft",
+                    "precision": 2
+                }
+            }
+        },
+        "EUFA": {
+            "dir": "EUF",
+            "file": "eufdaily.csv",
+            "timeseries": {
+                "EUFA-Turbine1.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U1_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "EUFA-Turbine2.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U2_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "EUFA-Turbine3.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U3_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "EUFA.Elev.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "Headwater",
+                    "units": "ft",
+                    "precision": 0
+                },
+                "EUFA.Elev-Tailwater.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "Tailwater",
+                    "units": "ft",
+                    "precision": 2
+                }
+            }
+        },
+        "KEYS": {
+            "dir": "KEY",
+            "file": "KeyDaily.csv",
+            "timeseries": {
+                "KEYS-Turbine1.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U1_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "KEYS-Turbine2.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U2_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "KEYS.Elev.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "HEADWATER",
+                    "units": "ft",
+                    "precision": 0
+                },
+                "KEYS.Elev-Tailwater.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "TAILWATER",
+                    "units": "ft",
+                    "precision": 2
+                }
+            }
+        },
+        "ROBE": {
+            "dir": "RSK",
+            "file": "KERRDAILY.csv",
+            "timeseries": {
+                "ROBE-Turbine1.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U1_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "ROBE-Turbine2.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U2_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "ROBE-Turbine3.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U3_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "ROBE-Turbine4.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U4_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "ROBE.Elev.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "HEADWATER",
+                    "units": "ft",
+                    "precision": 0
+                },
+                "ROBE.Elev-Tailwater.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "TAILWATER",
+                    "units": "ft",
+                    "precision": 2
+                }
+            }
+        },
+        "TENK": {
+            "dir": "TK",
+            "file": "TkDaily.csv",
+            "timeseries": {
+                "TENK-Turbine1.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U1_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "TENK-Turbine2.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U2_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "TENK.Elev.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "HEADWATER",
+                    "units": "ft",
+                    "precision": 0
+                },
+                "TENK.Elev-Tailwater.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "TAILWATER",
+                    "units": "ft",
+                    "precision": 2
+                }
+            }
+        },
+        "WEBB": {
+            "dir": "WF",
+            "file": "WEBDAILY.csv",
+            "timeseries": {
+                "WEBB-Turbine1.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U1_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "WEBB-Turbine2.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U2_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "WEBB-Turbine3.Energy-Gen.Total.1Hour.1Hour.Rev-SCADA": {
+                    "columns": "U3_MWH_OUT",
+                    "units": "MWh",
+                    "precision": 0
+                },
+                "WEBB.Elev.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "HEADWATER",
+                    "units": "ft",
+                    "precision": 0
+                },
+                "WEBB.Elev-Tailwater.Inst.1Hour.0.Rev-SCADA": {
+                    "columns": "TAILWATER",
+                    "units": "ft",
+                    "precision": 2
+                }
+            }
+        }
+    }
+}
