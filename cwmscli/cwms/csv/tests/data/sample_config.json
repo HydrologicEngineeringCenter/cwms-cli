@@ -1,0 +1,40 @@
+{
+    "interval": null,
+    "projects": {
+        "BROK": {
+            "dir": "BB",
+            "timeseries": {
+                "BROK.Elev.Inst.15Minutes.0.Rev-SCADA-cda": {
+                    "columns": "Headwater",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "BROK.Elev-Tailwater.Inst.15Minutes.0.Rev-SCADA-cda": {
+                    "columns": "Tailwater",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "BROK.Flow-Power.Inst.15Minutes.0.Rev-SCADA-cda": {
+                    "columns": "total_Pwr_discharge",
+                    "units": "cfs",
+                    "precision": 0
+                },
+                "BROK.Power-Gen.Inst.15Minutes.0.Rev-SCADA-cda": {
+                    "columns": "U1_MW+U2_MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "BROK.Turbine1.Power-Gen.Inst.15Minutes.0.Rev-SCADA-cda": {
+                    "columns": "U1_MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "BROK.Turbine2.Power-Gen.Inst.15Minutes.0.Rev-SCADA-cda": {
+                    "columns": "U2_MW",
+                    "units": "MW",
+                    "precision": 2
+                }
+            }
+        }
+    }
+}
