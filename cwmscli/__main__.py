@@ -1,7 +1,6 @@
 import click
 
 from cwmscli.cwms import commands_cwms
-
 from cwmscli.getusgs import commands_getusgs
 
 
