@@ -55,7 +55,7 @@ def requires(*requirements):
                 min_version = req.get("version")
                 desc = req.get("desc")
                 link = req.get("link")
-
+                # Check if the provided requirement is already imported
                 try:
                     importlib.import_module(mod)
                 except ImportError:
@@ -66,7 +66,7 @@ def requires(*requirements):
                         msg += f" [docs]({link})"
                     missing.append((msg, pkg))
                     continue
-
+                # Confirm the minimum version is met
                 if min_version:
                     try:
                         actual_version = importlib.metadata.version(pkg)
@@ -79,7 +79,7 @@ def requires(*requirements):
                         version_issues.append(
                             f"- `{pkg}` is installed but version could not be verified"
                         )
-
+            # Build out the error response
             if missing or version_issues:
                 error_lines = []
                 if missing:
