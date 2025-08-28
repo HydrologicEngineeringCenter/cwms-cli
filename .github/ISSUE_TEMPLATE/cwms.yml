@@ -13,6 +13,18 @@ body:
       required: true
 
   - type: dropdown
+    id: version
+    attributes:
+      label: Version
+      description: What version of cwms-cli are you running?
+      options:
+        - latest - as of current date submitting (Default)
+        - 0.0.1
+        - Not Listed (specify below)
+      default: 0
+    validations:
+      required: true
+  - type: dropdown
     id: script
     attributes:
       label: CWMS CLI Script
@@ -31,6 +43,15 @@ body:
     validations:
       required: true
     if: ${{ inputs.kind == 'Bug Report' }}
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: REDACTED relevant log output
+      description: Please copy and paste any relevant log output. Removing sensitive
+        information. This will be automatically formatted into code, so no need for
+        backticks.
+      render: shell
 
   - type: textarea
     id: repro_steps
