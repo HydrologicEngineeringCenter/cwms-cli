@@ -6,7 +6,6 @@ import sys
 import time
 import traceback
 from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
 
 # Add the current directory to the path
 # This is necessary for the script to be run as a standalone script
@@ -285,7 +284,6 @@ def main(*args, **kwargs):
     """
     start_time = time.time()
     tz = safe_zoneinfo(kwargs.get("tz"))
-
     if kwargs.get("begin"):
         try:
             begin_time = datetime.strptime(
@@ -297,7 +295,7 @@ def main(*args, **kwargs):
         begin_time = datetime.now(tz)
 
     # Setup the logger if a path is provided
-    setup_logger(kwargs.get("get"), kwargs.get("log"), verbose=kwargs.get("verbose"))
+    setup_logger(kwargs.get("log"), verbose=kwargs.get("verbose"))
     logger.info(f"Begin time: {begin_time}")
     logger.debug(f"Timezone: {tz}")
     logger.debug(f"Lookback period: {kwargs.get("lookback")} hours")
@@ -383,8 +381,6 @@ def main(*args, **kwargs):
 
     logger.debug(f"\tExecution time: {round(time.time() - start_time, 3)} seconds.")
     logger.debug(f"\tMemory usage: {round(os.sys.getsizeof(locals()) / 1024, 2)} KB")
-    logger.debug(f"\tLog file: {os.path.abspath(kwargs.get("log"))}")
-    logger.info(f"Finished for {','.join(PROJECTS)}.")
 
 
 if __name__ == "__main__":
