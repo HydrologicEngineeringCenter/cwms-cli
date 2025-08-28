@@ -8,7 +8,6 @@ from cwmscli.utils import (
     api_root_option,
     get_api_key,
     office_option,
-    script_version_option,
 )
 
 
@@ -41,7 +40,6 @@ def shefcritimport(filename, office, api_root, api_key, api_key_loc):
 @office_option
 @api_root_option
 @api_key_option
-@script_version_option
 @click.option(
     "-l",
     "--location",
