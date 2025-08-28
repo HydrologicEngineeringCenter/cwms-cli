@@ -83,16 +83,16 @@ def requires(*requirements):
             if missing or version_issues:
                 error_lines = []
                 if missing:
-                    error_lines.append("❌ Missing module(s):")
+                    error_lines.append("Missing module(s):")
                     for msg, _ in missing:
                         error_lines.append(msg)
                     install_cmd = "pip install " + " ".join(pkg for _, pkg in missing)
                     error_lines.append(
-                        f"\n👉 Install missing packages:\n    {install_cmd}"
+                        f"\nInstall missing packages:\n    {install_cmd}"
                     )
 
                 if version_issues:
-                    error_lines.append("\n⚠️ Version issues:")
+                    error_lines.append("\nVersion issues:")
                     error_lines.extend(version_issues)
 
                 raise click.ClickException("\n".join(error_lines))
