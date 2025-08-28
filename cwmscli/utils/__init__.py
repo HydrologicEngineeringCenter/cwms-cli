@@ -40,12 +40,6 @@ api_key_loc_option = click.option(
     help="file storing Api Key. One of api_key or api_key_loc are required",
 )
 
-script_version_option = click.option(
-    "--version",
-    is_flag=True,
-    help="Show specific script version and exit",
-)
-
 
 def get_api_key(api_key: str, api_key_loc: str) -> str:
     if api_key is not None:
