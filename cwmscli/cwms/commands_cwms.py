@@ -10,7 +10,9 @@ from cwmscli.utils import (
 )
 
 
-@click.command(help="Get USGS timeseries values and store into CWMS database")
+@click.command(
+    "shefcritimport", help="Get USGS timeseries values and store into CWMS database"
+)
 @click.option(
     "-f",
     "--filename",

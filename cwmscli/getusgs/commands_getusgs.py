@@ -1,9 +1,6 @@
 import click
 
-from cwmscli.getusgs.get_USGS_measurements import getUSGS_measurement_cda
-from cwmscli.getusgs.getUSGS_CDA import getusgs_cda
-from cwmscli.getusgs.getUSGS_ratings_CDA import getusgs_rating_cda
-from cwmscli.getusgs.rating_ini_file_import import rating_ini_file_import
+from cwmscli import requirements as reqs
 from cwmscli.utils import (
     api_key_loc_option,
     api_key_option,
@@ -11,6 +8,7 @@ from cwmscli.utils import (
     get_api_key,
     office_option,
 )
+from cwmscli.utils.deps import requires
 
 days_back_option = click.option(
     "-d",
@@ -21,13 +19,17 @@ days_back_option = click.option(
 )
 
 
-@click.command(help="Get USGS timeseries values and store into CWMS database")
+@click.command(
+    "getusgs-timeseries", help="Get USGS timeseries values and store into CWMS database"
+)
 @office_option
 @days_back_option
 @api_root_option
 @api_key_option
 @api_key_loc_option
+@requires(reqs.cwms, reqs.requests)
 def getUSGS_timeseries(office, days_back, api_root, api_key, api_key_loc):
+    from cwmscli.getusgs.getUSGS_CDA import getusgs_cda
 
     api_key = get_api_key(api_key, api_key_loc)
     getusgs_cda(
@@ -38,13 +40,15 @@ def getUSGS_timeseries(office, days_back, api_root, api_key, api_key_loc):
     )
 
 
-@click.command(help="Get USGS ratings and store into CWMS database")
+@click.command("getusgs-ratings", help="Get USGS ratings and store into CWMS database")
 @office_option
 @days_back_option
 @api_root_option
 @api_key_option
 @api_key_loc_option
+@requires(reqs.cwms, reqs.requests)
 def getUSGS_ratings(office, days_back, api_root, api_key, api_key_loc):
+    from cwmscli.getusgs.getUSGS_ratings_CDA import getusgs_rating_cda
 
     api_key = get_api_key(api_key, api_key_loc)
     getusgs_rating_cda(
@@ -56,7 +60,8 @@ def getUSGS_ratings(office, days_back, api_root, api_key, api_key_loc):
 
 
 @click.command(
-    help="Store rating ini file information into database to be used with getusgs_ratings"
+    "ratings-ini-file-import",
+    help="Store rating ini file information into database to be used with getusgs_ratings",
 )
 @click.option(
     "-f",
@@ -68,13 +73,17 @@ def getUSGS_ratings(office, days_back, api_root, api_key, api_key_loc):
 @api_root_option
 @api_key_option
 @api_key_loc_option
+@requires(reqs.cwms, reqs.requests)
 def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
+    from cwmscli.getusgs.rating_ini_file_import import rating_ini_file_import
 
     api_key = get_api_key(api_key, api_key_loc)
     rating_ini_file_import(api_root=api_root, api_key=api_key, ini_filename=filename)
 
 
-@click.command(help="Store USGS measurements into CWMS database")
+@click.command(
+    "getusgs-measurements", help="Store USGS measurements into CWMS database"
+)
 @click.option(
     "-d",
     "--days_back_modified",
@@ -98,6 +107,7 @@ def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
     type=str,
     help="Backfill POR data, use list of USGS IDs (e.g. 05057200, 05051300) or the word 'group' to attempt to backfill all sites in the OFFICE id's Data Acquisition->USGS Measurements group",
 )
+@requires(reqs.cwms, reqs.requests)
 def getUSGS_measurements(
     days_back_modified,
     days_back_collected,
@@ -107,6 +117,8 @@ def getUSGS_measurements(
     api_key_loc,
     backfill,
 ):
+    from cwmscli.getusgs.get_USGS_measurements import getUSGS_measurement_cda
+
     backfill_group = False
     backfill_list = False
     if backfill is not None:
