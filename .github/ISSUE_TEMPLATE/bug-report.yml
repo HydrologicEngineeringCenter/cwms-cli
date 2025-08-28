@@ -1,35 +1,22 @@
 name: CWMS Script Issue or Feature Request
 description: File a bug, request a feature, or ask a question related to CWMS specific
   CLI scripts
-labels: ["cli-cwms"]
+labels: ["bug", "CWMS", "USGS"]
 body:
-  - type: dropdown
-    id: kind
-    attributes:
-      label: Type of Request
-      description: What kind of issue are you reporting?
-      options: [Bug Report, Feature Request, Question]
-    validations:
-      required: true
 
-  - type: dropdown
-    id: version
-    attributes:
-      label: Version
-      description: What version of cwms-cli are you running?
-      options:
-        - latest - as of current date submitting (Default)
-        - 0.0.1
-        - Not Listed (specify below)
-      default: 0
-    validations:
-      required: true
   - type: dropdown
     id: script
     attributes:
-      label: CWMS CLI Script
+      label: CLI Script
       description: Select the script this pertains to
-      options: [csv2cwms, shef-crit-file-import, Does Not Exist Yet!]
+      options:
+        - cwms-cli
+        - csv2cwms
+        - getusgs-measurements
+        - getusgs-ratings
+        - getusgs-timeseries
+        - shefcritimport
+        - Does Not Exist Yet!
     validations:
       required: true
 
@@ -38,8 +25,9 @@ body:
     id: bug_description
     attributes:
       label: Describe the bug
-      description: What went wrong? Include stack traces or errors if applicable.
-      placeholder: "A clear and concise description of the bug..."
+      description: What went wrong?
+      placeholder: "A clear and concise description of the bug... Include the version\
+        \ of the cli script if known. i.e. csv2cwms v0.0.1"
     validations:
       required: true
 

@@ -1,64 +1,23 @@
 name: getUSGS Script Issue or Feature Request
 description: File a bug, request a feature, or ask a question related to getUSGS specific
   CLI scripts
-labels: ["cli-getusgs"]
+labels: ["enhancement", "CWMS", "USGS"]
 body:
-  - type: dropdown
-    id: kind
-    attributes:
-      label: Type of Request
-      description: What kind of issue are you reporting?
-      options: [Bug Report, Feature Request, Question]
-    validations:
-      required: true
-
-  - type: dropdown
-    id: version
-    attributes:
-      label: Version
-      description: What version of cwms-cli are you running?
-      options:
-        - latest - as of current date submitting (Default)
-        - 0.0.1
-        - Not Listed (specify below)
-      default: 0
-    validations:
-      required: true
-
   - type: dropdown
     id: script
     attributes:
-      label: CWMS CLI Script
+      label: CLI Script
       description: Select the script this pertains to
       options:
-        - timeseries/cda
-        - ratings/cda
-        - measurements/cda
-        - rating-ini-file-import
+        - cwms-cli
+        - csv2cwms
+        - getusgs-measurements
+        - getusgs-ratings
+        - getusgs-timeseries
+        - shefcritimport
         - Does Not Exist Yet!
     validations:
       required: true
-
-  # BUG REPORT FIELDS
-  - type: textarea
-    id: bug_description
-    attributes:
-      label: Describe the bug
-      description: What went wrong? Include stack traces or errors if applicable.
-      placeholder: "A clear and concise description of the bug..."
-    validations:
-      required: true
-
-  - type: textarea
-    id: repro_steps
-    attributes:
-      label: Steps to Reproduce
-      description: Provide steps to reproduce the issue.
-      placeholder: |
-        1. Run command ...
-        2. See error ...
-    validations:
-      required: false
 
   # FEATURE REQUEST FIELDS
   - type: textarea
@@ -88,12 +47,3 @@ body:
       description: Include any discussions, docs, or libraries relevant to the request.
     validations:
       required: false
-
-  # QUESTION FIELDS
-  - type: textarea
-    id: question
-    attributes:
-      label: Your Question
-      description: Ask your question clearly, including any relevant context.
-    validations:
-      required: true
