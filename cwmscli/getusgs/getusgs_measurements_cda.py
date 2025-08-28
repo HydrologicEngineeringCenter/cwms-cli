@@ -68,6 +68,71 @@ COLUMN_MAPPING = {
 }
 
 
+def getusgs_measurement_cda(
+    api_root,
+    office_id,
+    api_key,
+    days_back_modified=2,
+    days_back_collected=365,
+    backfill_list=None,
+    backfill_group=None,
+):
+    apiKey = "apikey " + api_key
+    api = cwms.api.init_session(api_root=api_root, api_key=apiKey)
+
+    logging.info("Fetching CWMS location groups...")
+    try:
+        usgs_alias_group = cwms.get_location_group(
+            loc_group_id="USGS Station Number",
+            category_id="Agency Aliases",
+            office_id="CWMS",
+            group_office_id=office_id,
+            category_office_id=office_id,
+        )
+        usgs_measurement_locs = cwms.get_location_group(
+            loc_group_id="USGS Measurements",
+            category_id="Data Acquisition",
+            office_id="CWMS",
+            group_office_id=office_id,
+            category_office_id=office_id,
+        )
+    except requests.exceptions.RequestException as e:
+        logging.critical(f"Failed to fetch CWMS location groups: {e}. Exiting.")
+        exit(1)
+    except Exception as e:
+        logging.critical(
+            f"An unexpected error occurred fetching CWMS location groups: {e}. Exiting."
+        )
+        exit(1)
+
+    # merge them together
+    measurement_site_df = pd.merge(
+        usgs_measurement_locs.df,
+        usgs_alias_group.df,
+        on="location-id",
+        how="inner",
+        left_on=None,
+        right_on=None,
+    )
+    # drop any that don't have a USGS id
+    measurement_site_df = measurement_site_df[measurement_site_df["alias-id"].notnull()]
+
+    if measurement_site_df.empty:
+        logging.warning(
+            "No valid USGS measurement locations found in CWMS after de-duplication. Exiting."
+        )
+        exit(0)
+
+    # backfilling entire group get list of USGS ids to backfill
+    if backfill_group:
+        backfill_list = list(measurement_site_df["alias-id"].values)
+
+    if backfill_list:
+        backfill_mode(backfill_list, measurement_site_df)
+    else:
+        realtime_mode(days_back_collected, days_back_modified, measurement_site_df)
+
+
 def convert_to_utc(df):
     """
     Converts a pandas DataFrame with timezone-aware datetimes to UTC using a timezone mapping.
@@ -895,68 +960,3 @@ def backfill_mode(BACKFILL_LIST, measurement_site_df):
         logging.info("No failed measurement stores!")
 
     logging.info("=" * 60)
-
-
-def getUSGS_measurement_cda(
-    api_root,
-    office_id,
-    api_key,
-    days_back_modified=2,
-    days_back_collected=365,
-    backfill_list=None,
-    backfill_group=None,
-):
-    apiKey = "apikey " + api_key
-    api = cwms.api.init_session(api_root=api_root, api_key=apiKey)
-
-    logging.info("Fetching CWMS location groups...")
-    try:
-        usgs_alias_group = cwms.get_location_group(
-            loc_group_id="USGS Station Number",
-            category_id="Agency Aliases",
-            office_id="CWMS",
-            group_office_id=office_id,
-            category_office_id=office_id,
-        )
-        usgs_measurement_locs = cwms.get_location_group(
-            loc_group_id="USGS Measurements",
-            category_id="Data Acquisition",
-            office_id="CWMS",
-            group_office_id=office_id,
-            category_office_id=office_id,
-        )
-    except requests.exceptions.RequestException as e:
-        logging.critical(f"Failed to fetch CWMS location groups: {e}. Exiting.")
-        exit(1)
-    except Exception as e:
-        logging.critical(
-            f"An unexpected error occurred fetching CWMS location groups: {e}. Exiting."
-        )
-        exit(1)
-
-    # merge them together
-    measurement_site_df = pd.merge(
-        usgs_measurement_locs.df,
-        usgs_alias_group.df,
-        on="location-id",
-        how="inner",
-        left_on=None,
-        right_on=None,
-    )
-    # drop any that don't have a USGS id
-    measurement_site_df = measurement_site_df[measurement_site_df["alias-id"].notnull()]
-
-    if measurement_site_df.empty:
-        logging.warning(
-            "No valid USGS measurement locations found in CWMS after de-duplication. Exiting."
-        )
-        exit(0)
-
-    # backfilling entire group get list of USGS ids to backfill
-    if backfill_group:
-        backfill_list = list(measurement_site_df["alias-id"].values)
-
-    if backfill_list:
-        backfill_mode(backfill_list, measurement_site_df)
-    else:
-        realtime_mode(days_back_collected, days_back_modified, measurement_site_df)

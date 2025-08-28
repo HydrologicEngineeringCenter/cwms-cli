@@ -28,8 +28,8 @@ days_back_option = click.option(
 @api_key_option
 @api_key_loc_option
 @requires(reqs.cwms, reqs.requests)
-def getUSGS_timeseries(office, days_back, api_root, api_key, api_key_loc):
-    from cwmscli.getusgs.getUSGS_CDA import getusgs_cda
+def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc):
+    from cwmscli.getusgs.getugsg_cda import getusgs_cda
 
     api_key = get_api_key(api_key, api_key_loc)
     getusgs_cda(
@@ -46,9 +46,9 @@ def getUSGS_timeseries(office, days_back, api_root, api_key, api_key_loc):
 @api_root_option
 @api_key_option
 @api_key_loc_option
-@requires(reqs.cwms, reqs.requests)
-def getUSGS_ratings(office, days_back, api_root, api_key, api_key_loc):
-    from cwmscli.getusgs.getUSGS_ratings_CDA import getusgs_rating_cda
+@requires(reqs.cwms, reqs.requests, reqs.dataretrieval)
+def getusgs_ratings(office, days_back, api_root, api_key, api_key_loc):
+    from cwmscli.getusgs.getusgs_ratings_cda import getusgs_rating_cda
 
     api_key = get_api_key(api_key, api_key_loc)
     getusgs_rating_cda(
@@ -107,8 +107,8 @@ def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
     type=str,
     help="Backfill POR data, use list of USGS IDs (e.g. 05057200, 05051300) or the word 'group' to attempt to backfill all sites in the OFFICE id's Data Acquisition->USGS Measurements group",
 )
-@requires(reqs.cwms, reqs.requests)
-def getUSGS_measurements(
+@requires(reqs.cwms, reqs.requests, reqs.dataretrieval)
+def getusgs_measurements(
     days_back_modified,
     days_back_collected,
     office,
@@ -117,7 +117,7 @@ def getUSGS_measurements(
     api_key_loc,
     backfill,
 ):
-    from cwmscli.getusgs.get_USGS_measurements import getUSGS_measurement_cda
+    from cwmscli.getusgs.getusgs_measurements_cda import getusgs_measurement_cda
 
     backfill_group = False
     backfill_list = False
@@ -127,7 +127,7 @@ def getUSGS_measurements(
         elif type(args.backfill) == str:
             backfill_list = args.backfill.replace(" ", "").split(",")
     api_key = get_api_key(api_key, api_key_loc)
-    getUSGS_measurement_cda(
+    getusgs_measurement_cda(
         api_root=api_root,
         office_id=office,
         api_key=api_key,

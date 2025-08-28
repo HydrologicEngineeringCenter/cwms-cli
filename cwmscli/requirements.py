@@ -15,3 +15,11 @@ requests = {
     "version": "2.30.0",
     "desc": "Required for HTTP API access",
 }
+
+dataretrieval = {
+    "module": "dataretrieval",
+    "package": "dataretrieval",
+    "version": "1.0.10",
+    "desc": "Loading hydrologic data from USGS",
+    "link": "https://github.com/DOI-USGS/dataretrieval-python",
+}
