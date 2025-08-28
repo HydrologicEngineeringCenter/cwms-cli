@@ -1,11 +1,39 @@
 import logging
 from logging.handlers import RotatingFileHandler
 
-logger = logging.getLogger("scada_ts")
+from .terminal import colorize
+
+logger = logging.getLogger("csv2cwms")
+
+
+class ColorFormatter(logging.Formatter):
+    """Logging Formatter that colorizes the level name."""
+
+    LEVEL_COLORS = {
+        logging.DEBUG: "cyan",
+        logging.INFO: "blue",
+        logging.WARNING: "yellow",
+        logging.ERROR: "red",
+        logging.CRITICAL: "magenta",
+    }
+
+    def formatTime(self, record, datefmt=None):
+        """Override to colorize asctime in gray."""
+        timestr = super().formatTime(record, datefmt)
+        return colorize(timestr, "gray")
+
+    def format(self, record):
+        level_color = self.LEVEL_COLORS.get(record.levelno, "reset")
+        record.levelname = colorize(record.levelname, level_color)
+        return super().format(record)
 
 
 def setup_logger(
-    log_path, max_log_size_mb=5, backup_count=3, show_console=True, verbose=False
+    log_path: str = "",
+    max_log_size_mb: int = 5,
+    backup_count: int = 3,
+    show_console: bool = True,
+    verbose: bool = False,
 ):
     """Set up logger with rotating file handler
 
@@ -22,28 +50,26 @@ def setup_logger(
     Returns:
         logger: logging.Logger
     """
+    # Create formatter and attach to handler
+    formatter = ColorFormatter(
+        "[%(asctime)s] [%(levelname)s] %(message)s", "%Y-%m-%d %H:%M:%S"
+    )
     # Setup the logger if it has not already been configured
-    if not logger.hasHandlers():
-        # Configure logger
-        logger.setLevel(logging.DEBUG if verbose else logging.INFO)
-
+    logger.setLevel(logging.DEBUG if verbose else logging.INFO)
+    if log_path:
         # Create rotating file handler
         file_handler = RotatingFileHandler(
             log_path, maxBytes=max_log_size_mb * 1024 * 1024, backupCount=backup_count
         )
         file_handler.setLevel(logging.DEBUG)
 
-        # Create formatter and attach to handler
-        formatter = logging.Formatter(
-            "[%(asctime)s] [%(levelname)s] %(message)s", "%Y-%m-%d %H:%M:%S"
-        )
         file_handler.setFormatter(formatter)
         logger.addHandler(file_handler)
 
-        # Log to console as well
-        if show_console:
-            console_handler = logging.StreamHandler()
-            console_handler.setFormatter(formatter)
-            logger.addHandler(console_handler)
+    # Setup console handler if needed
+    if not logger.hasHandlers() or show_console:
+        console_handler = logging.StreamHandler()
+        console_handler.setFormatter(formatter)
+        logger.addHandler(console_handler)
     logger.debug(f"Logger configured with log file: {log_path}")
     return logger
