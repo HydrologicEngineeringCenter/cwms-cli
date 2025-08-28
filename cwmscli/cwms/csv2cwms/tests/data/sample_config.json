@@ -2,7 +2,6 @@
     "interval": null,
     "projects": {
         "BROK": {
-            "dir": "BB",
             "timeseries": {
                 "BROK.Elev.Inst.15Minutes.0.Rev-SCADA-cda": {
                     "columns": "Headwater",
