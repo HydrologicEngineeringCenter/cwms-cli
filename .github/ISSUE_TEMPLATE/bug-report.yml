@@ -42,7 +42,6 @@ body:
       placeholder: "A clear and concise description of the bug..."
     validations:
       required: true
-    if: ${{ inputs.kind == 'Bug Report' }}
 
   - type: textarea
     id: logs
@@ -63,7 +62,6 @@ body:
         2. See error ...
     validations:
       required: false
-    if: ${{ inputs.kind == 'Bug Report' }}
 
   # FEATURE REQUEST FIELDS
   - type: textarea
@@ -76,7 +74,6 @@ body:
         You can include code or CLI examples in code blocks.
     validations:
       required: true
-    if: ${{ inputs.kind == 'Feature Request' }}
 
   - type: textarea
     id: related_links
@@ -85,7 +82,6 @@ body:
       description: Include any discussions, docs, or libraries relevant to the request.
     validations:
       required: false
-    if: ${{ inputs.kind == 'Feature Request' }}
 
   # QUESTION FIELDS
   - type: textarea
@@ -95,4 +91,3 @@ body:
       description: Ask your question clearly, including any relevant context.
     validations:
       required: true
-    if: ${{ inputs.kind == 'Question' }}
