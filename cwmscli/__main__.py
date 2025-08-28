@@ -9,8 +9,8 @@ def cli():
     pass
 
 
-cli.add_command(commands_getusgs.getUSGS_timeseries)
-cli.add_command(commands_getusgs.getUSGS_ratings)
+cli.add_command(commands_getusgs.getusgs_timeseries)
+cli.add_command(commands_getusgs.getusgs_ratings)
 cli.add_command(commands_getusgs.ratingsinifileimport)
-cli.add_command(commands_getusgs.getUSGS_measurements)
+cli.add_command(commands_getusgs.getusgs_measurements)
 cli.add_command(commands_cwms.shefcritimport)
