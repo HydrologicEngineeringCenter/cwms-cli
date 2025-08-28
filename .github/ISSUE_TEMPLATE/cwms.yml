@@ -1,0 +1,77 @@
+name: CWMS Script Issue or Feature Request
+description: File a bug, request a feature, or ask a question related to CWMS specific
+  CLI scripts
+labels: ["cli-cwms"]
+body:
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Type of Request
+      description: What kind of issue are you reporting?
+      options: [Bug Report, Feature Request, Question]
+    validations:
+      required: true
+
+  - type: dropdown
+    id: script
+    attributes:
+      label: CWMS CLI Script
+      description: Select the script this pertains to
+      options: [csv2cwms, shef-crit-file-import, Does Not Exist Yet!]
+    validations:
+      required: true
+
+  # BUG REPORT FIELDS
+  - type: textarea
+    id: bug_description
+    attributes:
+      label: Describe the bug
+      description: What went wrong? Include stack traces or errors if applicable.
+      placeholder: "A clear and concise description of the bug..."
+    validations:
+      required: true
+    if: ${{ inputs.kind == 'Bug Report' }}
+
+  - type: textarea
+    id: repro_steps
+    attributes:
+      label: Steps to Reproduce
+      description: Provide steps to reproduce the issue.
+      placeholder: |
+        1. Run command ...
+        2. See error ...
+    validations:
+      required: false
+    if: ${{ inputs.kind == 'Bug Report' }}
+
+  # FEATURE REQUEST FIELDS
+  - type: textarea
+    id: feature_description
+    attributes:
+      label: Feature Proposal
+      description: What do you want to see added or changed?
+      placeholder: |
+        Describe the feature, its motivation, and usage examples.
+        You can include code or CLI examples in code blocks.
+    validations:
+      required: true
+    if: ${{ inputs.kind == 'Feature Request' }}
+
+  - type: textarea
+    id: related_links
+    attributes:
+      label: Related Context or Links
+      description: Include any discussions, docs, or libraries relevant to the request.
+    validations:
+      required: false
+    if: ${{ inputs.kind == 'Feature Request' }}
+
+  # QUESTION FIELDS
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: Ask your question clearly, including any relevant context.
+    validations:
+      required: true
+    if: ${{ inputs.kind == 'Question' }}
