@@ -18,7 +18,9 @@ days_back_option = click.option(
 )
 
 
-@click.command(help="Get USGS timeseries values and store into CWMS database")
+@click.command(
+    "getusgs-timeseries", help="Get USGS timeseries values and store into CWMS database"
+)
 @office_option
 @days_back_option
 @api_root_option
@@ -36,6 +38,7 @@ def getUSGS_timeseries(office, days_back, api_root, api_key, api_key_loc):
     )
 
 
+@click.command("getusgs-ratings", help="Get USGS ratings and store into CWMS database")
 @office_option
 @days_back_option
 @api_root_option
@@ -54,7 +57,8 @@ def getUSGS_ratings(office, days_back, api_root, api_key, api_key_loc):
 
 
 @click.command(
-    help="Store rating ini file information into database to be used with getusgs_ratings"
+    "ratings-ini-file-import",
+    help="Store rating ini file information into database to be used with getusgs_ratings",
 )
 @click.option(
     "-f",
@@ -73,7 +77,9 @@ def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
     rating_ini_file_import(api_root=api_root, api_key=api_key, ini_filename=filename)
 
 
-@click.command(help="Store USGS measurements into CWMS database")
+@click.command(
+    "getusgs-measurements", help="Store USGS measurements into CWMS database"
+)
 @click.option(
     "-d",
     "--days_back_modified",
