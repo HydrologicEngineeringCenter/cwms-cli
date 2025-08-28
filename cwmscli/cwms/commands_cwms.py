@@ -1,6 +1,6 @@
 import click
 
-from cwmscli.cwms.csv.__main__ import main as csv2_main
+from cwmscli.cwms.csv2cwms.__main__ import main as csv2_main
 from cwmscli.cwms.shef_critfile_import import import_shef_critfile
 from cwmscli.utils import (
     api_key_loc_option,
@@ -89,6 +89,7 @@ def shefcritimport(filename, office, api_root, api_key, api_key_loc):
 @click.option(
     "--ignore-ssl-errors", is_flag=True, help="Ignore TLS errors (testing only)"
 )
+@click.version_option(package_name="csv2cwms", message="csv2cwms v%(version)s")
 def csv2cwms_cmd(**kwargs):
     # Handle the version for this specific command
     if kwargs.pop("version", False):
