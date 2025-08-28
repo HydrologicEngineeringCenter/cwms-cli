@@ -19,7 +19,7 @@ body:
       description: What version of cwms-cli are you running?
       options:
         - latest - as of current date submitting (Default)
-        - 0.0.1 (Default)
+        - 0.0.1
         - Not Listed (specify below)
       default: 0
     validations:
