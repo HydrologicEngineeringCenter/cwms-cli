@@ -1,5 +1,6 @@
 import click
 
+from cwmscli import requirements as reqs
 from cwmscli.utils import (
     api_key_loc_option,
     api_key_option,
@@ -26,6 +27,7 @@ days_back_option = click.option(
 @api_root_option
 @api_key_option
 @api_key_loc_option
+@requires(reqs.cwms, reqs.requests)
 def getUSGS_timeseries(office, days_back, api_root, api_key, api_key_loc):
     from cwmscli.getusgs.getUSGS_CDA import getusgs_cda
 
@@ -44,6 +46,7 @@ def getUSGS_timeseries(office, days_back, api_root, api_key, api_key_loc):
 @api_root_option
 @api_key_option
 @api_key_loc_option
+@requires(reqs.cwms, reqs.requests)
 def getUSGS_ratings(office, days_back, api_root, api_key, api_key_loc):
     from cwmscli.getusgs.getUSGS_ratings_CDA import getusgs_rating_cda
 
@@ -70,6 +73,7 @@ def getUSGS_ratings(office, days_back, api_root, api_key, api_key_loc):
 @api_root_option
 @api_key_option
 @api_key_loc_option
+@requires(reqs.cwms, reqs.requests)
 def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
     from cwmscli.getusgs.rating_ini_file_import import rating_ini_file_import
 
@@ -103,6 +107,7 @@ def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
     type=str,
     help="Backfill POR data, use list of USGS IDs (e.g. 05057200, 05051300) or the word 'group' to attempt to backfill all sites in the OFFICE id's Data Acquisition->USGS Measurements group",
 )
+@requires(reqs.cwms, reqs.requests)
 def getUSGS_measurements(
     days_back_modified,
     days_back_collected,
