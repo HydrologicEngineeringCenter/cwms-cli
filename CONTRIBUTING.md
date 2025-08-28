@@ -13,6 +13,7 @@ Once you have the repository on your system you can proceed:
 2. `poetry run pre-commit install` - Sets up black and other configurations using [.pre-commit-config.yaml](/.pre-commit-config.yaml) in `.git/hooks`
    1. You can test all files with `poetry run pre-commit run --all-files`
 3. `python -m pip install -e .` - This adds cwms-cli and it's commands to your local path allowing you to live develop cwms-cli as a package and test the CLI functions on your system.
+4. Run `cwms-cli` to confirm everything installed!
 
 ## Running Tests
 
