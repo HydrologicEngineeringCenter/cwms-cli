@@ -1,5 +1,4 @@
 # Script Entry File
-import argparse
 import json
 import os
 import sys
@@ -13,6 +12,7 @@ import cwms
 # This is necessary for the script to be run as a standalone script
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 
+
 # Handle imports for local and package use
 # This is necessary for the script to be run as a package or as a standalone script
 # The script can be run as a standalone script by running `python -m scada_ts` from the parent directory
@@ -20,7 +20,6 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 try:
     # Relative imports for modules
     from . import __author__, __license__, __version__
-    from .httpclient.client import HttpClient
     from .utils import (
         colorize,
         colorize_count,
@@ -35,7 +34,6 @@ try:
     )
 except ImportError:
     from __init__ import __author__, __license__, __version__
-    from httpclient.client import HttpClient
     from utils import (
         colorize,
         colorize_count,
@@ -185,6 +183,9 @@ def main(*args, **kwargs):
     else:
         begin_time = datetime.now(tz)
 
+    cwms.api.init_session(
+        api_root=kwargs.get("api_root"), api_key=kwargs.get("api_key")
+    )
     # Setup the logger if a path is provided
     setup_logger(kwargs.get("log"), verbose=kwargs.get("verbose"))
     logger.info(f"Begin time: {begin_time}")
@@ -248,23 +249,26 @@ def main(*args, **kwargs):
         for ts_object in ts_min_data:
             try:
                 ts_object.update({"office-id": kwargs.get("office")})
-                status_code, response = client.post(
-                    "timeseries?store-rule=REPLACE_ALL",
-                    ts_object,
-                    headers={
-                        "Authorization": f"apikey {kwargs.get("api_key")}",
-                        "Content-Type": "application/json;version=2",
-                        "accept": "*/*",
-                    },
+                cwms.store_timeseries(
+                    data=ts_object, store_rule=kwargs.get("store_rule", "REPLACE_ALL")
                 )
-                logger.debug(f"Response: {json.dumps(response, indent=2)}")
-                if status_code == 200:
-                    logger.info(f"Stored {ts_object['name']} values")
-                else:
-                    logger.error(
-                        f"Error posting data for {proj}: [{status_code}] {response} - {ts_object['name']}"
-                    )
-                    logger.debug(f"Data: {json.dumps(ts_object)}")
+                # status_code, response = client.post(
+                #     "timeseries?store-rule=REPLACE_ALL",
+                #     ts_object,
+                #     headers={
+                #         "Authorization": f"apikey {kwargs.get("api_key")}",
+                #         "Content-Type": "application/json;version=2",
+                #         "accept": "*/*",
+                #     },
+                # )
+                # logger.debug(f"Response: {json.dumps(response, indent=2)}")
+                # if status_code == 200:
+                logger.info(f"Stored {ts_object['name']} values")
+                # else:
+                #    logger.error(
+                #        f"Error posting data for {proj}: [{status_code}] {response} - {ts_object['name']}"
+                #    )
+                #    logger.debug(f"Data: {json.dumps(ts_object)}")
             except Exception as e:
                 logger.error(
                     f"Error posting data for {proj}: {e}\n{traceback.format_exc()}"
