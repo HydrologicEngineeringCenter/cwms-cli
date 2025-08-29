@@ -7,6 +7,8 @@ import time
 import traceback
 from datetime import datetime, timedelta
 
+import cwms
+
 # Add the current directory to the path
 # This is necessary for the script to be run as a standalone script
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
@@ -347,11 +349,11 @@ def main(*args, **kwargs):
         )
         ts_min_data = load_timeseries(csv_data, proj, config)
 
-        client = HttpClient(
-            base_url=kwargs.get("host"),
-            dry_run=kwargs.get("dry_run"),
-            ignore_ssl_errors=kwargs.get("ignore_ssl_errors"),
-        )
+        # client = HttpClient(
+        #     base_url=kwargs.get("host"),
+        #     dry_run=kwargs.get("dry_run"),
+        #     ignore_ssl_errors=kwargs.get("ignore_ssl_errors"),
+        # )
         if kwargs.get("dry_run"):
             logger.info("DRY RUN enabled. No data will be posted")
         for ts_object in ts_min_data:
