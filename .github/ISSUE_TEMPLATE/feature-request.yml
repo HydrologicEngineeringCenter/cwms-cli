@@ -1,7 +1,6 @@
-name: getUSGS Script Issue or Feature Request
-description: File a bug, request a feature, or ask a question related to getUSGS specific
-  CLI scripts
-labels: ["enhancement", "CWMS", "USGS"]
+name: CWMS-CLI Script Issue or Feature Request
+description: Request a feature related to CWMS-CLI scripts
+labels: ["enhancement"]
 body:
   - type: dropdown
     id: script
@@ -15,7 +14,8 @@ body:
         - getusgs-ratings
         - getusgs-timeseries
         - shefcritimport
-        - Does Not Exist Yet!
+        - Documentation
+        - Other
     validations:
       required: true
 
