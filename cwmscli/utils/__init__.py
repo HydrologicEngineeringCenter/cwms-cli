@@ -16,6 +16,14 @@ api_root_option = click.option(
     type=str,
     help="Api Root for CDA. Can be user defined or placed in a env variable CDA_API_ROOT",
 )
+api_coop_root_option = click.option(
+    "--coop",
+    is_flag=True,
+    envvar="CDA_API_COOP_ROOT",
+    type=str,
+    help="Use CDA_API_COOP_ROOT from env",
+)
+
 api_key_option = click.option(
     "-k",
     "--api_key",

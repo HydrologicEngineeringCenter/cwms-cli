@@ -1,0 +1,315 @@
+{
+    "interval": 900,
+    "projects": {
+        "BROK": {
+            "dir": "BB",
+            "timeseries": {
+                "BROK.Elev.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Headwater",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "BROK.Elev-Tailwater.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Tailwater",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "BROK.Flow-Power.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "total_Pwr_discharge",
+                    "units": "cfs",
+                    "precision": 0
+                },
+                "BROK.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "U1_MW+U2_MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "BROK-Turbine1.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "U1_MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "BROK-Turbine2.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "U2_MW",
+                    "units": "MW",
+                    "precision": 2
+                }
+            }
+        },
+        "DENI": {
+            "dir": "DEN",
+            "timeseries": {
+                "DENI.Elev.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "headwater",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "DENI.Elev-Tailwater.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "tailwater",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "DENI.Flow-Power.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Total_Discharge",
+                    "units": "cfs",
+                    "precision": 0
+                },
+                "DENI.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "U1MW+U2MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "DENI-Turbine1.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "U1MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "DENI-Turbine2.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "U2MW",
+                    "units": "MW",
+                    "precision": 2
+                }
+            }
+        },
+        "EUFA": {
+            "dir": "EUF",
+            "timeseries": {
+                "EUFA.Elev.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Sample_HW.1",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "EUFA.Elev-Tailwater.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Sample_TW.1",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "EUFA.Flow-Power.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Total_Power_Discharge",
+                    "units": "cfs",
+                    "precision": 0
+                },
+                "EUFA.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "G1_MW+G2_MW+G3_MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "EUFA-Turbine1.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "G1_MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "EUFA-Turbine2.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "G2_MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "EUFA-Turbine3.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "G3_MW",
+                    "units": "MW",
+                    "precision": 2
+                }
+            }
+        },
+        "FGIB": {
+            "dir": "FTG",
+            "timeseries": {
+                "FGIB.Elev.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "headwater",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "FGIB.Elev-Tailwater.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "tailwater",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "FGIB.Flow-Power.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Total_Discharge",
+                    "units": "cfs",
+                    "precision": 0
+                },
+                "FGIB.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Unit1MW+Unit2MW+Unit3MW+Unit4MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "FGIB-Turbine1.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Unit1MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "FGIB-Turbine2.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Unit2MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "FGIB-Turbine3.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Unit3MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "FGIB-Turbine4.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Unit4MW",
+                    "units": "MW",
+                    "precision": 2
+                }
+            }
+        },
+        "KEYS": {
+            "dir": "KEY",
+            "timeseries": {
+                "KEYS.Elev.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "HEADWATER",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "KEYS.Elev-Tailwater.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "TAILWATER",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "KEYS.Flow-Power.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "\"u1discrg+u2discrg\"",
+                    "units": "cfs",
+                    "precision": 0
+                },
+                "KEYS.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "UNIT1_MW+Unit2_MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "KEYS-Turbine1.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "UNIT1_MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "KEYS-Turbine2.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Unit2_MW",
+                    "units": "MW",
+                    "precision": 2
+                }
+            }
+        },
+        "ROBE": {
+            "dir": "RSK",
+            "timeseries": {
+                "ROBE.Elev.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "HEADWATER",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "ROBE.Elev-Tailwater.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "TAILWATER",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "ROBE.Flow-Power.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Total_Discharge",
+                    "units": "cfs",
+                    "precision": 0
+                },
+                "ROBE.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "u1mw+U2MW+U3MW+U4MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "ROBE-Turbine1.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "u1mw",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "ROBE-Turbine2.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "U2MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "ROBE-Turbine3.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "U3MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "ROBE-Turbine4.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "U4MW",
+                    "units": "MW",
+                    "precision": 2
+                }
+            }
+        },
+        "TENK": {
+            "dir": "TK",
+            "timeseries": {
+                "TENK.Elev.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "HEADWATER",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "TENK.Elev-Tailwater.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "TAILWATER",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "TENK.Flow-Power.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Exp_TotalDischarge",
+                    "units": "cfs",
+                    "precision": 0
+                },
+                "TENK.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Table_Remote.E20+Table_Remote.E21",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "TENK-Turbine1.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Table_Remote.E20",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "TENK-Turbine2.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Table_Remote.E21",
+                    "units": "MW",
+                    "precision": 2
+                }
+            }
+        },
+        "WEBB": {
+            "dir": "WF",
+            "timeseries": {
+                "WEBB.Elev.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "HEADWATER",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "WEBB.Elev-Tailwater.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "TAILWATER",
+                    "units": "ft",
+                    "precision": 2
+                },
+                "WEBB.Flow-Power.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Total_Discharge",
+                    "units": "cfs",
+                    "precision": 0
+                },
+                "WEBB.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Gen1MW+gen2mw+gen3mw",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "WEBB-Turbine1.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "Gen1MW",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "WEBB-Turbine2.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "gen2mw",
+                    "units": "MW",
+                    "precision": 2
+                },
+                "WEBB-Turbine3.Power-Gen.Inst.15Minutes.0.Rev-SCADA": {
+                    "columns": "gen3mw",
+                    "units": "MW",
+                    "precision": 2
+                }
+            }
+        }
+    }
+}

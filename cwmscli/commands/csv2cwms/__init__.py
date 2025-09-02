@@ -1,0 +1,5 @@
+__version__ = "0.0.1"
+__name__ = "csv2cwms"
+__author__ = "Charles Graham - USACE"
+__license__ = "MIT"
+__description__ = "Parses Comma Separated Value (CSV) files and uses a config to store TimeSeries to CDA"
