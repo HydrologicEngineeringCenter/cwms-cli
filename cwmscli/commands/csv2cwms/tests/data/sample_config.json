@@ -23,12 +23,12 @@
                     "units": "MW",
                     "precision": 2
                 },
-                "BROK.Turbine1.Power-Gen.Inst.15Minutes.0.Rev-SCADA-cda": {
+                "BROK-Turbine1.Power-Gen.Inst.15Minutes.0.Rev-SCADA-cda": {
                     "columns": "U1_MW",
                     "units": "MW",
                     "precision": 2
                 },
-                "BROK.Turbine2.Power-Gen.Inst.15Minutes.0.Rev-SCADA-cda": {
+                "BROK-Turbine2.Power-Gen.Inst.15Minutes.0.Rev-SCADA-cda": {
                     "columns": "U2_MW",
                     "units": "MW",
                     "precision": 2
