@@ -239,36 +239,19 @@ def main(*args, **kwargs):
         )
         ts_min_data = load_timeseries(csv_data, proj, config)
 
-        # client = HttpClient(
-        #     base_url=kwargs.get("host"),
-        #     dry_run=kwargs.get("dry_run"),
-        #     ignore_ssl_errors=kwargs.get("ignore_ssl_errors"),
-        # )
         if kwargs.get("dry_run"):
             logger.info("DRY RUN enabled. No data will be posted")
         for ts_object in ts_min_data:
             try:
                 ts_object.update({"office-id": kwargs.get("office")})
-                cwms.store_timeseries(
-                    data=ts_object, store_rule=kwargs.get("store_rule", "REPLACE_ALL")
-                )
-                # status_code, response = client.post(
-                #     "timeseries?store-rule=REPLACE_ALL",
-                #     ts_object,
-                #     headers={
-                #         "Authorization": f"apikey {kwargs.get("api_key")}",
-                #         "Content-Type": "application/json;version=2",
-                #         "accept": "*/*",
-                #     },
-                # )
-                # logger.debug(f"Response: {json.dumps(response, indent=2)}")
-                # if status_code == 200:
-                logger.info(f"Stored {ts_object['name']} values")
-                # else:
-                #    logger.error(
-                #        f"Error posting data for {proj}: [{status_code}] {response} - {ts_object['name']}"
-                #    )
-                #    logger.debug(f"Data: {json.dumps(ts_object)}")
+                if kwargs.get("dry_run"):
+                    logger.info(f"DRY RUN: {ts_object}")
+                else:
+                    cwms.store_timeseries(
+                        data=ts_object,
+                        store_rule=kwargs.get("store_rule", "REPLACE_ALL"),
+                    )
+                    logger.info(f"Stored {ts_object['name']} values")
             except Exception as e:
                 logger.error(
                     f"Error posting data for {proj}: {e}\n{traceback.format_exc()}"
