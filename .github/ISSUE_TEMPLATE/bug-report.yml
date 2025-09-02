@@ -1,7 +1,6 @@
-name: CWMS Script Issue or Feature Request
-description: File a bug, request a feature, or ask a question related to CWMS specific
-  CLI scripts
-labels: ["bug", "CWMS", "USGS"]
+name: CWMS CLI Script Issues
+description: File a bug report CWMS-CLI scripts
+labels: ["bug"]
 body:
 
   - type: dropdown
