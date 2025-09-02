@@ -103,3 +103,44 @@ def csv2cwms_cmd(**kwargs):
         click.echo(f"csv2cwms v{__version__}")
         return
     csv2_main(**kwargs)
+
+
+@click.command("blob", help="Store a file, of varying types, as a blob in CWMS")
+@click.argument(
+    "directive",
+    type=click.Choice(["upload", "download", "delete", "update"], case_sensitive=False),
+)
+@click.argument(
+    "input_file",
+    type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
+)
+@click.argument("blob_id", type=str)
+@click.option(
+    "--description",
+    default=None,
+    help="Optional description of the blob.",
+)
+@click.option(
+    "--media-type",
+    default=None,
+    help="Override media type for the file; guessed if not provided.",
+)
+@click.option(
+    "--overwrite/--no-overwrite",
+    default=False,
+    show_default=True,
+    help="If true, replace existing blob (sets fail-if-exists=false).",
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Show what would be sent without performing the HTTP POST/write.",
+)
+@office_option
+@api_root_option
+@api_key_option
+@requires(reqs.cwms)
+def blob_cmd(**kwargs):
+    from cwmscli.commands.blob import main
+
+    main(**kwargs)
