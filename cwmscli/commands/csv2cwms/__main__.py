@@ -176,7 +176,7 @@ def main(*args, **kwargs):
     if kwargs.get("begin"):
         try:
             begin_time = datetime.strptime(
-                kwargs.get("get"), kwargs.get("begin"), "%Y-%m-%dT%H:%M"
+                kwargs.get("begin"), "%Y-%m-%dT%H:%M"
             ).replace(tzinfo=tz)
         except ValueError:
             raise ValueError("--begin must be in format YYYY-MM-DDTHH:MM")
