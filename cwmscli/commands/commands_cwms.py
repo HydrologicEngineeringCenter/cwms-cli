@@ -2,13 +2,7 @@ import click
 
 from cwmscli import requirements as reqs
 from cwmscli.commands import csv2cwms
-from cwmscli.utils import (
-    api_key_loc_option,
-    api_key_option,
-    api_root_option,
-    get_api_key,
-    office_option,
-)
+from cwmscli.utils import api_key_loc_option, common_api_options, office_option
 from cwmscli.utils.deps import requires
 
 
@@ -23,9 +17,7 @@ from cwmscli.utils.deps import requires
     type=str,
     help="filename of SHEF crit file to be processed",
 )
-@office_option
-@api_root_option
-@api_key_option
+@common_api_options
 @api_key_loc_option
 @requires(reqs.cwms)
 def shefcritimport(filename, office, api_root, api_key, api_key_loc):
@@ -41,9 +33,7 @@ def shefcritimport(filename, office, api_root, api_key, api_key_loc):
 
 
 @click.command("csv2cwms", help="Store CSV TimeSeries data to CWMS using a config file")
-@office_option
-@api_root_option
-@api_key_option
+@common_api_options
 @click.option(
     "-l",
     "--location",
@@ -143,9 +133,7 @@ def csv2cwms_cmd(**kwargs):
     is_flag=True,
     help="Show what would be sent without performing the HTTP POST/write.",
 )
-@office_option
-@api_root_option
-@api_key_option
+@common_api_options
 @requires(reqs.cwms)
 def blob_cmd(**kwargs):
     from cwmscli.commands.blob import main
