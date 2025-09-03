@@ -6,10 +6,11 @@ import mimetypes
 import os
 import re
 import sys
-from typing import Optional
+from typing import Optional, Sequence
 
 import click
 import cwms
+import pandas as pd
 import requests
 
 # used to rebuild data URL for images
@@ -127,7 +128,7 @@ def retrieve_blob(**kwargs):
             f"Successfully retrieved blob with ID: {blob_id}",
         )
         _save_base64(blob, dest=blob_id)
-        return blob
+        logging.info(f"Downloaded blob to: {blob_id}")
     except requests.HTTPError as e:
         detail = getattr(e.response, "text", "") or str(e)
         logging.error(f"Failed to retrieve blob (HTTP): {detail}")
@@ -156,8 +157,48 @@ def delete_blob(**kwargs):
         sys.exit(1)
 
 
-# Windows SSL Error?
-# Run: pip install pip_system_certs
+def list_blobs(
+    office: Optional[str] = None,
+    blob_id_like: Optional[str] = None,
+    columns: Optional[Sequence[str]] = None,
+    sort_by: Optional[Sequence[str]] = None,
+    ascending: bool = True,
+    limit: Optional[int] = None,
+) -> pd.DataFrame:
+    logging.info(f"Listing blobs for office: {office!r}...")
+    result = cwms.get_blobs(office_id=office, blob_id_like=blob_id_like)
+
+    # Accept either a DataFrame or a JSON/dict-like response
+    if isinstance(result, pd.DataFrame):
+        df = result.copy()
+    else:
+        # Expecting normal blob return structure
+        data = getattr(result, "json", None)
+        if callable(data):
+            data = result.json()
+        df = pd.DataFrame((data or {}).get("blobs", []))
+
+    # Allow column filtering
+    if columns:
+        keep = [c for c in columns if c in df.columns]
+        if keep:
+            df = df[keep]
+
+    # Sort by option
+    if sort_by:
+        by = [c for c in sort_by if c in df.columns]
+        if by:
+            df = df.sort_values(by=by, ascending=ascending, kind="stable")
+
+    # Optional limit
+    if limit is not None:
+        df = df.head(limit)
+
+    logging.info(f"Found {len(df):,} blobs")
+    # List the blobs in the logger
+    for _, row in df.iterrows():
+        logging.info(f"Blob ID: {row['id']}, Description: {row.get('description')}")
+    return df
 
 
 def get_media_type(file_path: str) -> str:
@@ -186,15 +227,16 @@ def main(
     """
 
     cwms.api.init_session(api_root=api_root, api_key=api_key)
-
-    try:
-        file_size = os.path.getsize(input_file)
-        with open(input_file, "rb") as f:
-            file_data = f.read()
-        logging.info(f"Read file: {input_file} ({file_size} bytes)")
-    except Exception as e:
-        logging.error(f"Failed to read file: {e}")
-        sys.exit(1)
+    file_data = None
+    if input_file and directive in ["upload", "update"]:
+        try:
+            file_size = os.path.getsize(input_file)
+            with open(input_file, "rb") as f:
+                file_data = f.read()
+            logging.info(f"Read file: {input_file} ({file_size} bytes)")
+        except Exception as e:
+            logging.error(f"Failed to read file: {e}")
+            sys.exit(1)
 
     # Determine what should be done based on directive
     if directive == "upload":
@@ -208,14 +250,13 @@ def main(
             overwrite=overwrite,
             dry_run=dry_run,
         )
+    elif directive == "list":
+        list_blobs(office=office, blob_id_like=blob_id, sort_by="blob_id")
     elif directive == "download":
         retrieve_blob(
             office=office,
             blob_id=blob_id,
-            api_root=api_root,
-            api_key=api_key,
         )
-        logging.info(f"Downloaded blob to: {blob_id}")
     elif directive == "delete":
         # TODO: Delete endpoint does not exist in cwms-python yet
         logging.warning(

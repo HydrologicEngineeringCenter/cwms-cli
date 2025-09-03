@@ -108,13 +108,20 @@ def csv2cwms_cmd(**kwargs):
 @click.command("blob", help="Store a file, of varying types, as a blob in CWMS")
 @click.argument(
     "directive",
-    type=click.Choice(["upload", "download", "delete", "update"], case_sensitive=False),
+    type=click.Choice(
+        ["upload", "download", "delete", "update", "list"], case_sensitive=False
+    ),
 )
-@click.argument(
-    "input_file",
+@click.option(
+    "--input-file",
+    help="Path to the input file",
     type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
 )
-@click.argument("blob_id", type=str)
+@click.option(
+    "--blob-id",
+    type=str,
+    help="ID of the blob to operate on. Filter 'like' for the list directive.",
+)
 @click.option(
     "--description",
     default=None,
