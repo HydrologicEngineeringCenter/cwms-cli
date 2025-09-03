@@ -1,8 +1,9 @@
 import click
 
 from cwmscli import requirements as reqs
+from cwmscli.callbacks import csv_to_list
 from cwmscli.commands import csv2cwms
-from cwmscli.utils import api_key_loc_option, common_api_options, office_option
+from cwmscli.utils import api_key_loc_option, common_api_options
 from cwmscli.utils.deps import requires
 
 
@@ -95,47 +96,130 @@ def csv2cwms_cmd(**kwargs):
     csv2_main(**kwargs)
 
 
-@click.command("blob", help="Store a file, of varying types, as a blob in CWMS")
-@click.argument(
-    "directive",
-    type=click.Choice(
-        ["upload", "download", "delete", "update", "list"], case_sensitive=False
-    ),
-)
+# region Blob
+# ================================================================================
+#  BLOB
+# ================================================================================
+@click.group("blob", help="Manage CWMS Blobs (upload, download, delete, update, list)")
+@requires(reqs.cwms)
+def blob_group():
+    pass
+
+
+# ================================================================================
+#       Upload
+# ================================================================================
+@blob_group.command("upload", help="Upload a file as a blob")
 @click.option(
     "--input-file",
-    help="Path to the input file",
+    required=True,
     type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
+    help="Path to the file to upload.",
 )
-@click.option(
-    "--blob-id",
-    type=str,
-    help="ID of the blob to operate on. Filter 'like' for the list directive.",
-)
-@click.option(
-    "--description",
-    default=None,
-    help="Optional description of the blob.",
-)
+@click.option("--blob-id", required=True, type=str, help="Blob ID to create.")
+@click.option("--description", default=None, help="Optional description JSON or text.")
 @click.option(
     "--media-type",
     default=None,
-    help="Override media type for the file; guessed if not provided.",
+    help="Override media type (guessed from file if omitted).",
 )
 @click.option(
     "--overwrite/--no-overwrite",
     default=False,
     show_default=True,
-    help="If true, replace existing blob (sets fail-if-exists=false).",
+    help="If true, replace existing blob.",
 )
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@common_api_options
+def blob_upload(**kwargs):
+    from cwmscli.commands.blob import upload_cmd
+
+    upload_cmd(**kwargs)
+
+
+# ================================================================================
+#       Download
+# ================================================================================
+@blob_group.command("download", help="Download a blob by ID")
+# TODO: test XML
+@click.option("--blob-id", required=True, type=str, help="Blob ID to download.")
 @click.option(
-    "--dry-run",
-    is_flag=True,
-    help="Show what would be sent without performing the HTTP POST/write.",
+    "--dest",
+    default=None,
+    help="Destination file path. Defaults to blob-id.",
 )
 @common_api_options
-@requires(reqs.cwms)
-def blob_cmd(**kwargs):
-    from cwmscli.commands.blob import main
+def blob_download(**kwargs):
+    from cwmscli.commands.blob import download_cmd
 
-    main(**kwargs)
+    download_cmd(**kwargs)
+
+
+# ================================================================================
+#       Delete
+# ================================================================================
+@blob_group.command("delete", help="[Not implemented] Delete a blob by ID")
+@click.option("--blob-id", required=True, type=str, help="Blob ID to delete.")
+@common_api_options
+def delete_cmd(**kwargs):
+    from cwmscli.commands.blob import delete_cmd
+
+    delete_cmd(**kwargs)
+
+
+# ================================================================================
+#       Update
+# ================================================================================
+@blob_group.command("update", help="[Not implemented] Update/patch a blob by ID")
+@click.option("--blob-id", required=True, type=str, help="Blob ID to update.")
+@click.option(
+    "--input-file",
+    required=False,
+    type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
+    help="Optional file content to upload with update.",
+)
+@common_api_options
+def update_cmd(**kwargs):
+    from cwmscli.commands.blob import update_cmd
+
+    update_cmd(**kwargs)
+
+
+# ================================================================================
+#       List
+# ================================================================================
+@blob_group.command("list", help="List blobs with optional filters and sorting")
+# TODO: Add link to regex docs when new CWMS-DATA site is deployed to PROD
+@click.option("--blob-id-like", help="LIKE filter for blob ID (e.g., '*PNG').")
+@click.option(
+    "--columns",
+    multiple=True,
+    callback=csv_to_list,
+    help="Columns to show (repeat or comma-separate).",
+)
+@click.option(
+    "--sort-by",
+    multiple=True,
+    callback=csv_to_list,
+    help="Columns to sort by (repeat or comma-separate).",
+)
+@click.option(
+    "--desc/--asc",
+    default=False,
+    show_default=True,
+    help="Sort descending instead of ascending.",
+)
+@click.option("--limit", type=int, default=None, help="Max rows to show.")
+@click.option(
+    "--to-csv",
+    type=click.Path(dir_okay=False, writable=True, path_type=str),
+    help="If set, write results to this CSV file.",
+)
+@common_api_options
+def list_cmd(**kwargs):
+    from cwmscli.commands.blob import list_cmd
+
+    list_cmd(**kwargs)
+
+
+# endregion
