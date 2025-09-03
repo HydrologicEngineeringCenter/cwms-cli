@@ -30,14 +30,18 @@ def _save_base64(
     else:
         media_type = media_type_hint
         b64 = b64_or_dataurl
-
+    data = b64
     compact = re.sub(r"\s+", "", b64)
-    try:
-        data = base64.b64decode(compact, validate=True)
-    except Exception:
-        data = base64.b64decode(compact + "=" * (-len(compact) % 4))
-
     base, ext = os.path.splitext(dest)
+    # If an image was uploaded, convert it back from base64 encoding
+    # TODO: probably should handle this better in cwms-python?
+    write_type = "w"
+    if ext.lower() in [".png", ".jpg"]:
+        write_type = "wb"
+        try:
+            data = base64.b64decode(compact, validate=True)
+        except Exception:
+            data = base64.b64decode(compact + "=" * (-len(compact) % 4))
     if not ext:
         # guess extension from mime or bytes
         if media_type:
@@ -52,7 +56,7 @@ def _save_base64(
         dest = base + ext
 
     os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
-    with open(dest, "wb") as f:
+    with open(dest, write_type) as f:
         f.write(data)
     return dest
 
