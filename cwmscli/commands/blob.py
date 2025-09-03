@@ -8,7 +8,6 @@ import re
 import sys
 from typing import Optional, Sequence
 
-import click
 import cwms
 import pandas as pd
 import requests
@@ -59,8 +58,6 @@ def _save_base64(
 def store_blob(**kwargs):
     file_data = kwargs.get("file_data")
     blob_id = kwargs.get("blob_id").upper()
-    if file_data is None:
-        raise ValueError("store_blob requires file_data")
     # Attempt to determine what media type should be used for the mime-type if one is not presented based on the file extension
     media = kwargs.get("media_type") or get_media_type(kwargs.get("input_file"))
 
@@ -103,9 +100,6 @@ def store_blob(**kwargs):
         logging.info(
             f"View: {kwargs.get('api_root')}blobs/{blob_id}?office={kwargs.get('office')}"
         )
-        click.echo(
-            f"{kwargs.get('api_root')}blobs/{blob_id}?office={kwargs.get('office')}"
-        )
     except requests.HTTPError as e:
         # Include response text when available
         detail = getattr(e.response, "text", "") or str(e)
@@ -117,7 +111,13 @@ def store_blob(**kwargs):
 
 
 def retrieve_blob(**kwargs):
-    blob_id = kwargs.get("blob_id").upper()
+    blob_id = kwargs.get("blob_id", "")
+    if not blob_id:
+        logging.warning(
+            "Valid blob_id required to download a blob. cwms-cli blob download --blob-id=myid. Run the list directive to see options for your office."
+        )
+        sys.exit(0)
+    blob_id = blob_id.upper()
     logging.debug(f"Office: {kwargs.get('office')}  Blob ID: {blob_id}")
     try:
         blob = cwms.get_blob(
@@ -228,7 +228,12 @@ def main(
 
     cwms.api.init_session(api_root=api_root, api_key=api_key)
     file_data = None
-    if input_file and directive in ["upload", "update"]:
+    if directive in ["upload", "update"]:
+        if not input_file or not os.path.isfile(input_file):
+            logging.warning(
+                "Valid input_file required for upload/update. Use --input-file to specify."
+            )
+            sys.exit(0)
         try:
             file_size = os.path.getsize(input_file)
             with open(input_file, "rb") as f:
@@ -242,6 +247,7 @@ def main(
     if directive == "upload":
         store_blob(
             office=office,
+            api_root=api_root,
             input_file=input_file,
             blob_id=blob_id,
             description=description,
