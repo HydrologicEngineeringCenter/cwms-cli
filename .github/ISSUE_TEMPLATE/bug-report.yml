@@ -9,13 +9,15 @@ body:
       label: CLI Script
       description: Select the script this pertains to
       options:
+        - N/A
+        - blob
         - cwms-cli
         - csv2cwms
         - getusgs-measurements
         - getusgs-ratings
         - getusgs-timeseries
         - shefcritimport
-        - Does Not Exist Yet!
+        - Other / Does Not Exist Yet!
     validations:
       required: true
 
