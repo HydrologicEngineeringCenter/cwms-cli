@@ -48,7 +48,7 @@ def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc):
 @api_key_loc_option
 @requires(reqs.cwms, reqs.requests, reqs.dataretrieval)
 def getusgs_ratings(office, days_back, api_root, api_key, api_key_loc):
-    from cwmscli.getusgs.getusgs_ratings_cda import getusgs_rating_cda
+    from cwmscli.getusgs.getUSGS_ratings_CDA import getusgs_rating_cda
 
     api_key = get_api_key(api_key, api_key_loc)
     getusgs_rating_cda(

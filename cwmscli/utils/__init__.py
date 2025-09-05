@@ -51,3 +51,10 @@ def get_api_key(api_key: str, api_key_loc: str) -> str:
         raise Exception(
             "must add a value to either --api_key(-k) or --api_key_loc(-kl)"
         )
+
+
+def common_api_options(f):
+    f = office_option(f)
+    f = api_root_option(f)
+    f = api_key_option(f)
+    return f
