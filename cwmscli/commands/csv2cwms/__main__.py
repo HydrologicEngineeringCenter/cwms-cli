@@ -59,7 +59,7 @@ if [API_KEY, OFFICE, HOST].count(None) > 0:
     )
 
 
-def parse_file(file_path, begin_time, lookback, timezone="GMT"):
+def parse_file(file_path, begin_time, lookback, date_format, timezone="GMT"):
     csv_data = load_csv(file_path)
     header = csv_data[0]
     data = csv_data[1:]
@@ -71,7 +71,7 @@ def parse_file(file_path, begin_time, lookback, timezone="GMT"):
         # Skip empty rows or rows without a timestamp
         if not row:
             continue
-        row_datetime = parse_date(row[0], tz_str=timezone)
+        row_datetime = parse_date(row[0], tz_str=timezone, date_format=date_format)
         # Skip rows that are before/older than the lookback period and after the begin time
         logger.debug(f"Row datetime: {row_datetime}")
         if row_datetime < lookback_datetime or row_datetime > begin_time:
@@ -224,9 +224,8 @@ def main(*args, **kwargs):
     # Loop the file names and post the data
     for file_name in INPUT_FILES:
         # Grab the csv file path from the config
-        DATA_FILE = (
-            config.get("input_files", {}).get(file_name, {}).get("data_path", "")
-        )
+        CONFIG_ITEM = config.get("input_files", {}).get(file_name, {})
+        DATA_FILE = CONFIG_ITEM.get("data_path", "")
         if not DATA_FILE:
             logger.warning(
                 # TODO: List URL to example in doc site once available
@@ -237,6 +236,7 @@ def main(*args, **kwargs):
             DATA_FILE,
             begin_time,
             kwargs.get("lookback"),
+            CONFIG_ITEM.get("date_format"),
             kwargs.get("tz"),
         )
         ts_min_data = load_timeseries(csv_data, file_name, config)
