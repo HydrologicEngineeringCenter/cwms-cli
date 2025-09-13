@@ -1,5 +1,4 @@
 # Script Entry File
-import json
 import os
 import sys
 import time
@@ -203,7 +202,8 @@ def main(*args, **kwargs):
             raise ValueError(
                 "Environment variable CDA_COOP_HOST must be set to use --coop flag."
             )
-    config = read_config(kwargs.get("config_path"))
+    config_path = kwargs.get("config_path")
+    config = read_config(config_path)
     config_check(config)
     INPUT_FILES = config.get("input_files", {})
     # Override file names if one is specified in CLI
@@ -229,7 +229,7 @@ def main(*args, **kwargs):
         if not DATA_FILE:
             logger.warning(
                 # TODO: List URL to example in doc site once available
-                f"No data file specified for input-keys '{file_name}' in {kwargs.get("config_path")}. {colorize(f'Skipping {file_name}', 'red')}. Please provide a valid CSV file path by ensuring the 'data_path' key is set in the config."
+                f"No data file specified for input-keys '{file_name}' in {config_path}. {colorize(f'Skipping {file_name}', 'red')}. Please provide a valid CSV file path by ensuring the 'data_path' key is set in the config."
             )
             continue
         csv_data = parse_file(
@@ -246,12 +246,17 @@ def main(*args, **kwargs):
         for ts_object in ts_min_data:
             try:
                 ts_object.update({"office-id": kwargs.get("office")})
+                logger.info(
+                    "Store Rule: " + CONFIG_ITEM.get("store_rule", "")
+                    if CONFIG_ITEM.get("store_rule", "")
+                    else f"No Store Rule specified, will default to REPLACE_ALL in {config_path}."
+                )
                 if kwargs.get("dry_run"):
                     logger.info(f"DRY RUN: {ts_object}")
                 else:
                     cwms.store_timeseries(
                         data=ts_object,
-                        store_rule=kwargs.get("store_rule", "REPLACE_ALL"),
+                        store_rule=CONFIG_ITEM.get("store_rule", "REPLACE_ALL"),
                     )
                     logger.info(f"Stored {ts_object['name']} values")
             except Exception as e:
