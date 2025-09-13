@@ -1,5 +1,6 @@
 import pytest
-from utils.expression import eval_expression
+
+from ..utils.expression import eval_expression
 
 
 @pytest.mark.parametrize(

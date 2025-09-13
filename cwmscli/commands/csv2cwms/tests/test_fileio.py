@@ -1,7 +1,8 @@
 import os
 
 import pytest
-from utils.fileio import load_csv, read_config
+
+from ..utils.fileio import load_csv, read_config
 
 
 def test_load_csv_valid():
