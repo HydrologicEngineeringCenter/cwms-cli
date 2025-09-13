@@ -81,7 +81,7 @@ def parse_file(file_path, begin_time, lookback, timezone="GMT"):
     return {"header": header, "data": ts_data}
 
 
-def load_timeseries(file_data, project, config):
+def load_timeseries(file_data, file_key, config):
     header = file_data.get("header", [])
     data = file_data.get("data", {})
 
@@ -90,8 +90,8 @@ def load_timeseries(file_data, project, config):
             "No data found in the CSV file for the range selected: check the --lookback period and/or --begin time. You will also want to ensure you set the timezone of the CSV file with --tz America/Chicago or similar."
         )
 
-    ts_config = config["projects"][project]["timeseries"]
-    project_ts = []
+    ts_config = config["input_files"][file_key]["timeseries"]
+    file_ts = []
 
     # Interval in seconds
     interval = config.get("interval")
@@ -138,9 +138,9 @@ def load_timeseries(file_data, project, config):
         logger.debug(
             f"Timeseries {name} data range: {colorize(datetime.fromtimestamp(start_epoch), 'blue')} to {colorize(datetime.fromtimestamp(end_epoch), 'blue')}"
         )
-        project_ts.append(ts_obj)
+        file_ts.append(ts_obj)
 
-    return project_ts
+    return file_ts
 
 
 def config_check(config):
@@ -149,20 +149,25 @@ def config_check(config):
         logger.warning(
             "Configuration file does not contain an 'interval' key (and value in seconds), this is recommended per CSV file to avoid ambiguity."
         )
-    if not config.get("projects"):
-        raise ValueError("Configuration file must contain a 'projects' key.")
-    for proj, proj_data in config.get("projects").items():
-        # Only check the specified project or if all projects are specified
-        if proj != "all" and proj != proj.lower():
+    if config.get("projects"):
+        logger.warning(
+            "Configuration file contains a 'projects' key, this has been renamed to 'input_files' for clarity. Continuing for backwards compatibility."
+        )
+        config["input_files"] = config.pop("projects")
+    if not config.get("input_files"):
+        raise ValueError("Configuration file must contain an 'input_files' key.")
+    for file_key, file_data in config.get("input_files").items():
+        # Only check the specified keys or if all keys are specified
+        if file_key != "all" and file_key != file_key.lower():
             continue
-        if not proj_data.get("timeseries"):
+        if not file_data.get("timeseries"):
             raise ValueError(
-                f"Configuration file must contain a 'timeseries' key for project '{proj}'."
+                f"Configuration file must contain a 'timeseries' key for file '{file_key}'."
             )
-        for ts_name, ts_data in proj_data.get("timeseries").items():
+        for ts_name, ts_data in file_data.get("timeseries").items():
             if not ts_data.get("columns"):
                 raise ValueError(
-                    f"Configuration file must contain a 'columns' key for timeseries '{ts_name}' in project '{proj}'."
+                    f"Configuration file must contain a 'columns' key for timeseries '{ts_name}' in file '{file_key}'."
                 )
 
 
@@ -200,44 +205,41 @@ def main(*args, **kwargs):
             )
     config = read_config(kwargs.get("config_path"))
     config_check(config)
-    PROJECTS = config.get("projects")
-    # Override projects if one is specified in CLI
-    if kwargs.get("project"):
-        if kwargs.get("project") == "all":
-            PROJECTS = config.get("projects", {}).keys()
+    INPUT_FILES = config.get("input_files", {})
+    # Override file names if one is specified in CLI
+    if kwargs.get("input_keys"):
+        if kwargs.get("input_keys") == "all":
+            INPUT_FILES = config.get("input_files", {}).keys()
         else:
-            PROJECTS = [kwargs.get("project")]
-    if not PROJECTS:
-        raise ValueError("Configuration file must contain a 'projects' key.")
-    logger.info(f"Started for {','.join(PROJECTS)} projects.")
+            INPUT_FILES = kwargs.get("input_keys").split(",")
+    logger.info(f"Started for {','.join(INPUT_FILES)} input files.")
     # Input checks
-    # if kwargs.get("project") != "all" and kwargs.get("project") not in PROJECTS:
+    # if kwargs.get("file_name") != "all" and kwargs.get("file_name") not in INPUT_FILES:
     #     raise ValueError(
-    #         f"Invalid project name '{kwargs.get("project")}'. Valid options are: {', '.join(PROJECTS)}"
+    #         f"Invalid file name '{kwargs.get("file_name")}'. Valid options are: {', '.join(INPUT_FILES)}"
     #     )
     if kwargs.get("lookback") < 0:
         raise ValueError("Lookback period must be a non-negative integer.")
 
-    # Loop the projects and post the data
-    for proj in PROJECTS:
-        HYDRO_DIR = config.get("projects", {}).get(proj, {}).get("dir", "")
-
-        # Check if the user wants to override the data file name from what is in the config
-        DATA_FILE = kwargs.get("data_file") or config.get("projects", {}).get(
-            proj, {}
-        ).get("file", "")
+    # Loop the file names and post the data
+    for file_name in INPUT_FILES:
+        # Grab the csv file path from the config
+        DATA_FILE = (
+            config.get("input_files", {}).get(file_name, {}).get("data_path", "")
+        )
         if not DATA_FILE:
             logger.warning(
-                f"No data file specified for project '{proj}'. {colorize(f'Skipping {proj}', 'red')}. Please provide a valid CSV file path using --data_file or ensure the 'file' key is set in the config."
+                # TODO: List URL to example in doc site once available
+                f"No data file specified for input-keys '{file_name}' in {kwargs.get("config_path")}. {colorize(f'Skipping {file_name}', 'red')}. Please provide a valid CSV file path by ensuring the 'data_path' key is set in the config."
             )
             continue
         csv_data = parse_file(
-            os.path.join(kwargs.get("data_path"), HYDRO_DIR, DATA_FILE),
+            DATA_FILE,
             begin_time,
             kwargs.get("lookback"),
             kwargs.get("tz"),
         )
-        ts_min_data = load_timeseries(csv_data, proj, config)
+        ts_min_data = load_timeseries(csv_data, file_name, config)
 
         if kwargs.get("dry_run"):
             logger.info("DRY RUN enabled. No data will be posted")
@@ -254,7 +256,7 @@ def main(*args, **kwargs):
                     logger.info(f"Stored {ts_object['name']} values")
             except Exception as e:
                 logger.error(
-                    f"Error posting data for {proj}: {e}\n{traceback.format_exc()}"
+                    f"Error posting data for {file_name}: {e}\n{traceback.format_exc()}"
                 )
 
     logger.debug(f"\tExecution time: {round(time.time() - start_time, 3)} seconds.")

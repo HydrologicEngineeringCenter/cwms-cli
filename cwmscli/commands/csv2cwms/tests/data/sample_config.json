@@ -1,7 +1,8 @@
 {
     "interval": null,
-    "projects": {
+    "input_files": {
         "BROK": {
+            "data_path": "cwmscli/commands/csv2cwms/tests/data/sample_brok.csv",
             "timeseries": {
                 "BROK.Elev.Inst.15Minutes.0.Rev-SCADA-cda": {
                     "columns": "Headwater",

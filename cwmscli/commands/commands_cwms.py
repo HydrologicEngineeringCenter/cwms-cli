@@ -45,11 +45,11 @@ def shefcritimport(filename, office, api_root, api_key, api_key_loc):
 @api_root_option
 @api_key_option
 @click.option(
-    "-l",
-    "--location",
+    "--input-keys",
+    "input_keys",
     default="all",
     show_default=True,
-    help='Location ID. Use "-p=all" for all locations.',
+    help='Input keys. Defaults to all keys/files with --input-keys=all. These are the keys under "input_files" in a given config file. This option lets you run a single file from a config that contains multiple files. Example: --input-keys=file1',
 )
 @click.option(
     "-lb",
@@ -76,15 +76,6 @@ def shefcritimport(filename, office, api_root, api_key, api_key_loc):
     help="Override CSV file (else use config)",
 )
 @click.option("--log", show_default=True, help="Path to the log file.")
-@click.option(
-    "-dp",
-    "--data-path",
-    "data_path",
-    default=".",
-    show_default=True,
-    type=click.Path(exists=True, file_okay=False),
-    help="Directory where csv files are stored",
-)
 @click.option("--dry-run", is_flag=True, help="Log only (no HTTP calls)")
 @click.option("--begin", type=str, help="YYYY-MM-DDTHH:MM (local to --tz)")
 @click.option("-tz", "--timezone", "tz", default="GMT", show_default=True)

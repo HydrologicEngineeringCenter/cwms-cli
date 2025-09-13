@@ -32,8 +32,8 @@ def test_read_config_valid():
     path = os.path.join(os.path.dirname(__file__), "data", "sample_config.json")
     config = read_config(path)
     assert isinstance(config, dict)
-    assert "projects" in config
-    assert "BROK" in config["projects"]
+    assert "input-files" in config
+    assert "BROK" in config["input-files"]
 
 
 def test_read_config_invalid_json(tmp_path):
