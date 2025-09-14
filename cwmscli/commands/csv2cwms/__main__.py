@@ -50,7 +50,6 @@ except ImportError:
 API_KEY = os.getenv("CDA_API_KEY")
 OFFICE = os.getenv("CDA_OFFICE", "SWT")
 HOST = os.getenv("CDA_HOST")
-LOOKBACK_DAYS = int(os.getenv("CDA_LOOKBACK_DAYS", 5))  # Default to 5 days if not set
 
 if [API_KEY, OFFICE, HOST].count(None) > 0:
     raise ValueError(
@@ -58,23 +57,17 @@ if [API_KEY, OFFICE, HOST].count(None) > 0:
     )
 
 
-def parse_file(file_path, begin_time, lookback, date_format, timezone="GMT"):
+def parse_file(file_path, begin_time, date_format, timezone="GMT"):
     csv_data = load_csv(file_path)
     header = csv_data[0]
     data = csv_data[1:]
     ts_data = {}
-    lookback_datetime = begin_time - timedelta(hours=lookback)
     logger.debug(f"Begin time: {begin_time}")
-    logger.debug(f"Lookback datetime: {lookback_datetime}")
     for row in data:
         # Skip empty rows or rows without a timestamp
         if not row:
             continue
         row_datetime = parse_date(row[0], tz_str=timezone, date_format=date_format)
-        # Skip rows that are before/older than the lookback period and after the begin time
-        logger.debug(f"Row datetime: {row_datetime}")
-        if row_datetime < lookback_datetime or row_datetime > begin_time:
-            continue
         # Guarantee only one entry per timestamp
         ts_data[int(row_datetime.timestamp())] = row
     return {"header": header, "data": ts_data}
@@ -86,7 +79,7 @@ def load_timeseries(file_data, file_key, config):
 
     if not header or not data:
         raise ValueError(
-            "No data found in the CSV file for the range selected: check the --lookback period and/or --begin time. You will also want to ensure you set the timezone of the CSV file with --tz America/Chicago or similar."
+            "No data found in the CSV file for the range selected. Please ensure you set the timezone of the CSV file with --tz America/Chicago or similar."
         )
 
     ts_config = config["input_files"][file_key]["timeseries"]
@@ -194,7 +187,6 @@ def main(*args, **kwargs):
     setup_logger(kwargs.get("log"), verbose=kwargs.get("verbose"))
     logger.info(f"Begin time: {begin_time}")
     logger.debug(f"Timezone: {tz}")
-    logger.debug(f"Lookback period: {kwargs.get("lookback")} hours")
     # Override environment variables if provided in CLI
     if kwargs.get("coop"):
         HOST = os.getenv("CDA_COOP_HOST")
@@ -218,8 +210,6 @@ def main(*args, **kwargs):
     #     raise ValueError(
     #         f"Invalid file name '{kwargs.get("file_name")}'. Valid options are: {', '.join(INPUT_FILES)}"
     #     )
-    if kwargs.get("lookback") < 0:
-        raise ValueError("Lookback period must be a non-negative integer.")
 
     # Loop the file names and post the data
     for file_name in INPUT_FILES:
@@ -235,11 +225,14 @@ def main(*args, **kwargs):
         csv_data = parse_file(
             DATA_FILE,
             begin_time,
-            kwargs.get("lookback"),
             CONFIG_ITEM.get("date_format"),
             kwargs.get("tz"),
         )
-        ts_min_data = load_timeseries(csv_data, file_name, config)
+        try:
+            ts_min_data = load_timeseries(csv_data, file_name, config)
+        except ValueError as e:
+            logger.error(f"Error loading timeseries for {file_name}: {e}")
+            continue
 
         if kwargs.get("dry_run"):
             logger.info("DRY RUN enabled. No data will be posted")
