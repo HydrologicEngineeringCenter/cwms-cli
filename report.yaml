@@ -1,0 +1,29 @@
+# report.yaml
+office: "SWT"                          # fallback: $OFFICE or $CWMS_OFFICE
+cda_api_root: "https://cwms-data.usace.army.mil/cwms-data"  # optional
+begin: "24h"                           # ISO or relative like "24h", "3d", "90m"
+# end: "2025-09-07:00:00-05:00"     # optional; defaults to now (UTC)
+default_unit: "EN"                     # can be overridden per column
+
+report:
+  district: "Tulsa District SWT"
+  name: "Daily Morning Reservoir Report"
+  logo_left: "https://www.swt-wc.usace.army.mil/images/logos/usace-logo-color.svg"
+  logo_right: "https://www.swt-wc.usace.army.mil/images/logos/tulsa.png"
+projects: ["KEYS", "SKIA", "BROK"]
+
+columns:
+  - title: "Pool Elev (ft)"
+    tsid: "{project}.Elev.Inst.1Hour.0.Ccp"   # template expands {project}
+    unit: "EN"
+    precision: 2
+    key: "elev"
+  - title: "Tailwater (ft)"
+    tsid: "{project}.Tailwater.Inst.1Hour.0.Ccp"
+    precision: 2
+
+  - title: "Release (cfs)"
+    tsid: "{project}.Flow-Res Out.Ave.1Hour.1Hour.0.Ccp-Rev"
+    unit: "EN"
+    precision: 0
+    key: "release"
