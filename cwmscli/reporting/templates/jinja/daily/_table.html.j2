@@ -1,0 +1,64 @@
+<div class="table-responsive plot-container mb-5">
+  <table class="table align-middle table-hover table-bordered mb-0 data-table">
+    <thead>
+      <tr class="first-row">
+        <th rowspan="1">Reservoir</th>
+        <th colspan="2">Pool Elevation (ft)</th>
+        <th colspan="2">Pool Limits (ft)</th>
+        <th colspan="3">Pool Occupied Storage</th>
+        <th colspan="1">Inflow (cfs)</th>
+        <th colspan="3">Outflow (cfs)</th>
+        <th colspan="1">Pumpage (mgd)</th>
+        <th colspan="1">Evap (in)</th>
+        <th colspan="1">Precip (in)</th>
+      </tr>
+      <tr class="second-row">
+        <th rowspan="2"></th>
+        <th rowspan="2">8AM<br>FT-NGVD</th>
+        <th rowspan="2">24hr<br>Change</th>
+        <th colspan="2">Top Of</th>
+        <th rowspan="2">(%)</th>
+        <th rowspan="2">Pool</th>
+        <th rowspan="2">(ac-ft)</th>
+        <th rowspan="2">Mean</th>
+        <th rowspan="2">8AM<br>Release</th>
+        <th rowspan="2">Mean<br>Turbine</th>
+        <th rowspan="2">Daily<br>Gated<br>Average</th>
+        <th rowspan="2">Daily<br>Pump</th>
+        <th class="text-center" rowspan="2">24hr</th>
+        <th class="text-center" rowspan="2">24hr</th>
+      </tr>
+      <tr class="third-row">
+        <th>Con</th>
+        <th>Flood</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for basin_name, reservoirs in basins.items() %}
+      <tr class="table-secondary">
+        <th colspan="17" class="text-start">{{ basin_name }}</th>
+      </tr>
+      {% for prefix, name in reservoirs %}
+      <tr class="table-light">
+        <td class="text-start">{{ name }}</td>
+        <td>{{ values[prefix ~ '_elev'] }}</td>
+        <td>{{ values[prefix ~ '_diff'] }}</td>
+        <td>{{ ts(name="keys.elev.inst.1Hour.0.Ccp-Rev", office="SWT") }}</td>
+        <td>{{ pool_limits.get(prefix, (None,None,None))[1] or '--' }}</td>
+        <td>{{ pool_limits.get(prefix, (None,None,None))[2] or '--' }}</td>
+        <td>{{ values[prefix ~ '_stor_pct'] }}</td>
+        <td>{{ values[prefix ~ '_stor_letter'] }}</td>
+        <td>{{ values[prefix ~ '_stor'] }}</td>
+        <td>{{ values[prefix ~ '_inf'] }}</td>
+        <td>{{ values[prefix ~ '_rel'] }}</td>
+        <td>{{ values[prefix ~ '_turb'] }}</td>
+        <td>{{ values[prefix ~ '_gat'] }}</td>
+        <td>{{ values[prefix ~ '_pump'] }}</td>
+        <td>{{ values[prefix ~ '_evap'] }}</td>
+        <td>{{ values[prefix ~ '_rain'] }}</td>
+      </tr>
+      {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+</div>

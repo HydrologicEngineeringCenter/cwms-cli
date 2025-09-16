@@ -1,0 +1,6 @@
+{% extends "daily/base.html.j2" %}
+{% block title %}{{report.district}} {{report.name}}{% endblock %}
+{% block body %}
+  {% include "themes/_header.html.j2" %}
+  {% include "daily/_table.html.j2" %}
+{% endblock %}

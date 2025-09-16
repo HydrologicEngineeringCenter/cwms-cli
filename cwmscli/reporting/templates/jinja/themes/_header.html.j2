@@ -1,0 +1,19 @@
+<div class="table-responsive mb-4">
+  <div class="container" style="width: 85%; margin: 0 auto;">
+    <table class="table logo-table mb-0">
+      <tr>
+        <th style="width:100px">
+          <img src="{{ report.logo_left }}" height="80" width="100" alt="USACE">
+        </th>
+        <th class="text-center align-middle">
+          <strong>{{ report.district }}</strong><br>
+          {{ report.name }}<br>
+          <small>Generated for {{ base_date.strftime("%d %b %Y @ %H%M") }}</small>
+        </th>
+        <th style="width:100px" class="text-end">
+          <img src="{{ report.logo_right }}" height="80" width="100" alt="{{office}}">
+        </th>
+      </tr>
+    </table>
+  </div>
+</div>
