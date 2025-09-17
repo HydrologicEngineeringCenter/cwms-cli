@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import math
 import os
+import traceback
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 import click
 import cwms
@@ -14,23 +16,11 @@ import yaml
 from cwmscli.utils.deps import requires
 
 
-# ---------- Models ----------
 @dataclass
 class ProjectSpec:
     location_id: str
     href: Optional[str] = None
     office: Optional[str] = None
-
-
-@dataclass
-class ColumnSpec:
-    title: str
-    tsid: str
-    unit: Optional[str] = None
-    precision: Optional[int] = None
-    key: str = field(default="")
-    office: Optional[str] = None
-    location_id: Optional[str] = None
 
 
 @dataclass
@@ -42,50 +32,79 @@ class ReportSpec:
 
 
 @dataclass
+class ColumnSpec:
+    title: str
+    key: str
+    tsid: Optional[str] = None
+    level: Optional[str] = None
+    unit: Optional[str] = None
+    precision: Optional[int] = None
+    office: Optional[str] = None
+    location_id: Optional[str] = None
+    href: Optional[str] = None
+    missing: Optional[str] = None
+    undefined: Optional[str] = None
+    target_time: Optional[str] = None
+
+
+@dataclass
 class Config:
     office: str
     cda_api_root: Optional[str] = None
     report: ReportSpec | Dict[str, Any] | None = None
     projects: List[ProjectSpec] = field(default_factory=list)
     columns: List[ColumnSpec] = field(default_factory=list)
-    begin: Optional[str] = None  # ISO or relative like "24h"
-    end: Optional[str] = None  # ISO
+
+    begin: Optional[str] = None
+    end: Optional[str] = None
+
+    target_time: Optional[str] = None
+    time_epsilon_minutes: int = 5
+
     default_unit: str = "EN"
+    missing: str = "----"
+    undefined: str = "--NA--"
+    time_zone: Optional[str] = None
 
     @staticmethod
     def from_yaml(path: str) -> "Config":
         with open(path, "r", encoding="utf-8") as f:
             raw = yaml.safe_load(f) or {}
-        # env fallbacks
+
         office = (
             raw.get("office")
             or os.getenv("OFFICE")
             or os.getenv("CWMS_OFFICE")
             or "SWT"
         )
-        cda_api_root = raw.get("cda_api_root") or os.getenv("CDA_API_ROOT")
+
         report_block = raw.get("report") or {}
-        # normalize report to ReportSpec
         report = ReportSpec(
             district=report_block.get("district", office),
             name=report_block.get("name", "Daily Report"),
             logo_left=report_block.get("logo_left"),
             logo_right=report_block.get("logo_right"),
         )
-        # columns
-        cols = []
+
+        cols: List[ColumnSpec] = []
         for i, c in enumerate(raw.get("columns", [])):
             cols.append(
                 ColumnSpec(
                     title=c.get("title") or c.get("name") or f"Col{i+1}",
-                    tsid=c["tsid"],
+                    key=c.get("key") or c.get("title") or f"c{i+1}",
+                    tsid=c.get("tsid"),
+                    level=c.get("level"),
                     unit=c.get("unit"),
                     precision=c.get("precision"),
-                    key=c.get("key") or c.get("title") or f"c{i+1}",
                     office=c.get("office"),
                     location_id=c.get("location_id"),
+                    href=c.get("href"),
+                    missing=c.get("missing"),
+                    undefined=c.get("undefined"),
+                    target_time=c.get("target_time"),
                 )
             )
+
         projects_raw = raw.get("projects", [])
         projects: List[ProjectSpec] = []
         for p in projects_raw:
@@ -106,17 +125,112 @@ class Config:
 
         return Config(
             office=office,
-            cda_api_root=cda_api_root,
+            cda_api_root=raw.get("cda_api_root") or os.getenv("CDA_API_ROOT"),
             report=report,
             projects=projects,
             columns=cols,
             begin=raw.get("begin"),
             end=raw.get("end"),
+            target_time=raw.get("target_time"),
+            time_epsilon_minutes=int(raw.get("time_epsilon_minutes") or 5),
             default_unit=raw.get("default_unit") or "EN",
+            missing=raw.get("missing") or "----",
+            undefined=raw.get("undefined") or "--NA--",
+            time_zone=raw.get("time_zone"),
         )
 
 
-# ---------- Helpers ----------
+def _parse_target_like(
+    s: Optional[str], default_tz: Optional[str]
+) -> Optional[datetime]:
+    """
+    Accepts:
+      - ISO (with/without tz): '2025-09-17T08:00:00-05:00', '2025-09-17T13:00Z'
+      - 'HHMM YYYY-MM-DD [TZ]', 'HHMM MM/DD/YYYY [TZ]', 'HH:MM MM/DD/YYYY [TZ]'
+      - '0800 09/17/2025 America/Chicago'
+      - 'today 08:00 [TZ]' or 'yesterday 08:00 [TZ]' (optional)
+    Returns timezone-aware UTC datetime.
+    """
+    if not s:
+        return None
+    s = " ".join(str(s).split())
+
+    lower = s.lower()
+    if lower.startswith(("today", "yesterday")):
+        parts = s.split()
+        base = (
+            datetime.now(ZoneInfo(default_tz))
+            if default_tz
+            else datetime.now(timezone.utc)
+        )
+        if parts[0].lower() == "yesterday":
+            base = base - timedelta(days=1)
+
+        hhmm = parts[1] if len(parts) > 1 else "00:00"
+        tz = parts[2] if len(parts) > 2 else default_tz
+        if ":" in hhmm:
+            hh, mm = hhmm.split(":")
+        else:
+            hh, mm = hhmm[:2], hhmm[2:]
+        naive = base.replace(hour=int(hh), minute=int(mm), second=0, microsecond=0)
+        aware = (
+            naive
+            if naive.tzinfo
+            else (
+                naive.replace(tzinfo=ZoneInfo(tz))
+                if tz
+                else naive.replace(tzinfo=timezone.utc)
+            )
+        )
+        return aware.astimezone(timezone.utc)
+
+    try:
+        dt = datetime.fromisoformat(s)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo(default_tz) if default_tz else timezone.utc)
+        return dt.astimezone(timezone.utc)
+    except Exception:
+        pass
+
+    try:
+        parts = s.split()
+        tz = None
+        if len(parts) == 3:
+            time_s, date_s, tz = parts
+        elif len(parts) == 2:
+            time_s, date_s = parts
+        else:
+            raise ValueError()
+
+        if ":" in time_s:
+            hh, mm = time_s.split(":")
+        else:
+            hh, mm = time_s[:2], time_s[2:]
+
+        if "/" in date_s:
+            mon, day, yr = date_s.split("/")
+            yr = int(yr)
+            mon = int(mon)
+            day = int(day)
+        elif "-" in date_s:
+            yr, mon, day = date_s.split("-")
+            yr = int(yr)
+            mon = int(mon)
+            day = int(day)
+        else:
+            raise ValueError()
+
+        tzinfo = (
+            ZoneInfo(tz)
+            if tz
+            else (ZoneInfo(default_tz) if default_tz else timezone.utc)
+        )
+        local = datetime(yr, mon, day, int(hh), int(mm), tzinfo=tzinfo)
+        return local.astimezone(timezone.utc)
+    except Exception:
+        raise click.BadParameter(f"Invalid target_time: {s}")
+
+
 def _parse_time_or_relative(s: Optional[str]) -> Optional[datetime]:
     """
     Accepts ISO strings (with or without tz) or relative like "24h", "3d", "90m".
@@ -125,7 +239,7 @@ def _parse_time_or_relative(s: Optional[str]) -> Optional[datetime]:
     if not s:
         return None
     s = str(s).strip()
-    # relative
+
     if s.endswith(("h", "m", "d")) and s[:-1].isdigit():
         amount = int(s[:-1])
         unit = s[-1]
@@ -136,20 +250,12 @@ def _parse_time_or_relative(s: Optional[str]) -> Optional[datetime]:
             return now - timedelta(minutes=amount)
         if unit == "d":
             return now - timedelta(days=amount)
-    # ISO parse
+
     try:
         dt = datetime.fromisoformat(s)
     except ValueError:
         raise click.BadParameter(f"Invalid datetime: {s}")
-    # ensure tz-aware -> UTC
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
 
-
-def _ensure_tz(dt: Optional[datetime]) -> Optional[datetime]:
-    if dt is None:
-        return None
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
@@ -196,28 +302,77 @@ def _fetch_multi_df(
         end=end,
         melted=True,
     )
-    # expected columns: 'date-time', 'name', 'value' (possibly 'quality-code')
-    # make sure types are reasonable
+
     if "date-time" in df.columns:
         df["date-time"] = pd.to_datetime(df["date-time"], utc=True, errors="coerce")
     return df
 
 
-def _last_values_by_name(df: pd.DataFrame) -> Dict[str, float | None]:
+def _window_for_target(dt: datetime, minutes: int) -> tuple[datetime, datetime]:
+    eps = max(1, int(minutes))
+    return (dt - timedelta(minutes=eps), dt + timedelta(minutes=eps))
+
+
+def _expand_template(s: Optional[str], **kwargs) -> Optional[str]:
+    if not s:
+        return None
+    try:
+        return s.format(**kwargs)
+    except Exception:
+        return s
+
+
+def _fetch_levels_dict(
+    level_ids: List[str],
+    begin: str,
+    end: str,
+    office: str,
+    unit: str,
+) -> Dict[str, float | None]:
     """
-    For a melted dataframe with 'name' and 'date-time' and 'value',
-    return the last (by time) non-null value for each name.
+    Return {level_id: value or None}.
+    We assume cwms-python supports a get_level-like call; fall back to levels endpoint if needed.
     """
-    if df.empty:
-        return {}
-    work = df.dropna(subset=["value"])
-    if work.empty:
-        return {}
-    # sort then groupby tail(1)
-    print(work.columns, flush=True)
-    work = work.sort_values(["ts_id", "date-time"])
-    last = work.groupby("ts_id").tail(1)
-    return dict(zip(last["ts_id"], last["value"]))
+    out: Dict[str, float | None] = {}
+    for lvl in level_ids:
+        try:
+
+            val = cwms.get_level_as_timeseries(
+                begin=datetime.fromisoformat(begin),
+                end=datetime.fromisoformat(end),
+                location_level_id=lvl,
+                office_id=office,
+                unit=unit,
+            )
+            out[lvl] = val.json.get("values")[-1][1] if val.json.get("values") else None
+        except Exception as err:
+            print(
+                f"[reporting] Warning: could not fetch level '{lvl}': {err}",
+                traceback.format_exc(),
+            )
+            out[lvl] = None
+    return out
+
+
+def _format_value(
+    x: Any,
+    precision: Optional[int],
+    missing: str,
+    undefined: str,
+) -> str:
+
+    if x is None:
+        return missing
+    try:
+        xf = float(x)
+        if math.isnan(xf) or math.isinf(xf):
+            return undefined
+        if precision is None:
+            return f"{xf}"
+        return f"{xf:.{precision}f}"
+    except Exception:
+
+        return f"{x}"
 
 
 def _render_template(
@@ -233,19 +388,17 @@ def _render_template(
     import jinja2
 
     loaders: List[jinja2.BaseLoader] = []
-    # Use the built-in package templates if no user dir is given
+
     if not template_dir:
         pkg_dir = os.path.abspath(
             os.path.join(os.path.dirname(__file__), "templates", "jinja")
         )
-        print(pkg_dir, flush=True)
         if os.path.isdir(pkg_dir):
             loaders.append(jinja2.FileSystemLoader(pkg_dir))
-    # User-specified template dir (highest priority)
+
     if template_dir and os.path.isdir(template_dir):
         loaders.append(jinja2.FileSystemLoader(template_dir))
 
-    # Fallback minimal inline template if not found
     env = jinja2.Environment(
         loader=jinja2.ChoiceLoader(loaders) if loaders else None,
         autoescape=True,
@@ -259,100 +412,142 @@ def _render_template(
         tmpl = env.get_template(template_name)
         return tmpl.render(**context)
     except Exception as e:
-        # ultra-simple built-in fallback table
-        # (lets the command succeed even if no templates are set up yet)
-        cols = context["columns"]
-        rows = context["rows"]
-        data = context["data"]
-        title = f'{context.get("report",{}).get("district","") or context.get("office","") } {context.get("report",{}).get("name","Report")}'
-        head = (
-            "<tr><th>Project</th>"
-            + "".join(f"<th>{c['title']}</th>" for c in cols)
-            + "</tr>"
-        )
-        body = []
-        for proj in rows:
-            tds = [f"<td>{proj}</td>"]
-            for c in cols:
-                tds.append(f"<td>{data.get(proj,{}).get(c['key'],'-')}</td>")
-            body.append("<tr>" + "".join(tds) + "</tr>")
-        html = f"""<!doctype html>
-<html><head><meta charset="utf-8"><title>{title}</title>
-<style>table{{border-collapse:collapse}}td,th{{border:1px solid #444;padding:4px}}</style>
-</head><body>
-<h2>{title}</h2>
-<table>{head}{''.join(body)}</table>
-</body></html>"""
         click.echo(
             f"[reporting] Using built-in fallback template because '{template_name}' was not found.\nError: ({e})",
             err=True,
         )
-        return html
+        click.echo(traceback.format_exc())
 
 
-# ---------- Main routine ----------
 def build_report_table(
     config: Config, begin: Optional[datetime], end: Optional[datetime]
 ) -> Dict[str, Any]:
-    # rows remain as simple strings for template compatibility
     rows: List[str] = [p.location_id for p in config.projects]
     if not rows:
         raise click.UsageError("No 'projects' configured in YAML.")
 
-    # quick lookup
     proj_by_id: Dict[str, ProjectSpec] = {p.location_id: p for p in config.projects}
 
-    # columns with fallback office/unit
     col_defs: List[Dict[str, Any]] = []
     for c in config.columns:
+        if not (c.tsid or c.level):
+            raise click.BadParameter(f"Column '{c.title}' must have 'tsid' or 'level'.")
         col_defs.append(
             {
                 "title": c.title,
-                "key": c.key or c.title,
+                "key": c.key,
                 "precision": c.precision,
                 "unit": c.unit or config.default_unit,
+                "office": c.office or config.office,
                 "tsid_template": c.tsid,
-                "office": c.office or config.office,  # <- fallback here
+                "level_template": c.level,
+                "href_template": c.href,
+                "missing": c.missing or config.missing,
+                "undefined": c.undefined or config.undefined,
+                "target_time": c.target_time or config.target_time,
             }
         )
 
-    # group tsids by (office, unit)
-    group_tsids: Dict[tuple, List[str]] = {}  # (office, unit) -> tsids
-    backref: Dict[tuple, List[tuple]] = (
-        {}
-    )  # (office, unit, tsid) -> [(project_id, column_key)]
+    base_end = end or datetime.now(timezone.utc)
+
+    ts_groups: Dict[tuple, List[str]] = {}
+    backref_ts: Dict[tuple, List[tuple]] = {}
+
+    lvl_groups: Dict[tuple, List[str]] = {}
+    backref_lvl: Dict[tuple, List[tuple]] = {}
+
+    col_time_windows: Dict[str, tuple[datetime, datetime] | None] = {}
+    for c in col_defs:
+        tt = c.get("target_time")
+        if tt:
+            dt = _parse_target_like(tt, config.time_zone)
+            col_time_windows[c["key"]] = _window_for_target(
+                dt, config.time_epsilon_minutes
+            )
+        else:
+            col_time_windows[c["key"]] = None
 
     for proj_id in rows:
         for c in col_defs:
-            tsid = _expand_tsid(c["tsid_template"], proj_id)
-            k = (c["office"], c["unit"])
-            group_tsids.setdefault(k, [])
-            if tsid not in group_tsids[k]:
-                group_tsids[k].append(tsid)
-            backref.setdefault((c["office"], c["unit"], tsid), []).append(
-                (proj_id, c["key"])
-            )
+            office = c["office"]
+            unit = c["unit"]
+            key = c["key"]
 
-    # fetch & last values
-    last_value_by_key: Dict[tuple, float | None] = {}
-    for (office, unit), tsids in group_tsids.items():
+            if c["tsid_template"]:
+                tsid = _expand_template(c["tsid_template"], project=proj_id)
+                win = col_time_windows[key]
+                b, e = win if win else (begin, end)
+
+                if b is None or e is None:
+                    e = e or base_end
+                    b = b or (e - timedelta(hours=24))
+                gk = (office, unit, b, e)
+                ts_groups.setdefault(gk, [])
+                if tsid not in ts_groups[gk]:
+                    ts_groups[gk].append(tsid)
+                backref_ts.setdefault((office, unit, b, e, tsid), []).append(
+                    (proj_id, key)
+                )
+
+            elif c["level_template"]:
+                lvl = _expand_template(c["level_template"], project=proj_id)
+                gk = (office, unit)
+                lvl_groups.setdefault(gk, [])
+                if lvl not in lvl_groups[gk]:
+                    lvl_groups[gk].append(lvl)
+                backref_lvl.setdefault((office, unit, lvl), []).append((proj_id, key))
+
+    last_ts_value: Dict[tuple, float | None] = {}
+    for (office, unit, b, e), tsids in ts_groups.items():
         if not tsids:
             continue
-        df = _fetch_multi_df(tsids, office, unit, begin, end)
-        last_vals = _last_values_by_name(df)
-        for ts in tsids:
-            last_value_by_key[(office, unit, ts)] = last_vals.get(ts)
+        df = _fetch_multi_df(tsids, office, unit, b, e)
 
-    # prefetch project locations once and graft href
+        name_col = (
+            "ts_id"
+            if "ts_id" in df.columns
+            else ("name" if "name" in df.columns else None)
+        )
+        time_col = (
+            "date-time"
+            if "date-time" in df.columns
+            else ("date_time" if "date_time" in df.columns else None)
+        )
+        if name_col and time_col:
+            df = df.dropna(subset=[time_col])
+            df[time_col] = pd.to_datetime(df[time_col], utc=True, errors="coerce")
+            df = df.sort_values([name_col, time_col])
+            last = df.groupby(name_col).tail(1)
+            for _, row in last.iterrows():
+                last_ts_value[(office, unit, b, e, str(row[name_col]))] = row.get(
+                    "value", None
+                )
+        else:
+
+            for ts in tsids:
+                last_ts_value[(office, unit, b, e, ts)] = None
+
+    last_lvl_value: Dict[tuple, float | None] = {}
+    for (office, unit), lvls in lvl_groups.items():
+        if not lvls:
+            continue
+        vals = _fetch_levels_dict(
+            lvls,
+            begin=config.begin,
+            end=config.end,
+            office=office,
+            unit=unit,
+        )
+        for lvl in lvls:
+            last_lvl_value[(office, unit, lvl)] = vals.get(lvl)
+
     proj_locations: Dict[str, Dict[str, Any]] = {}
     for proj_id in rows:
         proj = proj_by_id[proj_id]
         proj_office = proj.office or config.office
         try:
             loc = cwms.get_location(office_id=proj_office, location_id=proj_id)
-            loc_json = (
-                getattr(loc, "json", None) or loc
-            )  # cwms-python returns object w/ .json
+            loc_json = getattr(loc, "json", None) or loc
             if isinstance(loc_json, dict):
                 loc_json = {**loc_json}
                 if proj.href:
@@ -363,28 +558,62 @@ def build_report_table(
             loc_json = {"name": proj_id, "href": proj.href}
         proj_locations[proj_id] = loc_json
 
-    # build the table payload
     table: Dict[str, Dict[str, Any]] = {proj_id: {} for proj_id in rows}
 
-    for (office, unit, tsid), pairs in backref.items():
-        raw_val = last_value_by_key.get((office, unit, tsid))
-        for proj_id, col_key in pairs:
-            col = next((c for c in col_defs if c["key"] == col_key), None)
-            precision = col.get("precision") if col else None
-            table[proj_id][col_key] = _format_number(raw_val, precision)
+    for (office, unit, b, e, tsid), pairs in backref_ts.items():
+        raw = last_ts_value.get((office, unit, b, e, tsid))
 
-    # attach location block (with href) per project row
+        for proj_id, col_key in pairs:
+            c = next((x for x in col_defs if x["key"] == col_key), None)
+            val_text = _format_value(
+                raw,
+                precision=c.get("precision") if c else None,
+                missing=(c.get("missing") or config.missing),
+                undefined=(c.get("undefined") or config.undefined),
+            )
+            href = _expand_template(
+                c.get("href_template"),
+                project=proj_id,
+                office=office,
+                tsid=tsid,
+                level=None,
+            )
+            table[proj_id][col_key] = (
+                {"text": val_text, "href": href} if href else {"text": val_text}
+            )
+
+    for (office, unit, lvl), pairs in backref_lvl.items():
+        raw = last_lvl_value.get((office, unit, lvl))
+        for proj_id, col_key in pairs:
+            c = next((x for x in col_defs if x["key"] == col_key), None)
+            val_text = _format_value(
+                raw,
+                precision=c.get("precision") if c else None,
+                missing=(c.get("missing") or config.missing),
+                undefined=(c.get("undefined") or config.undefined),
+            )
+            href = _expand_template(
+                c.get("href_template"),
+                project=proj_id,
+                office=office,
+                tsid=None,
+                level=lvl,
+            )
+            table[proj_id][col_key] = (
+                {"text": val_text, "href": href} if href else {"text": val_text}
+            )
+
     for proj_id in rows:
         table[proj_id]["location"] = proj_locations.get(proj_id, {"name": proj_id})
 
     return {
         "columns": col_defs,
-        "rows": rows,  # still a list of project IDs for your template loop
-        "data": table,  # data[proj]["location"]["href"] now exists (if provided)
+        "rows": rows,
+        "data": table,
+        "base_end": base_end,
     }
 
 
-# ---------- Click entry ----------
 @click.command(
     name="reporting",
     help="Render a CWMS timeseries report to HTML using a YAML config and Jinja2.",
@@ -434,10 +663,8 @@ def build_report_table(
     },
 )
 def reporting_cli(config_path, template_dir, template_name, begin, end, out_path):
-    # Load config
-    cfg = Config.from_yaml(config_path)
 
-    # Resolve time window
+    cfg = Config.from_yaml(config_path)
     cfg_begin = (
         _parse_time_or_relative(begin) if begin else _parse_time_or_relative(cfg.begin)
     )
@@ -445,27 +672,23 @@ def reporting_cli(config_path, template_dir, template_name, begin, end, out_path
     if cfg_end is None:
         cfg_end = datetime.now(timezone.utc)
     if cfg_begin is None:
-        # CWMS default is end-24h, but we make it explicit here
         cfg_begin = cfg_end - timedelta(hours=24)
 
-    # Configure cwms client API root if provided
-    cwms.init_session(api_root=cfg.cda_api_root)
+    print(f"Using time window: {cfg_begin} to {cfg_end}", flush=True)
 
-    # Build table data
-    print(cfg)
+    cwms.init_session(api_root=cfg.cda_api_root)
     table_ctx = build_report_table(cfg, cfg_begin, cfg_end)
 
-    # Render
-    base_date = cfg_end.astimezone(timezone.utc)
+    base_date = table_ctx.get("base_end", cfg_end).astimezone(timezone.utc)
     context = {
         "office": cfg.office,
         "report": dataclasses_asdict(cfg.report),
         "base_date": base_date,
         **table_ctx,
     }
-    print("TEMPLATE DIR", template_dir)
     html = _render_template(template_dir, template_name, context)
-
+    if not html:
+        raise click.ClickException("No HTML generated.")
     with open(out_path, "w", encoding="utf-8") as f:
         f.write(html)
     click.echo(f"Wrote {out_path}")

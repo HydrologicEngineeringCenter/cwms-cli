@@ -1,10 +1,18 @@
-# report.yaml
-office: "SWT" # fallback: $OFFICE or $CWMS_OFFICE
-cda_api_root: "https://cwms-data.usace.army.mil/cwms-data/" # optional
-begin: "24h" # ISO or relative like "24h", "3d", "90m"
-# end: "2025-09-16T11:00:00-05:00"     # optional; defaults to now (UTC)
+# daily.yaml
+office: "SWT"
+cda_api_root: "https://cwms-data.usace.army.mil/cwms-data/"
 
-default_unit: "EN" # can be overridden per column
+# Either use a rolling window:
+begin: "2025-09-16T00:00:00-05:00"
+end: "2025-09-17T00:00:00-05:00"
+# Or pin to a single instant, globally:
+target_time: "0800 09/17/2025 America/Chicago"
+time_epsilon_minutes: 10  # +/- window around target_time for TS picks; default 5
+
+default_unit: "EN"
+missing: "----"        # used when no value at all was found
+undefined: "--NA--"    # used when a value exists but is NaN/invalid
+time_zone: "America/Chicago"  # default zone for parsing target_time if zone omitted
 
 report:
   district: "Tulsa District SWT"
@@ -21,21 +29,26 @@ projects:
     href: "https://www.swt-wc.usace.army.mil/brok.lakepage.html"
 
 columns:
+  # Timeseries at a specific time
   - title: "Pool Elev (ft)"
-    location_id: "KEYS"
-    tsid: "{project}.Elev.Inst.1Hour.0.Ccp-Rev"
+    key: "elev_ts"
     office: "SWT"
     unit: "EN"
     precision: 2
-    key: "elev"
+    tsid: "{project}.Elev.Inst.1Hour.0.Ccp-Rev"
+    # override the global target time for THIS column (optional):
+    # target_time: "2025-09-17T08:00:00-05:00"
+    # per-column render strings (optional):
+    missing: "--"
+    undefined: "~~~~.~~"
+    href: "https://water.usace.army.mil/office/{office}/ts?name={tsid}"
 
-  # - title: "Release (cfs)"
-  #   tsid: "{project}.Flow-Res Out.Ave.1Hour.1Hour.0.Ccp-Rev"
-  #   unit: "EN"
-  #   precision: 0
-  #   key: "release"
-
-  # - title: "Tailwater (ft)"
-  #   tsid: "{project}.Tailwater.Inst.1Hour.0.Ccp-Rev"
-  #   precision: 2
-  #   key: "tailwater"
+  # Level identifier (no sampling window; we just read the level)
+  - title: "Top of Conservation (ft)"
+    key: "top_cons"
+    office: "SWT"
+    unit: "ft"
+    precision: 2
+    level: "{project}.Elev.Inst.0.Top of Conservation"
+    # optional per column overrides
+    undefined: "n/a"
