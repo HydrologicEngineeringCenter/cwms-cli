@@ -1,255 +1,430 @@
-import json
+from __future__ import annotations
+
+import math
 import os
-from pathlib import Path
+from dataclasses import dataclass, field
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Iterable, List, Optional
 
 import click
+import cwms
+import pandas as pd
+import yaml
 
-from cwmscli.utils import api_key_option, api_root_option, get_api_key, office_option
 from cwmscli.utils.deps import requires
 
 
-# ---- Group ----
-@click.group("reporting", help="Create CWMS reports (Jinja, Repgen5, iText).")
-@office_option
-@api_root_option
-@api_key_option
-def reporting(office, api_root, api_key):
+# ---------- Models ----------
+@dataclass
+class ProjectSpec:
+    location_id: str
+    href: Optional[str] = None
+    office: Optional[str] = None
+
+
+@dataclass
+class ColumnSpec:
+    title: str
+    tsid: str
+    unit: Optional[str] = None
+    precision: Optional[int] = None
+    key: str = field(default="")
+    office: Optional[str] = None
+    location_id: Optional[str] = None
+
+
+@dataclass
+class ReportSpec:
+    district: str
+    name: str
+    logo_left: Optional[str] = None
+    logo_right: Optional[str] = None
+
+
+@dataclass
+class Config:
+    office: str
+    cda_api_root: Optional[str] = None
+    report: ReportSpec | Dict[str, Any] | None = None
+    projects: List[ProjectSpec] = field(default_factory=list)
+    columns: List[ColumnSpec] = field(default_factory=list)
+    begin: Optional[str] = None  # ISO or relative like "24h"
+    end: Optional[str] = None  # ISO
+    default_unit: str = "EN"
+
+    @staticmethod
+    def from_yaml(path: str) -> "Config":
+        with open(path, "r", encoding="utf-8") as f:
+            raw = yaml.safe_load(f) or {}
+        # env fallbacks
+        office = (
+            raw.get("office")
+            or os.getenv("OFFICE")
+            or os.getenv("CWMS_OFFICE")
+            or "SWT"
+        )
+        cda_api_root = raw.get("cda_api_root") or os.getenv("CDA_API_ROOT")
+        report_block = raw.get("report") or {}
+        # normalize report to ReportSpec
+        report = ReportSpec(
+            district=report_block.get("district", office),
+            name=report_block.get("name", "Daily Report"),
+            logo_left=report_block.get("logo_left"),
+            logo_right=report_block.get("logo_right"),
+        )
+        # columns
+        cols = []
+        for i, c in enumerate(raw.get("columns", [])):
+            cols.append(
+                ColumnSpec(
+                    title=c.get("title") or c.get("name") or f"Col{i+1}",
+                    tsid=c["tsid"],
+                    unit=c.get("unit"),
+                    precision=c.get("precision"),
+                    key=c.get("key") or c.get("title") or f"c{i+1}",
+                    office=c.get("office"),
+                    location_id=c.get("location_id"),
+                )
+            )
+        projects_raw = raw.get("projects", [])
+        projects: List[ProjectSpec] = []
+        for p in projects_raw:
+            if isinstance(p, str):
+                projects.append(ProjectSpec(location_id=p))
+            elif isinstance(p, dict):
+                projects.append(
+                    ProjectSpec(
+                        location_id=p.get("location_id")
+                        or p.get("name")
+                        or p.get("id"),
+                        href=p.get("href"),
+                        office=p.get("office"),
+                    )
+                )
+            else:
+                raise click.BadParameter(f"Invalid project entry: {p!r}")
+
+        return Config(
+            office=office,
+            cda_api_root=cda_api_root,
+            report=report,
+            projects=projects,
+            columns=cols,
+            begin=raw.get("begin"),
+            end=raw.get("end"),
+            default_unit=raw.get("default_unit") or "EN",
+        )
+
+
+# ---------- Helpers ----------
+def _parse_time_or_relative(s: Optional[str]) -> Optional[datetime]:
     """
-    Shared options for all reporting commands. Stores values in ctx.obj.
+    Accepts ISO strings (with or without tz) or relative like "24h", "3d", "90m".
+    Returns timezone-aware UTC datetimes (or None).
     """
-    print("Report!")
+    if not s:
+        return None
+    s = str(s).strip()
+    # relative
+    if s.endswith(("h", "m", "d")) and s[:-1].isdigit():
+        amount = int(s[:-1])
+        unit = s[-1]
+        now = datetime.now(timezone.utc)
+        if unit == "h":
+            return now - timedelta(hours=amount)
+        if unit == "m":
+            return now - timedelta(minutes=amount)
+        if unit == "d":
+            return now - timedelta(days=amount)
+    # ISO parse
+    try:
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        raise click.BadParameter(f"Invalid datetime: {s}")
+    # ensure tz-aware -> UTC
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
 
-# ---- reporting scaffold ----
-@reporting.command(
-    "scaffold", help="Create a starter Jinja + Requests report in a folder."
-)
-@click.option(
-    "-d",
-    "--dir",
-    "out_dir",
-    default=".",
-    show_default=True,
-    help="Directory to create starter files.",
-)
-@requires(
-    {
-        "module": "jinja2",
-        "package": "Jinja2",
-        "version": "3.1.0",
-        "desc": "Templating engine",
-        "link": "https://palletsprojects.com/p/jinja/",
-    },
-    {
-        "module": "requests",
-        "version": "2.31.0",
-        "desc": "HTTP client",
-        "link": "https://requests.readthedocs.io/",
-    },
-)
-def scaffold(**kwargs):
-    from jinja2 import Template  # lazy import so CLI stays snappy
+def _ensure_tz(dt: Optional[datetime]) -> Optional[datetime]:
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
 
-    print(kwargs)
-    base = Path(kwargs.get("out_dir"))
-    base.mkdir(parents=True, exist_ok=True)
 
-    # Minimal starter template (HTML) using variables and a small loop.
-    template = """<!doctype html>
-<html>
-  <head><meta charset="utf-8"/><title>{{ title }}</title></head>
-  <body>
-    <h1>{{ title }}</h1>
-    <p>Office: {{ office }}</p>
-    <p>Generated at: {{ generated_at }}</p>
+def _format_number(x: Any, precision: Optional[int]) -> str:
+    if x is None or (isinstance(x, float) and (math.isnan(x) or math.isinf(x))):
+        return "-"
+    try:
+        if precision is None:
+            return f"{x}"
+        fmt = f"{{:.{precision}f}}"
+        return fmt.format(float(x))
+    except Exception:
+        return f"{x}"
 
-    <h2>Latest values</h2>
-    <ul>
-    {% for item in series %}
-      <li><strong>{{ item.name }}</strong>: {{ item.value }} {{ item.unit }} at {{ item.time }}</li>
-    {% endfor %}
-    </ul>
-  </body>
-</html>
-"""
-    (base / "report.html.j2").write_text(template, encoding="utf-8")
 
-    # Starter config: which time series to fetch and how to label the report.
-    config = {
-        "title": "Sample CWMS Report",
-        "series": [
-            {
-                "name": "KEYS.Elev.Inst.1Hour.0.Ccp-Rev",
-                "alias": "Keystone Elevation",
-            }
-        ],
-        # Optional begin/end ISO strings; if omitted, the renderer can choose defaults
-        "begin": None,
-        "end": None,
-        "unit_system": "EN",
-    }
-    (base / "report.json").write_text(json.dumps(config, indent=2), encoding="utf-8")
+def _expand_tsid(tsid_template: str, project: str) -> str:
+    """
+    If tsid_template contains '{project}', substitute it.
+    Otherwise return as-is (full TSIDs remain unchanged).
+    """
+    if "{project}" in tsid_template:
+        return tsid_template.format(project=project)
+    return tsid_template
 
-    # Tiny README
-    (base / "README.md").write_text(
-        """# Reporting Starter
 
-Files:
-- `report.html.j2` — Jinja2 template
-- `report.json` — configuration (title, series list, optional begin/end)
-- Use: `cwms-cli reporting render -d reporting_starter -o out.html`
+def _fetch_multi_df(
+    tsids: List[str],
+    office: str,
+    unit: str,
+    begin: Optional[datetime],
+    end: Optional[datetime],
+) -> pd.DataFrame:
+    """
+    Wrapper around cwms.get_multi_timeseries_df, always returns a melted frame:
+      columns: ['date-time','name','value','quality-code'] (depending on cwms-python version)
+    """
+    df = cwms.get_multi_timeseries_df(
+        ts_ids=tsids,
+        office_id=office,
+        unit=unit,
+        begin=begin,
+        end=end,
+        melted=True,
+    )
+    # expected columns: 'date-time', 'name', 'value' (possibly 'quality-code')
+    # make sure types are reasonable
+    if "date-time" in df.columns:
+        df["date-time"] = pd.to_datetime(df["date-time"], utc=True, errors="coerce")
+    return df
 
-""",
-        encoding="utf-8",
+
+def _last_values_by_name(df: pd.DataFrame) -> Dict[str, float | None]:
+    """
+    For a melted dataframe with 'name' and 'date-time' and 'value',
+    return the last (by time) non-null value for each name.
+    """
+    if df.empty:
+        return {}
+    work = df.dropna(subset=["value"])
+    if work.empty:
+        return {}
+    # sort then groupby tail(1)
+    print(work.columns, flush=True)
+    work = work.sort_values(["ts_id", "date-time"])
+    last = work.groupby("ts_id").tail(1)
+    return dict(zip(last["ts_id"], last["value"]))
+
+
+def _render_template(
+    template_dir: Optional[str],
+    template_name: str | None,
+    context: Dict[str, Any],
+) -> str:
+    """
+    Try user-specified template directory first; if not provided or missing,
+    fall back to package templates (if you ship any). For now, we only support
+    user-supplied templates or very simple built-in fallback.
+    """
+    import jinja2
+
+    loaders: List[jinja2.BaseLoader] = []
+    # Use the built-in package templates if no user dir is given
+    if not template_dir:
+        pkg_dir = os.path.abspath(
+            os.path.join(os.path.dirname(__file__), "templates", "jinja")
+        )
+        print(pkg_dir, flush=True)
+        if os.path.isdir(pkg_dir):
+            loaders.append(jinja2.FileSystemLoader(pkg_dir))
+    # User-specified template dir (highest priority)
+    if template_dir and os.path.isdir(template_dir):
+        loaders.append(jinja2.FileSystemLoader(template_dir))
+
+    # Fallback minimal inline template if not found
+    env = jinja2.Environment(
+        loader=jinja2.ChoiceLoader(loaders) if loaders else None,
+        autoescape=True,
+        trim_blocks=True,
+        lstrip_blocks=True,
     )
 
-    click.echo(f"Scaffold created in: {base.resolve()}")
+    try:
+        if not template_name:
+            template_name = "report.html.j2"
+        tmpl = env.get_template(template_name)
+        return tmpl.render(**context)
+    except Exception as e:
+        # ultra-simple built-in fallback table
+        # (lets the command succeed even if no templates are set up yet)
+        cols = context["columns"]
+        rows = context["rows"]
+        data = context["data"]
+        title = f'{context.get("report",{}).get("district","") or context.get("office","") } {context.get("report",{}).get("name","Report")}'
+        head = (
+            "<tr><th>Project</th>"
+            + "".join(f"<th>{c['title']}</th>" for c in cols)
+            + "</tr>"
+        )
+        body = []
+        for proj in rows:
+            tds = [f"<td>{proj}</td>"]
+            for c in cols:
+                tds.append(f"<td>{data.get(proj,{}).get(c['key'],'-')}</td>")
+            body.append("<tr>" + "".join(tds) + "</tr>")
+        html = f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>{title}</title>
+<style>table{{border-collapse:collapse}}td,th{{border:1px solid #444;padding:4px}}</style>
+</head><body>
+<h2>{title}</h2>
+<table>{head}{''.join(body)}</table>
+</body></html>"""
+        click.echo(
+            f"[reporting] Using built-in fallback template because '{template_name}' was not found.\nError: ({e})",
+            err=True,
+        )
+        return html
 
 
-# ---- reporting render ----
-@reporting.command("render", help="Render a Jinja template using CWMS Data API.")
-@click.option(
-    "-d",
-    "--dir",
-    "in_dir",
-    default=".",
-    show_default=True,
-    help="Directory with report.html.j2 and report.json.",
-)
-@click.option(
-    "-t",
-    "--template",
-    default="report.html.j2",
-    show_default=True,
-    help="Template filename inside the directory.",
-)
-@click.option(
-    "-c",
-    "--config",
-    default="report.json",
-    show_default=True,
-    help="Config JSON filename inside the directory.",
-)
-@click.option(
-    "--output",
-    "out_file",
-    default="report.html",
-    show_default=True,
-    help="Output file.",
-)
-@click.option("--begin", help="Override begin ISO8601 (optional).")
-@click.option("--end", help="Override end ISO8601 (optional).")
-@office_option
-@api_root_option
-@requires(
-    {
-        "module": "jinja2",
-        "package": "Jinja2",
-        "version": "3.1.0",
-        "desc": "Templating engine",
-    },
-    {
-        "module": "requests",
-        "version": "2.31.0",
-        "desc": "HTTP client",
-    },
-)
-def render_report(**kwargs):
-    """
-    Loads config, calls CWMS Data API for each series, renders template.
-    """
-    from datetime import datetime, timezone
+# ---------- Main routine ----------
+def build_report_table(
+    config: Config, begin: Optional[datetime], end: Optional[datetime]
+) -> Dict[str, Any]:
+    # rows remain as simple strings for template compatibility
+    rows: List[str] = [p.location_id for p in config.projects]
+    if not rows:
+        raise click.UsageError("No 'projects' configured in YAML.")
 
-    import requests
-    from jinja2 import Environment, FileSystemLoader, select_autoescape
+    # quick lookup
+    proj_by_id: Dict[str, ProjectSpec] = {p.location_id: p for p in config.projects}
 
-    office = kwargs.get("office")
-    api_root = kwargs.get("api_root").rstrip("/")
-    api_key = kwargs.get("api_key")
-
-    base = Path(kwargs.get("in_dir"))
-    cfg = json.loads((base / kwargs.get("config")).read_text(encoding="utf-8"))
-
-    # Allow CLI begin/end overrides
-    if kwargs.get("begin"):
-        cfg["begin"] = kwargs.get("begin")
-    if kwargs.get("end"):
-        cfg["end"] = kwargs.get("end")
-
-    headers = {}
-    # if api_key:
-    #    headers["Authorization"] = f"Bearer {api_key}"
-
-    # Minimal fetcher: latest value or bounded time-window (kept simple here)
-    def fetch_latest(name: str):
-        # If you want last value, ask for a tiny window ending "now"
-        # You can refine with timeseries/values GET params as needed
-        params = {
-            "name": name,
-            "office": office,
-        }
-        if cfg.get("begin"):
-            params["begin"] = kwargs.get("begin")
-        if cfg.get("end"):
-            params["end"] = kwargs.get("end")
-        if cfg.get("unit_system"):
-            params["unit-system"] = cfg.get("unit_system")
-
-        url = f"{api_root}/timeseries"
-        r = requests.get(url, params=params, headers=headers, timeout=30)
-        r.raise_for_status()
-        data = r.json()
-
-        # Normalize a simple return shape (you’ll adapt to your exact API)
-        # Expecting something like: { "values": [ [epoch_ms, value, qual], ... ], "units": "ft", ... }
-        values = data.get("values") or data.get("value-pairs") or []
-        unit = data.get("units") or data.get("unit") or ""
-        if values:
-            # Try to handle both [epoch,value,...] or object shapes
-            last = values[-1]
-            if isinstance(last, (list, tuple)) and len(last) >= 2:
-                epoch_ms, val = last[0], last[1]
-                t = datetime.fromtimestamp(
-                    epoch_ms / 1000.0, tz=timezone.utc
-                ).isoformat()
-                return val, t, unit
-            elif isinstance(last, dict):
-                val = last.get("value")
-                t = last.get("time") or last.get("date-time") or ""
-                return val, t, unit
-        return None, None, unit
-
-    series_results = []
-    for s in cfg.get("series", []):
-        val, t, unit = fetch_latest(s["name"])
-        series_results.append(
+    # columns with fallback office/unit
+    col_defs: List[Dict[str, Any]] = []
+    for c in config.columns:
+        col_defs.append(
             {
-                "name": s.get("alias") or s["name"],
-                "value": val,
-                "time": t,
-                "unit": unit,
+                "title": c.title,
+                "key": c.key or c.title,
+                "precision": c.precision,
+                "unit": c.unit or config.default_unit,
+                "tsid_template": c.tsid,
+                "office": c.office or config.office,  # <- fallback here
             }
         )
 
-    env = Environment(
-        loader=FileSystemLoader(str(base)),
-        autoescape=select_autoescape(["html", "xml"]),
-    )
-    tmpl = env.get_template(kwargs.get("template"))
+    # group tsids by (office, unit)
+    group_tsids: Dict[tuple, List[str]] = {}  # (office, unit) -> tsids
+    backref: Dict[tuple, List[tuple]] = (
+        {}
+    )  # (office, unit, tsid) -> [(project_id, column_key)]
 
-    html = tmpl.render(
-        title=cfg.get("title", "CWMS Report"),
-        office=office,
-        generated_at=datetime.utcnow().isoformat() + "Z",
-        series=series_results,
-        cfg=cfg,
-    )
-    Path(kwargs.get("out_file")).write_text(html, encoding="utf-8")
-    click.echo(f"Wrote {Path(kwargs.get('out_file')).resolve()}")
+    for proj_id in rows:
+        for c in col_defs:
+            tsid = _expand_tsid(c["tsid_template"], proj_id)
+            k = (c["office"], c["unit"])
+            group_tsids.setdefault(k, [])
+            if tsid not in group_tsids[k]:
+                group_tsids[k].append(tsid)
+            backref.setdefault((c["office"], c["unit"], tsid), []).append(
+                (proj_id, c["key"])
+            )
+
+    # fetch & last values
+    last_value_by_key: Dict[tuple, float | None] = {}
+    for (office, unit), tsids in group_tsids.items():
+        if not tsids:
+            continue
+        df = _fetch_multi_df(tsids, office, unit, begin, end)
+        last_vals = _last_values_by_name(df)
+        for ts in tsids:
+            last_value_by_key[(office, unit, ts)] = last_vals.get(ts)
+
+    # prefetch project locations once and graft href
+    proj_locations: Dict[str, Dict[str, Any]] = {}
+    for proj_id in rows:
+        proj = proj_by_id[proj_id]
+        proj_office = proj.office or config.office
+        try:
+            loc = cwms.get_location(office_id=proj_office, location_id=proj_id)
+            loc_json = (
+                getattr(loc, "json", None) or loc
+            )  # cwms-python returns object w/ .json
+            if isinstance(loc_json, dict):
+                loc_json = {**loc_json}
+                if proj.href:
+                    loc_json["href"] = proj.href
+            else:
+                loc_json = {"name": proj_id, "href": proj.href}
+        except Exception:
+            loc_json = {"name": proj_id, "href": proj.href}
+        proj_locations[proj_id] = loc_json
+
+    # build the table payload
+    table: Dict[str, Dict[str, Any]] = {proj_id: {} for proj_id in rows}
+
+    for (office, unit, tsid), pairs in backref.items():
+        raw_val = last_value_by_key.get((office, unit, tsid))
+        for proj_id, col_key in pairs:
+            col = next((c for c in col_defs if c["key"] == col_key), None)
+            precision = col.get("precision") if col else None
+            table[proj_id][col_key] = _format_number(raw_val, precision)
+
+    # attach location block (with href) per project row
+    for proj_id in rows:
+        table[proj_id]["location"] = proj_locations.get(proj_id, {"name": proj_id})
+
+    return {
+        "columns": col_defs,
+        "rows": rows,  # still a list of project IDs for your template loop
+        "data": table,  # data[proj]["location"]["href"] now exists (if provided)
+    }
 
 
-# ---- reporting repgen ----
-@reporting.command("repgen", help="Create a report using Repgen5 (stub).")
+# ---------- Click entry ----------
+@click.command(
+    name="reporting",
+    help="Render a CWMS timeseries report to HTML using a YAML config and Jinja2.",
+)
+@click.option(
+    "--config",
+    "-c",
+    "config_path",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False),
+    help="Path to report YAML.",
+)
+@click.option(
+    "--template-dir",
+    "-t",
+    "template_dir",
+    type=click.Path(exists=True, file_okay=False),
+    help="Directory containing Jinja templates (e.g., templates/jinja).",
+)
+@click.option(
+    "--template",
+    "-n",
+    "template_name",
+    default=None,
+    help="Template filename to render (relative to --template-dir). Default: report.html.j2",
+)
+@click.option(
+    "--begin",
+    help='Override begin time (ISO or relative like "24h"). If omitted, uses YAML or defaults.',
+)
+@click.option("--end", help="Override end time (ISO). If omitted, uses YAML or now.")
+@click.option(
+    "--out",
+    "-o",
+    "out_path",
+    default="report.html",
+    show_default=True,
+    type=click.Path(dir_okay=False),
+    help="Output HTML path.",
+)
 @requires(
     {
         "module": "jinja2",
@@ -257,24 +432,55 @@ def render_report(**kwargs):
         "version": "3.1.0",
         "desc": "Templating for pre/post-processing",
     },
-    # Add your repgen5 dependency discovery here when ready (e.g., Java/JAR presence)
 )
-@click.option("--template", help="Repgen template/file to execute (future).")
-def generate_repgen(template):
-    click.echo("Repgen5 integration coming soon.")
+def reporting_cli(config_path, template_dir, template_name, begin, end, out_path):
+    # Load config
+    cfg = Config.from_yaml(config_path)
+
+    # Resolve time window
+    cfg_begin = (
+        _parse_time_or_relative(begin) if begin else _parse_time_or_relative(cfg.begin)
+    )
+    cfg_end = _parse_time_or_relative(end) if end else _parse_time_or_relative(cfg.end)
+    if cfg_end is None:
+        cfg_end = datetime.now(timezone.utc)
+    if cfg_begin is None:
+        # CWMS default is end-24h, but we make it explicit here
+        cfg_begin = cfg_end - timedelta(hours=24)
+
+    # Configure cwms client API root if provided
+    cwms.init_session(api_root=cfg.cda_api_root)
+
+    # Build table data
+    print(cfg)
+    table_ctx = build_report_table(cfg, cfg_begin, cfg_end)
+
+    # Render
+    base_date = cfg_end.astimezone(timezone.utc)
+    context = {
+        "office": cfg.office,
+        "report": dataclasses_asdict(cfg.report),
+        "base_date": base_date,
+        **table_ctx,
+    }
+    print("TEMPLATE DIR", template_dir)
+    html = _render_template(template_dir, template_name, context)
+
+    with open(out_path, "w", encoding="utf-8") as f:
+        f.write(html)
+    click.echo(f"Wrote {out_path}")
 
 
-# ---- reporting itext ----
-@reporting.command("itext", help="Create a report using iText (stub).")
-@requires(
-    # Example: you might end up calling into Java; jpype could be one approach
-    {
-        "module": "jpype",
-        "version": "1.5.0",
-        "desc": "Bridge to call Java iText from Python (optional approach).",
-        "link": "https://jpype.readthedocs.io/",
-    },
-)
-@click.option("--template", help="iText template/file to execute (future).")
-def generate_itext(template):
-    click.echo("iText integration coming soon.")
+def dataclasses_asdict(obj):
+    if obj is None:
+        return None
+    if hasattr(obj, "__dataclass_fields__"):
+        return {
+            fld: dataclasses_asdict(getattr(obj, fld))
+            for fld in obj.__dataclass_fields__
+        }
+    if isinstance(obj, (list, tuple)):
+        return [dataclasses_asdict(x) for x in obj]
+    if isinstance(obj, dict):
+        return {k: dataclasses_asdict(v) for k, v in obj.items()}
+    return obj
