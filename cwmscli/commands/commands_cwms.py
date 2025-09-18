@@ -149,6 +149,15 @@ def blob_upload(**kwargs):
     help="Destination file path. Defaults to blob-id.",
 )
 @common_api_options
+@requires(
+    {
+        "module": "imghdr",
+        "package": "standard-imghdr",
+        "version": "3.0.0",
+        "desc": "Package to help detect image types",
+        "link": "https://docs.python.org/3/library/imghdr.html",
+    }
+)
 def blob_download(**kwargs):
     from cwmscli.commands.blob import download_cmd
 
