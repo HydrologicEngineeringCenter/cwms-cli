@@ -100,7 +100,16 @@ def csv2cwms_cmd(**kwargs):
 # ================================================================================
 #  BLOB
 # ================================================================================
-@click.group("blob", help="Manage CWMS Blobs (upload, download, delete, update, list)")
+@click.group(
+    "blob",
+    help="Manage CWMS Blobs (upload, download, delete, update, list)",
+    epilog="""
+  * Store a PDF/image as a CWMS blob with optional description
+  * Download a blob by id to your local filesystem
+  * Update a blob's name/description
+  * Bulk list blobs for an office
+""",
+)
 @requires(reqs.cwms)
 def blob_group():
     pass
