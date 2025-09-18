@@ -1,5 +1,4 @@
 import base64
-import imghdr
 import json
 import logging
 import mimetypes
@@ -49,6 +48,8 @@ def _save_base64(
             if ext == ".jpe":
                 ext = ".jpg"
         if not ext:
+            import imghdr
+
             kind = imghdr.what(None, data)
             if kind == "jpeg":
                 kind = "jpg"
