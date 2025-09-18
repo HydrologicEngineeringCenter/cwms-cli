@@ -1,4 +1,4 @@
-name: CWMS-CLI Script Issue or Feature Request
+name: CWMS-CLI Feature Request
 description: Request a feature related to CWMS-CLI scripts
 labels: ["enhancement"]
 body:
@@ -8,6 +8,7 @@ body:
       label: CLI Script
       description: Select the script this pertains to
       options:
+        - blob
         - cwms-cli
         - csv2cwms
         - getusgs-measurements
