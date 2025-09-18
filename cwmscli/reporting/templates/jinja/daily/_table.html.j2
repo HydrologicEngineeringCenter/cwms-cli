@@ -1,23 +1,56 @@
 <div class="table-responsive" style="width: 90%; margin: 0 auto;">
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Project</th>
-        {% for col in columns %}
-        <th>{{ col.title }}</th>
-        {% endfor %}
-      </tr>
-    </thead>
-    <tbody>
-      {% for proj in rows %}
-      <tr>
-        <td><a href='{{ data[proj]["location"]["href"] }}'><strong>
-              {{data[proj]["location"]["public-name"]}}</strong></a></td>
-        {% for col in columns %}
-        <td>{{ data[proj][col.key] }}</td>
-        {% endfor %}
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+    <table class="data-table">
+        <thead>
+            {% if header and header.rows and header.rows|length > 0 %}
+            {% set header_row_count = header.rows|length %}
+            {% for r in header.rows %}
+            <tr>
+                {% if loop.first %}
+                {% set pr = header.project %}
+                <th rowspan="{{ pr.rowspan or header_row_count }}" class="{{ pr.classes or '' }}" {% if pr.align
+                    %}style="text-align: {{ pr.align }};" {% endif %}>{{ pr.text | safe }}</th>
+                {% endif %}
+
+                {% for cell in r %}
+                <th {% if cell.colspan and cell.colspan> 1 %}colspan="{{ cell.colspan }}"{% endif %}
+                    {% if cell.rowspan and cell.rowspan > 1 %}rowspan="{{ cell.rowspan }}"{% endif %}
+                    class="{{ cell.classes or '' }}"
+                    {% if cell.align %}style="text-align: {{ cell.align }};"{% endif %}
+                    >{{ cell.text | safe }}</th>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+            {% else %}
+            <tr>
+                <th>{{ (header.project.text if header else "Project") | safe }}</th>
+                {% for col in columns %}
+                <th>{{ col.title | safe }}</th>
+                {% endfor %}
+            </tr>
+            {% endif %}
+        </thead>
+
+
+        <tbody>
+            {% for proj in rows %}
+            <tr>
+                <td>
+                    <a href='{{ data[proj]["location"]["href"] }}'>
+                        <strong>{{ data[proj]["location"]["public-name"] or proj | safe }}</strong>
+                    </a>
+                </td>
+                {% for col in columns %}
+                {% set cell = data[proj][col.key] %}
+                <td>
+                    {% if cell.href %}
+                    <a href="{{ cell.href }}">{{ cell.text | safe }}</a>
+                    {% else %}
+                    {{ cell.text | safe }}
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
 </div>

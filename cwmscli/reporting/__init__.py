@@ -32,6 +32,23 @@ class ReportSpec:
 
 
 @dataclass
+class HeaderCellSpec:
+    text: str
+    colspan: int = 1
+    rowspan: int = 1
+    align: Optional[str] = None  # "left"|"center"|"right"
+    classes: Optional[str] = None
+
+
+@dataclass
+class TableHeaderSpec:
+    project: HeaderCellSpec = field(
+        default_factory=lambda: HeaderCellSpec(text="Project", rowspan=1)
+    )
+    rows: List[List[HeaderCellSpec]] = field(default_factory=list)
+
+
+@dataclass
 class ColumnSpec:
     title: str
     key: str
@@ -54,7 +71,7 @@ class Config:
     report: ReportSpec | Dict[str, Any] | None = None
     projects: List[ProjectSpec] = field(default_factory=list)
     columns: List[ColumnSpec] = field(default_factory=list)
-
+    header: Optional[TableHeaderSpec] = None
     begin: Optional[str] = None
     end: Optional[str] = None
 
@@ -122,7 +139,16 @@ class Config:
                 )
             else:
                 raise click.BadParameter(f"Invalid project entry: {p!r}")
-
+        # Validate the columns and header spec
+        header = _parse_header_spec(raw.get("header"))
+        if header and header.rows:
+            # compute leaf-count in the final header row
+            leaf_count = sum(max(1, c.colspan) for c in header.rows[-1])
+            if leaf_count != len(cols):
+                click.echo(
+                    f"[reporting] Warning: header leaf-count ({leaf_count}) != number of data columns ({len(cols)}).",
+                    err=True,
+                )
         return Config(
             office=office,
             cda_api_root=raw.get("cda_api_root") or os.getenv("CDA_API_ROOT"),
@@ -137,7 +163,38 @@ class Config:
             missing=raw.get("missing") or "----",
             undefined=raw.get("undefined") or "--NA--",
             time_zone=raw.get("time_zone"),
+            header=header,
         )
+
+
+def _parse_header_spec(raw: Optional[Dict[str, Any]]) -> Optional["TableHeaderSpec"]:
+    if not raw:
+        return None
+
+    def to_cell(d: Dict[str, Any]) -> HeaderCellSpec:
+        return HeaderCellSpec(
+            text=str(d.get("text", "")),
+            colspan=int(d.get("colspan", 1) or 1),
+            rowspan=int(d.get("rowspan", 1) or 1),
+            align=d.get("align"),
+            classes=d.get("classes"),
+        )
+
+    proj_raw = raw.get("project", {}) or {}
+    project = to_cell(
+        {
+            "text": proj_raw.get("text", "Project"),
+            "rowspan": proj_raw.get("rowspan", 1),
+            "align": proj_raw.get("align"),
+            "classes": proj_raw.get("classes"),
+        }
+    )
+    rows_raw = raw.get("rows", []) or []
+    rows = []
+    for r in rows_raw:
+        row_cells = [to_cell(c) for c in (r or [])]
+        rows.append(row_cells)
+    return TableHeaderSpec(project=project, rows=rows)
 
 
 def _parse_target_like(
@@ -405,11 +462,8 @@ def _render_template(
         trim_blocks=True,
         lstrip_blocks=True,
     )
-
     try:
-        if not template_name:
-            template_name = "report.html.j2"
-        tmpl = env.get_template(template_name)
+        tmpl = env.get_template(template_name or "report.html.j2")
         return tmpl.render(**context)
     except Exception as e:
         click.echo(
@@ -674,8 +728,6 @@ def reporting_cli(config_path, template_dir, template_name, begin, end, out_path
     if cfg_begin is None:
         cfg_begin = cfg_end - timedelta(hours=24)
 
-    print(f"Using time window: {cfg_begin} to {cfg_end}", flush=True)
-
     cwms.init_session(api_root=cfg.cda_api_root)
     table_ctx = build_report_table(cfg, cfg_begin, cfg_end)
 
@@ -684,6 +736,7 @@ def reporting_cli(config_path, template_dir, template_name, begin, end, out_path
         "office": cfg.office,
         "report": dataclasses_asdict(cfg.report),
         "base_date": base_date,
+        "header": dataclasses_asdict(cfg.header),
         **table_ctx,
     }
     html = _render_template(template_dir, template_name, context)

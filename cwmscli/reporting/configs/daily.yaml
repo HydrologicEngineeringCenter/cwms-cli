@@ -28,6 +28,59 @@ projects:
   - location_id: "BROK"
     href: "https://www.swt-wc.usace.army.mil/brok.lakepage.html"
 
+header:
+  project:
+    text: "Reservoir"     # text in the far-left header cell
+    classes: ""         # optional extra classes
+    align: center       # optional: left|center|right
+  rows:
+      # Header row 1
+    -   -
+          text: "Pool Elevation"
+          colspan: 2
+        - text: "Pool Limits"
+          colspan: 2
+        - text: "Pool Occupied Storage"
+          colspan: 3
+        - text: "8AM Status (cfs)"
+          colspan: 3
+        - text: "Previous 24Hr Average (cfs)"
+          colspan: 3
+        - text: "Precip (in)"
+          align: center
+      # Header row 2
+    -   - text: ""
+          rowspan: 2
+        - text: "8AM <br>Current"
+          rowspan: 2
+        - text: "8AM <br>Prev"
+          rowspan: 2
+        - text: "Top Of"
+          colspan: 2
+        - text: "(%)"
+          rowspan: 2
+        - text: "C/F"
+          rowspan: 2
+        - text: "(ac-ft)"
+          rowspan: 2
+        - text: "Total Release"
+          rowspan: 2
+        - text: "Power Release"
+          rowspan: 2
+        - text: "Inflow"
+          rowspan: 2
+        - text: "Total Release"
+          rowspan: 2
+        - text: "Power Release"
+          rowspan: 2
+        - text: "Inflow"
+          rowspan: 2
+        - text: "24Hr"
+          rowspan: 2
+      # Header row 3
+    -   - text: "Pool Elev (ft)"
+        - text: "Tailwater (ft)"
+
 columns:
   # Timeseries at a specific time
   - title: "Pool Elev (ft)"
@@ -37,7 +90,7 @@ columns:
     precision: 2
     tsid: "{project}.Elev.Inst.1Hour.0.Ccp-Rev"
     # override the global target time for THIS column (optional):
-    # target_time: "2025-09-17T08:00:00-05:00"
+    target_time: "2025-09-17T08:00:00-05:00"
     # per-column render strings (optional):
     missing: "--"
     undefined: "~~~~.~~"
