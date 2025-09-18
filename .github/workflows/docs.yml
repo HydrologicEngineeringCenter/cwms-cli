@@ -1,5 +1,5 @@
 # Confirm the docs build works on PRs touching docs or code
-name: docs
+name: ReadTheDocs/Sphinx Validation
 on:
   pull_request:
     paths: ["docs/**", "cwmscli/**", "pyproject.toml"]

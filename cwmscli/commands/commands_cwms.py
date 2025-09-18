@@ -199,7 +199,9 @@ def update_cmd(**kwargs):
 # ================================================================================
 @blob_group.command("list", help="List blobs with optional filters and sorting")
 # TODO: Add link to regex docs when new CWMS-DATA site is deployed to PROD
-@click.option("--blob-id-like", help="LIKE filter for blob ID (e.g., '*PNG').")
+@click.option(
+    "--blob-id-like", help="LIKE filter for blob ID (e.g., ``*PNG``)."
+)  # Escape the wildcard/asterisk for RTD generation with double backticks
 @click.option(
     "--columns",
     multiple=True,
