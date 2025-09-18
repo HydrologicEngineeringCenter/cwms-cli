@@ -12,9 +12,40 @@ import pandas as pd
 import requests
 
 from cwmscli.utils import get_api_key
+from cwmscli.utils.deps import requires
 
 # used to rebuild data URL for images
 DATA_URL_RE = re.compile(r"^data:(?P<mime>[^;]+);base64,(?P<data>.+)$", re.I | re.S)
+
+
+@requires(
+    {
+        "module": "imghdr",
+        "package": "standard-imghdr",
+        "version": "3.0.0",
+        "desc": "Package to help detect image types",
+        "link": "https://docs.python.org/3/library/imghdr.html",
+    }
+)
+def _determine_ext(data: bytes | str, write_type: str) -> str:
+    """
+    Attempt to determine the file extension from the data itself.
+    Requires the imghdr module (lazy import) to inspect the bytes for image types.
+    If not an image, defaults to .bin
+
+    Args:
+        data: The binary data or base64 string to inspect.
+        write_type: The mode in which the data will be written ('wb' for binary, 'w' for text).
+
+    Returns:
+        The determined file extension, including the leading dot (e.g., '.png', '.jpg').
+    """
+    import imghdr
+
+    kind = imghdr.what(None, data)
+    if kind == "jpeg":
+        kind = "jpg"
+    return f".{kind}" if kind else ".bin"
 
 
 def _save_base64(
@@ -47,13 +78,10 @@ def _save_base64(
             ext = mimetypes.guess_extension(media_type.split(";")[0].lower()) or ""
             if ext == ".jpe":
                 ext = ".jpg"
+        # last resort, try to determine from the data itself
+        # requires imghdr to dig into the bytes to determine image type
         if not ext:
-            import imghdr
-
-            kind = imghdr.what(None, data)
-            if kind == "jpeg":
-                kind = "jpg"
-            ext = f".{kind}" if kind else ".bin"
+            ext = _determine_ext(data, write_type)
         dest = base + ext
 
     os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
