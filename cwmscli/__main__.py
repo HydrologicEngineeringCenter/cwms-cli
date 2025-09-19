@@ -2,6 +2,7 @@ import click
 
 from cwmscli.commands import commands_cwms
 from cwmscli.getusgs import commands_getusgs
+from cwmscli.load import __main__ as load
 
 
 @click.group()
@@ -16,3 +17,4 @@ cli.add_command(commands_getusgs.getusgs_measurements)
 cli.add_command(commands_cwms.shefcritimport)
 cli.add_command(commands_cwms.csv2cwms_cmd)
 cli.add_command(commands_cwms.blob_group)
+cli.add_command(load.load_group)
