@@ -1,7 +1,8 @@
 from datetime import datetime, timedelta
 
 import pytest
-from utils.dateutils import determine_interval, parse_date, safe_zoneinfo
+
+from ..utils.dateutils import determine_interval, parse_date, safe_zoneinfo
 
 
 def test_parse_date_valid_formats():

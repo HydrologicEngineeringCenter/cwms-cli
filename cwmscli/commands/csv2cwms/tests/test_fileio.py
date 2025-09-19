@@ -1,7 +1,8 @@
 import os
 
 import pytest
-from utils.fileio import load_csv, read_config
+
+from ..utils.fileio import load_csv, read_config
 
 
 def test_load_csv_valid():
@@ -31,8 +32,8 @@ def test_read_config_valid():
     path = os.path.join(os.path.dirname(__file__), "data", "sample_config.json")
     config = read_config(path)
     assert isinstance(config, dict)
-    assert "projects" in config
-    assert "BROK" in config["projects"]
+    assert "input_files" in config
+    assert "BROK" in config["input_files"]
 
 
 def test_read_config_invalid_json(tmp_path):
