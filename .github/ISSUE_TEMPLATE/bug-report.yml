@@ -1,14 +1,14 @@
-name: CWMS CLI Script Issues
+name: CWMS-CLI Script Issues
 description: File a bug report CWMS-CLI scripts
 labels: ["bug"]
 body:
-
   - type: dropdown
     id: script
     attributes:
       label: CLI Script
       description: Select the script this pertains to
       options:
+        - blob
         - cwms-cli
         - csv2cwms
         - getusgs-measurements
