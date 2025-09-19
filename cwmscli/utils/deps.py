@@ -32,7 +32,7 @@ def requires(*requirements):
                 "package": "cwms-python",
                 "version": "0.8.0",
                 "desc": "CWMS REST API Python client",
-                "link": "https://github.com/USACE/cwms-python"
+                "link": "https://github.com/hydrologicengineeringcenter/cwms-python"
             },
             {
                 "module": "requests",
@@ -40,8 +40,6 @@ def requires(*requirements):
                 "desc": "Required for HTTP API access"
             }
         )
-        def my_command():
-            ...
     """
 
     def decorator(func):
