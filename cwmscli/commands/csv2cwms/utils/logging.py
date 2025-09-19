@@ -50,6 +50,11 @@ def setup_logger(
     Returns:
         logger: logging.Logger
     """
+
+    # Remove the default logger handlers from cwms-cli so we can set up our own
+    root = logging.getLogger()
+    for h in root.handlers[:]:
+        root.removeHandler(h)
     # Create formatter and attach to handler
     formatter = ColorFormatter(
         "[%(asctime)s] [%(levelname)s] %(message)s", "%Y-%m-%d %H:%M:%S"

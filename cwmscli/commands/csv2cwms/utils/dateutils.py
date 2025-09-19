@@ -1,3 +1,4 @@
+import logging
 from collections import Counter
 from datetime import datetime, timezone
 from typing import List
@@ -8,6 +9,8 @@ except ImportError:
     # Python < 3.9 does not support zoneinfo
     ZoneInfo = None
     ZoneInfoNotFoundError = Exception
+
+logger = logging.getLogger(__name__)
 
 DATE_STRINGS = [
     "%m/%d/%Y %H:%M:%S",
@@ -35,7 +38,7 @@ def safe_zoneinfo(key: str):
         return timezone.utc
 
 
-def parse_date(date, tz_str="UTC") -> datetime:
+def parse_date(date, tz_str="UTC", date_format: str = "") -> datetime:
     """Handle all date types seen in hydropower files
     NOTE: TimeZone naive - assumes all timestamps are in the same timezone
     Args:
@@ -44,9 +47,28 @@ def parse_date(date, tz_str="UTC") -> datetime:
     if isinstance(date, int):
         return datetime.fromtimestamp(date, tz=safe_zoneinfo(tz_str))
 
-    for fmt in DATE_STRINGS:
+    if isinstance(date_format, str):
+        # Handle comma-separated list of formats
+        if date_format.find(",") >= 0:
+            date_format = [fmt.strip() for fmt in date_format.split(",") if fmt.strip()]
+        date_format = [date_format]
+
+    # Include the user-specified date format first, if provided
+    for idx, fmt in enumerate(date_format + DATE_STRINGS):
         try:
+            if not fmt:
+                continue
             dt_naive = datetime.strptime(date, fmt)
+            if idx > 0:
+                # Only log if using a fallback format
+                if not date_format:
+                    logger.warning(
+                        f"Using fallback date format '{fmt}' for date '{date}'. No user-specified format was provided."
+                    )
+                else:
+                    logger.warning(
+                        f"Using fallback date format '{fmt}' for date '{date}'. The user-specified format is '{date_format}'."
+                    )
             return dt_naive.replace(tzinfo=safe_zoneinfo(tz_str))
         except ValueError:
             continue
