@@ -6,9 +6,6 @@ from dataclasses import dataclass
 from typing import Iterable, Optional
 
 import click
-import cwms
-from hec.datastore import CwmsDataStore
-from hec.location import Location
 
 from cwmscli import requirements as reqs
 from cwmscli.utils.deps import requires
@@ -31,7 +28,6 @@ class CdaEndpoints:
 
 # Determine the currently available kwargs for the user's installed hec-python-library
 # ! https://github.com/HydrologicEngineeringCenter/hec-python-library/issues/54
-_LOCATION_KW = set(inspect.signature(Location).parameters)
 
 
 def _normalize_keys(d: dict) -> dict:
@@ -39,6 +35,9 @@ def _normalize_keys(d: dict) -> dict:
     - convert kebab-case keys to snake_case
     - drop keys not accepted by hec.location.Location
     """
+    from hec.location import Location
+
+    _LOCATION_KW = set(inspect.signature(Location).parameters)
     out = {}
     for k, v in d.items():
         key = k.replace("-", "_")
@@ -186,6 +185,11 @@ def load_locations(
         --location-kind-like STREAM \
         --dry-run -vv
     """
+
+    import cwms
+    from hec.datastore import CwmsDataStore
+    from hec.location import Location
+
     if verbose:
         click.echo(
             f"[load locations] source={source_cda} ({source_office}) -> target={target_cda} ({target_office})"
