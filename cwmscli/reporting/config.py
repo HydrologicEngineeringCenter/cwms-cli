@@ -52,18 +52,13 @@ class Config:
     projects: List[ProjectSpec] = field(default_factory=list)
     columns: List[ColumnSpec] = field(default_factory=list)
     header: Optional[TableHeaderSpec] = None
-
-    # REQUIRED in YAML now
     begin: Optional[str] = None
     end: Optional[str] = None
-
-    # target_time removed (global)
-    time_epsilon_minutes: int = 5  # kept, in case you want windowing later
-
+    time_epsilon_minutes: int = 5
     default_unit: str = "EN"
     missing: str = "----"
     undefined: str = "--NA--"
-    time_zone: Optional[str] = None  # e.g., "America/Chicago"
+    time_zone: Optional[str] = None  # i.e. "America/Chicago"
 
     @staticmethod
     def from_yaml(path: str) -> "Config":

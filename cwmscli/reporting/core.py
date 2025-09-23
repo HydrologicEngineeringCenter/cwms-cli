@@ -1,11 +1,6 @@
-# =========================
-# Core
-# =========================
-
-
 import math
 import traceback
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import click
@@ -14,6 +9,7 @@ import pandas as pd
 
 from cwmscli.reporting.config import Config
 from cwmscli.reporting.models import ProjectSpec
+from cwmscli.reporting.utils.date import parse_when
 
 
 def _expand_template(s: Optional[str], **kwargs) -> Optional[str]:
@@ -32,10 +28,6 @@ def _fetch_multi_df(
     begin: Optional[datetime],
     end: Optional[datetime],
 ) -> pd.DataFrame:
-    """
-    Wrapper around cwms.get_multi_timeseries_df, always returns a melted frame:
-      columns: ['date-time','name','value','quality-code'] (depending on cwms-python version)
-    """
     df = cwms.get_multi_timeseries_df(
         ts_ids=tsids,
         office_id=office,
@@ -51,14 +43,11 @@ def _fetch_multi_df(
 
 def _fetch_levels_dict(
     level_ids: List[str],
-    begin: datetime,
-    end: datetime,
+    begin: Optional[datetime],
+    end: Optional[datetime],
     office: str,
     unit: str,
 ) -> Dict[str, float | None]:
-    """
-    Return {level_id: value or None}.
-    """
     out: Dict[str, float | None] = {}
     for lvl in level_ids:
         try:
@@ -103,13 +92,14 @@ def _format_value(
 
 
 def build_report_table(
-    config: Config, begin: datetime, end: datetime
+    config: Config, begin: Optional[datetime], end: Optional[datetime]
 ) -> Dict[str, Any]:
     rows: List[str] = [p.location_id for p in config.projects]
     if not rows:
         raise click.UsageError("No 'projects' configured in YAML.")
 
     proj_by_id: Dict[str, ProjectSpec] = {p.location_id: p for p in config.projects}
+    tz = config.time_zone or "UTC"
 
     col_defs: List[Dict[str, Any]] = []
     for c in config.columns:
@@ -127,18 +117,29 @@ def build_report_table(
                 "href_template": c.href,
                 "missing": c.missing or config.missing,
                 "undefined": c.undefined or config.undefined,
+                "begin_expr": c.begin,
+                "end_expr": c.end,
             }
         )
 
-    base_end = end or datetime.now(timezone.utc)
+    candidate_ends: List[datetime] = []
+    if end:
+        candidate_ends.append(end)
 
-    # Group ts requests by (office, unit, begin, end)
+    def effective_range(
+        bexpr: Optional[str], eexpr: Optional[str]
+    ) -> tuple[Optional[datetime], Optional[datetime]]:
+        b_eff = parse_when(bexpr, tz) if bexpr else begin
+        e_eff = parse_when(eexpr, tz) if eexpr else end
+        return b_eff, e_eff
+
     ts_groups: Dict[tuple, List[str]] = {}
     backref_ts: Dict[tuple, List[tuple]] = {}
 
-    # Group level requests by (office, unit)
     lvl_groups: Dict[tuple, List[str]] = {}
     backref_lvl: Dict[tuple, List[tuple]] = {}
+
+    effective_windows: Dict[tuple, tuple[Optional[datetime], Optional[datetime]]] = {}
 
     for proj_id in rows:
         for c in col_defs:
@@ -146,30 +147,42 @@ def build_report_table(
             unit = c["unit"]
             key = c["key"]
 
+            b_eff, e_eff = effective_range(c.get("begin_expr"), c.get("end_expr"))
+            if e_eff:
+                candidate_ends.append(e_eff)
+            effective_windows[(proj_id, key)] = (b_eff, e_eff)
+
             if c["tsid_template"]:
                 tsid = _expand_template(c["tsid_template"], project=proj_id)
-                gk = (office, unit, begin, end)
+                gk = (office, unit, b_eff, e_eff)
                 ts_groups.setdefault(gk, [])
                 if tsid not in ts_groups[gk]:
                     ts_groups[gk].append(tsid)
-                backref_ts.setdefault((office, unit, begin, end, tsid), []).append(
+                backref_ts.setdefault((office, unit, b_eff, e_eff, tsid), []).append(
                     (proj_id, key)
                 )
 
             elif c["level_template"]:
                 lvl = _expand_template(c["level_template"], project=proj_id)
-                gk = (office, unit)
+                gk = (office, unit, b_eff, e_eff)
                 lvl_groups.setdefault(gk, [])
                 if lvl not in lvl_groups[gk]:
                     lvl_groups[gk].append(lvl)
-                backref_lvl.setdefault((office, unit, lvl), []).append((proj_id, key))
+                backref_lvl.setdefault((office, unit, b_eff, e_eff, lvl), []).append(
+                    (proj_id, key)
+                )
 
-    # Fetch latest TS values within window
+    base_end = (
+        candidate_ends
+        and max(dt for dt in candidate_ends if dt is not None)
+        or datetime.now(timezone.utc)
+    )
+
     last_ts_value: Dict[tuple, float | None] = {}
-    for (office, unit, b, e), tsids in ts_groups.items():
+    for (office, unit, b_eff, e_eff), tsids in ts_groups.items():
         if not tsids:
             continue
-        df = _fetch_multi_df(tsids, office, unit, b, e)
+        df = _fetch_multi_df(tsids, office, unit, b_eff, e_eff)
 
         name_col = (
             "ts_id"
@@ -181,35 +194,80 @@ def build_report_table(
             if "date-time" in df.columns
             else ("date_time" if "date_time" in df.columns else None)
         )
+
         if name_col and time_col:
             df = df.dropna(subset=[time_col])
             df[time_col] = pd.to_datetime(df[time_col], utc=True, errors="coerce")
             df = df.sort_values([name_col, time_col])
             last = df.groupby(name_col).tail(1)
             for _, row in last.iterrows():
-                last_ts_value[(office, unit, b, e, str(row[name_col]))] = row.get(
-                    "value", None
+                last_ts_value[(office, unit, b_eff, e_eff, str(row[name_col]))] = (
+                    row.get("value", None)
                 )
         else:
             for ts in tsids:
-                last_ts_value[(office, unit, b, e, ts)] = None
+                last_ts_value[(office, unit, b_eff, e_eff, ts)] = None
 
-    # Fetch latest Level values
     last_lvl_value: Dict[tuple, float | None] = {}
-    for (office, unit), lvls in lvl_groups.items():
+    for (office, unit, b_eff, e_eff), lvls in lvl_groups.items():
         if not lvls:
             continue
         vals = _fetch_levels_dict(
             lvls,
-            begin=begin,
-            end=end,
+            begin=b_eff,
+            end=e_eff,
             office=office,
             unit=unit,
         )
         for lvl in lvls:
-            last_lvl_value[(office, unit, lvl)] = vals.get(lvl)
+            last_lvl_value[(office, unit, b_eff, e_eff, lvl)] = vals.get(lvl)
 
-    # Project location info
+    table: Dict[str, Dict[str, Any]] = {proj_id: {} for proj_id in rows}
+
+    for (office, unit, b_eff, e_eff, tsid), pairs in backref_ts.items():
+        raw = last_ts_value.get((office, unit, b_eff, e_eff, tsid))
+        for proj_id, col_key in pairs:
+            c = next((x for x in col_defs if x["key"] == col_key), None)
+            val_text = _format_value(
+                raw,
+                precision=c.get("precision") if c else None,
+                missing=(c.get("missing") or config.missing),
+                undefined=(c.get("undefined") or config.undefined),
+            )
+            href = _expand_template(
+                c.get("href_template"),
+                project=proj_id,
+                office=office,
+                tsid=tsid,
+                level=None,
+            )
+            table[proj_id][col_key] = {
+                "text": val_text,
+                **({"href": href} if href else {}),
+            }
+
+    for (office, unit, b_eff, e_eff, lvl), pairs in backref_lvl.items():
+        raw = last_lvl_value.get((office, unit, b_eff, e_eff, lvl))
+        for proj_id, col_key in pairs:
+            c = next((x for x in col_defs if x["key"] == col_key), None)
+            val_text = _format_value(
+                raw,
+                precision=c.get("precision") if c else None,
+                missing=(c.get("missing") or config.missing),
+                undefined=(c.get("undefined") or config.undefined),
+            )
+            href = _expand_template(
+                c.get("href_template"),
+                project=proj_id,
+                office=office,
+                tsid=None,
+                level=lvl,
+            )
+            table[proj_id][col_key] = {
+                "text": val_text,
+                **({"href": href} if href else {}),
+            }
+
     proj_locations: Dict[str, Dict[str, Any]] = {}
     for proj_id in rows:
         proj = proj_by_id[proj_id]
@@ -226,51 +284,6 @@ def build_report_table(
         except Exception:
             loc_json = {"name": proj_id, "href": proj.href}
         proj_locations[proj_id] = loc_json
-
-    # Build table payload
-    table: Dict[str, Dict[str, Any]] = {proj_id: {} for proj_id in rows}
-
-    for (office, unit, b, e, tsid), pairs in backref_ts.items():
-        raw = last_ts_value.get((office, unit, b, e, tsid))
-        for proj_id, col_key in pairs:
-            c = next((x for x in col_defs if x["key"] == col_key), None)
-            val_text = _format_value(
-                raw,
-                precision=c.get("precision") if c else None,
-                missing=(c.get("missing") or config.missing),
-                undefined=(c.get("undefined") or config.undefined),
-            )
-            href = _expand_template(
-                c.get("href_template"),
-                project=proj_id,
-                office=office,
-                tsid=tsid,
-                level=None,
-            )
-            table[proj_id][col_key] = (
-                {"text": val_text, "href": href} if href else {"text": val_text}
-            )
-
-    for (office, unit, lvl), pairs in backref_lvl.items():
-        raw = last_lvl_value.get((office, unit, lvl))
-        for proj_id, col_key in pairs:
-            c = next((x for x in col_defs if x["key"] == col_key), None)
-            val_text = _format_value(
-                raw,
-                precision=c.get("precision") if c else None,
-                missing=(c.get("missing") or config.missing),
-                undefined=(c.get("undefined") or config.undefined),
-            )
-            href = _expand_template(
-                c.get("href_template"),
-                project=proj_id,
-                office=office,
-                tsid=None,
-                level=lvl,
-            )
-            table[proj_id][col_key] = (
-                {"text": val_text, "href": href} if href else {"text": val_text}
-            )
 
     for proj_id in rows:
         table[proj_id]["location"] = proj_locations.get(proj_id, {"name": proj_id})

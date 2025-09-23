@@ -47,3 +47,5 @@ class ColumnSpec:
     href: Optional[str] = None
     missing: Optional[str] = None
     undefined: Optional[str] = None
+    begin: Optional[str] = None
+    end: Optional[str] = None

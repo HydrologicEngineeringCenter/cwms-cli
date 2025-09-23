@@ -176,7 +176,8 @@ columns:
     precision: 2
     tsid: "{project}.Elev.Inst.1Hour.0.Ccp-Rev"
     # override the global target time for THIS column (optional):
-    target_time: "2025-09-22T08:00:00-05:00"
+    begin: "today 0800"
+    end: "today 0800"
     # per-column render strings (optional):
     missing: "--"
     undefined: "~~~~.~~"
@@ -187,6 +188,8 @@ columns:
     unit: "EN"
     precision: 2
     tsid: "{project}.Elev.Inst.1Hour.0.Ccp-Rev"
+    begin: "yesterday 0800 America/Chicago"
+    end: "yesterday 0800 America/Chicago"
     # override the global target time for THIS column (optional):
     target_time: "2025-09-21T08:00:00-05:00"
     # per-column render strings (optional):

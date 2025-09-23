@@ -10,7 +10,7 @@ import cwms
 
 from cwmscli.reporting.config import Config
 from cwmscli.reporting.core import build_report_table
-from cwmscli.reporting.utils.date import parse_range
+from cwmscli.reporting.utils.date import parse_when
 from cwmscli.utils.deps import requires
 
 
@@ -96,16 +96,14 @@ def _render_template(
 def reporting_cli(config_path, template_dir, template_name, out_path):
     cfg = Config.from_yaml(config_path)
 
-    # Resolve begin/end from YAML ONLY (no CLI overrides)
     tz = cfg.time_zone or "UTC"
-    if not cfg.begin or not cfg.end:
-        raise click.ClickException(
-            "Config must specify 'begin' and 'end' strings (ISO, ISO with % placeholders, or natural language)."
-        )
 
-    begin_dt, end_dt = parse_range(cfg.begin, cfg.end, tz)
-    # guard
-    if end_dt <= begin_dt:
+    # Global window: optional
+    begin_dt: Optional[datetime] = parse_when(cfg.begin, tz) if cfg.begin else None
+    end_dt: Optional[datetime] = parse_when(cfg.end, tz) if cfg.end else None
+
+    # If both provided, sanity check ordering
+    if begin_dt and end_dt and end_dt < begin_dt:
         raise click.ClickException(
             f"'end' ({end_dt.isoformat()}) must be after 'begin' ({begin_dt.isoformat()})"
         )
@@ -113,7 +111,9 @@ def reporting_cli(config_path, template_dir, template_name, out_path):
     cwms.init_session(api_root=cfg.cda_api_root)
     table_ctx = build_report_table(cfg, begin_dt, end_dt)
 
-    base_date = table_ctx.get("base_end", end_dt).astimezone(timezone.utc)
+    base_date = table_ctx.get(
+        "base_end", end_dt or datetime.now(timezone.utc)
+    ).astimezone(timezone.utc)
     context = {
         "office": cfg.office,
         "report": dataclasses_asdict(cfg.report),
@@ -130,6 +130,10 @@ def reporting_cli(config_path, template_dir, template_name, out_path):
 
 
 def dataclasses_asdict(obj):
+    # Custom dataclass to dict, recursive
+    # Guarantees we end up with a structure made of only "safe" Python types:
+    # dicts, lists, tuples, numbers, strings, None.
+    # Helper for Jinja2 or JSON data structures
     if obj is None:
         return None
     if hasattr(obj, "__dataclass_fields__"):
