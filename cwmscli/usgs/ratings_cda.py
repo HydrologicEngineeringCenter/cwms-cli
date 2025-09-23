@@ -1,4 +1,5 @@
 import logging
+import sys
 from datetime import datetime, timedelta
 from json import loads
 
@@ -61,6 +62,10 @@ def get_rating_ids_from_specs(office_id):
     rating_specs = cwms.get_rating_specs(office_id=office_id).df
     if "effective-dates" not in rating_specs.columns:
         rating_specs["effective-dates"] = np.nan
+    # Determine if any specs return
+    if rating_specs.empty:
+        logging.warning(f"No rating specifications found for office {office_id}")
+        sys.exit()
     rating_specs = rating_specs.dropna(subset=["description"])
     for rating_type in rating_types:
         rating_specs.loc[
