@@ -13,4 +13,4 @@ python:
     - method: pip
       path: .
     - requirements: docs/requirements.txt
-formats: [html, pdf]
+formats: [pdf]
