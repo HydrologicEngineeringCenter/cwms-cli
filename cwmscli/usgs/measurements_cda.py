@@ -9,7 +9,6 @@ import pandas as pd
 import pytz
 import requests
 from dataretrieval import nwis
-from dotenv import load_dotenv
 
 # --- Constants ---
 CWMS_MISSING_VALUE = -340282346638528859811704183484516925440
