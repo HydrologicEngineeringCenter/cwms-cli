@@ -10,7 +10,7 @@ import requests
 from dataretrieval import nwis
 
 
-def rating_cda(api_root, office_id, days_back, api_key):
+def getusgs_rating_cda(api_root, office_id, days_back, api_key):
     api_key = "apikey " + api_key
     cwms.api.init_session(api_root=api_root, api_key=api_key)
     logging.info(f"CDA connection: {api_root}")
