@@ -68,7 +68,7 @@ COLUMN_MAPPING = {
 }
 
 
-def getusgs_measurement_cda(
+def measurement_cda(
     api_root,
     office_id,
     api_key,
