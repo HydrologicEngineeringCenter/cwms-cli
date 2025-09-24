@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import functools
 import inspect
 import os
 from dataclasses import dataclass
 from typing import Iterable, Optional
+from urllib.parse import urlparse
 
 import click
 
@@ -30,6 +32,21 @@ class CdaEndpoints:
 # ! https://github.com/HydrologicEngineeringCenter/hec-python-library/issues/54
 
 
+def _normalize_url(u: str) -> str:
+    if not u:
+        return ""
+    # Lowercase scheme/host and strip trailing slash
+    p = urlparse(u)
+    # Normalize to lowercase scheme/url/host and no trailing slash
+    path = (p.path or "").rstrip("/")
+    base = f"{p.scheme.lower()}://{p.netloc.lower()}{path}"
+    return base
+
+
+def _norm_office(o: Optional[str]) -> str:
+    return (o or "").strip().upper()
+
+
 def _normalize_keys(d: dict) -> dict:
     """
     - convert kebab-case keys to snake_case
@@ -44,6 +61,48 @@ def _normalize_keys(d: dict) -> dict:
         if key in _LOCATION_KW:
             out[key] = v
     return out
+
+
+def validate_cda_targets(func):
+    """
+    Validates that source and target endpoints (CDA+office) are not identical.
+    If the URL roots are the same but offices differ, emit a warning.
+    If they are fully identical throw an error
+    """
+
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        print("KWARGGSS", kwargs)
+        source_cda = _normalize_url(kwargs.get("source_cda"))
+        target_cda = _normalize_url(kwargs.get("target_cda"))
+        source_office = _norm_office(kwargs.get("source_office"))
+        target_office = _norm_office(kwargs.get("target_office"))
+
+        same_root = source_cda == target_cda and bool(source_cda)
+        same_office = source_office == target_office and bool(source_office)
+
+        if same_root and same_office:
+            raise click.ClickException(
+                "Circular reference detected: source and target CDA endpoints "
+                "are identical (URL + office). This would read-from and write-to "
+                "the same system.\n\nChange the source or target CDA URL or office. Type cwms-cli load --help for arg options."
+            )
+        elif same_root and not same_office:
+            click.secho(
+                "Warning: source and target use the same CDA root URL but different offices. "
+                "This is allowed, but double-check intent.",
+                fg="yellow",
+            )
+
+        # Log out what the intent will be, in color
+        click.secho(
+            f"Source: {source_cda} (office={source_office or '-'})\n"
+            f"Target: {target_cda} (office={target_office or '-'})",
+            fg="green" if not same_root else "yellow",
+        )
+        return func(*args, **kwargs)
+
+    return wrapper
 
 
 def shared_source_target_options(f):
@@ -108,7 +167,9 @@ def shared_source_target_options(f):
 
 
 @click.group(
-    name="load", help="Load data into a target CWMS Data API.", context_settings=CONTEXT
+    name="load",
+    help="Load data from one CWMS Data API instance to another.",
+    context_settings=CONTEXT,
 )
 def load_group():
     pass
@@ -146,6 +207,7 @@ def load_group():
     help="Show what would be written without storing to target.",
 )
 @requires(reqs.cwms)
+@validate_cda_targets
 def load_locations(
     source_cda: str,
     source_office: str,
