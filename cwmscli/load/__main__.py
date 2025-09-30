@@ -55,7 +55,6 @@ def validate_cda_targets(func):
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        print("KWARGGSS", kwargs)
         source_cda = _normalize_url(kwargs.get("source_cda"))
         target_cda = _normalize_url(kwargs.get("target_cda"))
         source_office = _norm_office(kwargs.get("source_office"))
@@ -234,7 +233,7 @@ def load_locations(
             f"  like={like or '-'}  kinds={list(location_kind_like) or '-'}  dry_run={dry_run}"
         )
 
-    cwms.init_session(api_root=source_cda)
+    cwms.init_session(api_root=source_cda, api_key=None)
 
     cat_kwargs = {"office_id": source_office}
     if like:
@@ -256,8 +255,10 @@ def load_locations(
             click.echo(f"  > catalog query: {cat_kwargs_k}")
 
         resp = cwms.get_locations_catalog(**cat_kwargs_k)
-        batch = resp.json.get("entries", []) if hasattr(resp, "json") else []
-        locations.extend(batch)
+        locations_resp = cwms.get_locations(
+            office_id=source_office, location_ids=resp.df["name"].tolist()
+        )
+        locations.extend(locations_resp.json)
 
         # Convert CDA Response to expected Location objects
         if verbose:
@@ -284,7 +285,8 @@ def load_locations(
     errors = 0
     for loc in locations:
         try:
-            result = cwms.store_location(data=loc)
+            cwms.init_session(api_root=target_cda, api_key=target_api_key)
+            result = cwms.store_location(data=loc, fail_if_exists=False)
             if verbose:
                 click.echo(result)
         except Exception as e:
