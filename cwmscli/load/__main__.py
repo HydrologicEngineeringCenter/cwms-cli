@@ -97,8 +97,8 @@ def shared_source_target_options(f):
         "--source-cda",
         envvar="CDA_SOURCE_URL",
         required=True,
-        default="https://cwms-data.usace.army.mil/cwms-data",
-        help="Source CWMS Data API root. Default: https://cwms-data.usace.army.mil/cwms-data",
+        default="https://cwms-data.usace.army.mil/cwms-data/",
+        help="Source CWMS Data API root. Default: https://cwms-data.usace.army.mil/cwms-data/",
     )(f)
     f = click.option(
         "--source-office",
@@ -110,8 +110,8 @@ def shared_source_target_options(f):
         "--target-cda",
         envvar="CDA_TARGET_URL",
         required=True,
-        default="http://localhost:8081/cwms-data",
-        help="Target CWMS Data API root. Default: http://localhost:8081/cwms-data.",
+        default="http://localhost:8081/cwms-data/",
+        help="Target CWMS Data API root. Default: http://localhost:8081/cwms-data/",
     )(f)
     f = click.option(
         "--target-office",
