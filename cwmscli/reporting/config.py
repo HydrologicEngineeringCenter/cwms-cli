@@ -3,7 +3,6 @@ from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 import click
-import yaml
 
 from cwmscli.reporting.models import (
     ColumnSpec,
@@ -62,6 +61,8 @@ class Config:
 
     @staticmethod
     def from_yaml(path: str) -> "Config":
+        import yaml
+
         with open(path, "r", encoding="utf-8") as f:
             raw = yaml.safe_load(f) or {}
 

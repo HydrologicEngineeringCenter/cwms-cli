@@ -4,8 +4,6 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import click
-import cwms
-import pandas as pd
 
 from cwmscli.reporting.config import Config
 from cwmscli.reporting.models import ProjectSpec
@@ -27,7 +25,11 @@ def _fetch_multi_df(
     unit: str,
     begin: Optional[datetime],
     end: Optional[datetime],
-) -> pd.DataFrame:
+):
+    import pandas as pd
+
+    import cwms
+
     df = cwms.get_multi_timeseries_df(
         ts_ids=tsids,
         office_id=office,
@@ -48,6 +50,8 @@ def _fetch_levels_dict(
     office: str,
     unit: str,
 ) -> Dict[str, float | None]:
+    import cwms
+
     out: Dict[str, float | None] = {}
     for lvl in level_ids:
         try:
@@ -94,6 +98,9 @@ def _format_value(
 def build_report_table(
     config: Config, begin: Optional[datetime], end: Optional[datetime]
 ) -> Dict[str, Any]:
+    import cwms
+    import pandas as pd
+
     rows: List[str] = [p.location_id for p in config.projects]
     if not rows:
         raise click.UsageError("No 'projects' configured in YAML.")

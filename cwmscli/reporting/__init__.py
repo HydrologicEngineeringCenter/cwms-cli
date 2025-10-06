@@ -6,7 +6,6 @@ from datetime import timezone
 from typing import Any, Dict, List, Optional
 
 import click
-import cwms
 
 from cwmscli.reporting.config import Config
 from cwmscli.reporting.core import build_report_table
@@ -94,6 +93,8 @@ def _render_template(
     },
 )
 def reporting_cli(config_path, template_dir, template_name, out_path):
+    import cwms
+
     cfg = Config.from_yaml(config_path)
 
     tz = cfg.time_zone or "UTC"
