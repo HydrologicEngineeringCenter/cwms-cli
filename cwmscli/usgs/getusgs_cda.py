@@ -7,7 +7,7 @@ import pandas as pd
 import requests
 
 
-def getusgs_cda(api_root, office_id, days_back, api_key):
+def getusgs_cda(api_root, office_id, days_back, api_key, backfill_tsids: list = None):
     api_key = "apikey " + api_key
     cwms.api.init_session(api_root=api_root, api_key=api_key)
     logging.info(f"CDA connection: {api_root}")
@@ -18,34 +18,47 @@ def getusgs_cda(api_root, office_id, days_back, api_key):
 
     USGS_ts = get_CMWS_TS_Loc_Data(office_id)
 
-    # grab all of the unique USGS stations numbers to be sent to USGS api
-    sites = USGS_ts[USGS_ts["USGS_Method_TS"].isna()].USGS_St_Num.unique()
-    method_sites = USGS_ts[USGS_ts["USGS_Method_TS"].notna()].USGS_St_Num.unique()
-    logging.info(f"Execution date {execution_date}")
+    if backfill_tsids:
+        USGS_ts = USGS_ts[USGS_ts["timeseries-id"].isin(backfill_tsids)]
 
-    # This is added to the 'startDT'
-    tw_delta = -timedelta(days_back)
+    if len(USGS_ts) > 0:
+        # grab all of the unique USGS stations numbers to be sent to USGS api
+        sites = USGS_ts[USGS_ts["USGS_Method_TS"].isna()].USGS_St_Num.unique()
+        method_sites = USGS_ts[USGS_ts["USGS_Method_TS"].notna()].USGS_St_Num.unique()
+        logging.info(f"Execution date {execution_date}")
 
-    # Set the execution date and time window for URL
-    startDT = execution_date + tw_delta
+        # This is added to the 'startDT'
+        tw_delta = -timedelta(days_back)
 
-    # Airflow only looks at the last period during an execution run,
-    # so to ensure the latest data is retrieved, add 2 hours to end date
-    endDT = execution_date + timedelta(hours=2)
+        # Set the execution date and time window for URL
+        startDT = execution_date + tw_delta
 
-    logging.info(f"Grabing data from USGS between {startDT} and {endDT}")
+        # Airflow only looks at the last period during an execution run,
+        # so to ensure the latest data is retrieved, add 2 hours to end date
+        endDT = execution_date + timedelta(hours=2)
 
-    USGS_data = pd.DataFrame()
-    USGS_data_method = pd.DataFrame()
+        logging.info(f"Grabing data from USGS between {startDT} and {endDT}")
 
-    if len(sites) > 0:
-        USGS_data = getUSGS_ts(sites, startDT, endDT)
-    # sites with a method_id or usgs tsid are retrieved from a seperate database. this is access using 3 as access in
-    # usgs API call.
-    if len(method_sites) > 0:
-        USGS_data_method = getUSGS_ts(method_sites, startDT, endDT, 3)
+        USGS_data = pd.DataFrame()
+        USGS_data_method = pd.DataFrame()
 
-    CWMS_writeData(USGS_ts, USGS_data, USGS_data_method)
+        if len(sites) > 0:
+            USGS_data = getUSGS_ts(sites, startDT, endDT)
+        # sites with a method_id or usgs tsid are retrieved from a seperate database. this is access using 3 as access in
+        # usgs API call.
+        if len(method_sites) > 0:
+            USGS_data_method = getUSGS_ts(method_sites, startDT, endDT, 3)
+
+        CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back)
+    else:
+        if backfill_tsids:
+            logging.error(
+                f"The following backload timeseries ids were not present in the USGS timeseries or Locations groups: {backfill_tsids}"
+            )
+        else:
+            logging.error(
+                f"USGS data was present in the timeseries or locations groups"
+            )
 
 
 def get_USGS_params():
@@ -200,7 +213,7 @@ def getUSGS_ts(sites, startDT, endDT, access=None):
     return USGS_data
 
 
-def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method):
+def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
     # lists to hold time series that fail
     # noData -> usgs location and parameter were present in USGS api but the values were empty
     # NotinAPI -> usgs location and parameter were not retrieved from USGS api
@@ -292,7 +305,12 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method):
                             data = cwms.timeseries_df_to_json(
                                 data=values, ts_id=ts_id, units=units, office_id=office
                             )
-                            cwms.store_timeseries(data)
+                            if days_back < 365:
+                                cwms.store_timeseries(data)
+                            else:
+                                cwms.store_timeseries(
+                                    data, max_workers=30, chunk_size=30 * 24 * 4
+                                )
                             logging.info(
                                 f"SUCCESS Data stored in CWMS database for -->  {ts_id},{USGS_Id_param}"
                             )
