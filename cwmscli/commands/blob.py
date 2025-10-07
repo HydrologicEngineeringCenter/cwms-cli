@@ -27,7 +27,7 @@ DATA_URL_RE = re.compile(r"^data:(?P<mime>[^;]+);base64,(?P<data>.+)$", re.I | r
         "link": "https://docs.python.org/3/library/imghdr.html",
     }
 )
-def _determine_ext(data: bytes | str, write_type: str) -> str:
+def _determine_ext(data, write_type):
     """
     Attempt to determine the file extension from the data itself.
     Requires the imghdr module (lazy import) to inspect the bytes for image types.
@@ -51,7 +51,7 @@ def _determine_ext(data: bytes | str, write_type: str) -> str:
 def _save_base64(
     b64_or_dataurl: str,
     dest: str,
-    media_type_hint: str | None = None,
+    media_type_hint=None,
 ) -> str:
     m = DATA_URL_RE.match(b64_or_dataurl.strip())
     if m:
@@ -261,7 +261,7 @@ def main(
     BLOB_ID   is the blob ID to store under.
     """
 
-    cwms.api.init_session(api_root=api_root, api_key=api_key)
+    cwms.init_session(api_root=api_root, api_key=api_key)
     file_data = None
     if directive in ["upload", "update"]:
         if not input_file or not os.path.isfile(input_file):
@@ -323,7 +323,7 @@ def upload_cmd(
     api_root: str,
     api_key: str,
 ):
-    cwms.api.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
+    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
     try:
         file_size = os.path.getsize(input_file)
         with open(input_file, "rb") as f:
@@ -378,7 +378,7 @@ def upload_cmd(
 
 
 def download_cmd(blob_id: str, dest: str, office: str, api_root: str, api_key: str):
-    cwms.api.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
+    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
     bid = blob_id.upper()
     logging.debug(f"Office={office} BlobID={bid}")
 
@@ -421,7 +421,7 @@ def list_cmd(
     api_root: str,
     api_key: str,
 ):
-    cwms.api.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
+    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
     df = list_blobs(
         office=office,
         blob_id_like=blob_id_like,
