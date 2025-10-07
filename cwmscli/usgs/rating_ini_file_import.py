@@ -34,6 +34,8 @@ def rating_ini_file_import(api_root, api_key, ini_filename):
         if "=" in line:
             fields = line.split("=")
             if fields[0] in keywords:
+                if fields[0] == "cwms_office":
+                    fields[1] = fields[1].upper()
                 params[fields[0]] = fields[1]
         else:
             fields = parse_ini_line(line)
