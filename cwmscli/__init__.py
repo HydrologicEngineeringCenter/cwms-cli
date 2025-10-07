@@ -1,5 +1,7 @@
 import logging as lg
 
+from cwmscli import load
+
 # create logging for logging
 logging = lg.getLogger()
 if logging.hasHandlers():
