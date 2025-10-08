@@ -178,7 +178,7 @@ def upload_cmd(
     params = {"fail-if-exists": not overwrite}
 
     if dry_run:
-        logging.info(f"--dry-run: would POST {api_root}blobs with params={params}")
+        logging.info(f"DRY RUN: would POST {api_root}blobs with params={params}")
         logging.info(
             json.dumps(
                 {
@@ -234,7 +234,7 @@ def delete_cmd(blob_id: str, office: str, api_root: str, api_key: str, dry_run: 
 
     if dry_run:
         logging.info(
-            f"--dry-run: would DELETE {api_root} blob with blob-id={blob_id} office={office}"
+            f"DRY RUN: would DELETE {api_root} blob with blob-id={blob_id} office={office}"
         )
         return
     cwms.init_session(api_root=api_root, api_key=api_key)
@@ -255,7 +255,7 @@ def update_cmd(
 ):
     if dry_run:
         logging.info(
-            f"--dry-run: would PATCH {api_root} blob with blob-id={blob_id} office={office}"
+            f"DRY RUN: would PATCH {api_root} blob with blob-id={blob_id} office={office}"
         )
         return
     file_data = None
