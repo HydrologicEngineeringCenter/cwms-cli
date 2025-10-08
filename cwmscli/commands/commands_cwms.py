@@ -1,3 +1,5 @@
+import textwrap
+
 import click
 
 from cwmscli import requirements as reqs
@@ -94,18 +96,19 @@ def csv2cwms_cmd(**kwargs):
 @click.group(
     "blob",
     help="Manage CWMS Blobs (upload, download, delete, update, list)",
-    epilog="""
+    epilog=textwrap.dedent(
+        """
     Example Usage:\n
     - Store a PDF/image as a CWMS blob with optional description\n
     - Download a blob by id to your local filesystem\n
     - Update a blob's name/description/mime-type\n
     - Bulk list blobs for an office  
-""",
+"""
+    ),
 )
 @requires(reqs.cwms)
-def blob_group(ctx):
-    # Set the help formatter for the group, allows for new lines in the epilog
-    ctx.formatter = click.HelpFormatter(width=160, max_width=160)
+def blob_group():
+    pass
 
 
 # ================================================================================
