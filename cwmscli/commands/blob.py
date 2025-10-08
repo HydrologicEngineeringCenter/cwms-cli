@@ -224,11 +224,16 @@ def download_cmd(blob_id: str, dest: str, office: str, api_root: str, api_key: s
         sys.exit(1)
 
 
-def delete_cmd(blob_id: str, office: str, api_root: str, api_key: str):
-    logging.warning(
-        "[NOT IMPLEMENTED] Delete Blob is not supported yet.\n"
-        "See: https://github.com/HydrologicEngineeringCenter/cwms-python/issues/192"
-    )
+def delete_cmd(blob_id: str, office: str, api_root: str, api_key: str, dry_run: bool):
+
+    if dry_run:
+        logging.info(
+            f"--dry-run: would DELETE {api_root} blob with blob-id={blob_id} office={office}"
+        )
+        return
+    cwms.api.init_session(api_root=api_root, api_key=api_key)
+    cwms.delete_blob(office_id=office, blob_id=blob_id)
+    logging.info(f"Deleted blob: {blob_id} for office: {office}")
 
 
 def update_cmd(blob_id: str, input_file: str, office: str, api_root: str, api_key: str):
