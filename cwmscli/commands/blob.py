@@ -205,7 +205,14 @@ def upload_cmd(
         sys.exit(1)
 
 
-def download_cmd(blob_id: str, dest: str, office: str, api_root: str, api_key: str):
+def download_cmd(
+    blob_id: str, dest: str, office: str, api_root: str, api_key: str, dry_run: bool
+):
+    if dry_run:
+        logging.info(
+            f"DRY RUN: would GET {api_root} blob with blob-id={blob_id} office={office}."
+        )
+        return
     cwms.api.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
     bid = blob_id.upper()
     logging.debug(f"Office={office} BlobID={bid}")
@@ -236,7 +243,14 @@ def delete_cmd(blob_id: str, office: str, api_root: str, api_key: str, dry_run: 
     logging.info(f"Deleted blob: {blob_id} for office: {office}")
 
 
-def update_cmd(blob_id: str, input_file: str, office: str, api_root: str, api_key: str):
+def update_cmd(
+    blob_id: str,
+    input_file: str,
+    office: str,
+    api_root: str,
+    api_key: str,
+    dry_run: bool,
+):
     logging.warning(
         "[NOT IMPLEMENTED] Update Blob is not supported yet. Consider --overwrite with upload.\n"
         "See: https://github.com/HydrologicEngineeringCenter/cwms-python/issues/192"
