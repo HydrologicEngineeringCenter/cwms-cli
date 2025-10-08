@@ -14,7 +14,6 @@ import requests
 from cwmscli.utils import get_api_key
 from cwmscli.utils.deps import requires
 
-
 # used to rebuild data URL for images
 DATA_URL_RE = re.compile(r"^data:(?P<mime>[^;]+);base64,(?P<data>.+)$", re.I | re.S)
 
