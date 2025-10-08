@@ -172,14 +172,30 @@ def delete_cmd(**kwargs):
 # ================================================================================
 #       Update
 # ================================================================================
-@blob_group.command("update", help="[Not implemented] Update/patch a blob by ID")
+@blob_group.command("update", help="Update/patch a blob by ID")
 @click.option("--blob-id", required=True, type=str, help="Blob ID to update.")
 @click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@click.option(
+    "--description",
+    default=None,
+    help="New description JSON or text.",
+)
+@click.option(
+    "--media-type",
+    default=None,
+    help="New media type (guessed from file if omitted).",
+)
 @click.option(
     "--input-file",
     required=False,
     type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
     help="Optional file content to upload with update.",
+)
+@click.option(
+    "--overwrite/--no-overwrite",
+    default=False,
+    show_default=True,
+    help="If true, replace existing blob.",
 )
 @common_api_options
 def update_cmd(**kwargs):
