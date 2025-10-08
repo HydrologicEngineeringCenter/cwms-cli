@@ -148,6 +148,7 @@ def blob_upload(**kwargs):
     default=None,
     help="Destination file path. Defaults to blob-id.",
 )
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
 def blob_download(**kwargs):
     from cwmscli.commands.blob import download_cmd
@@ -158,8 +159,9 @@ def blob_download(**kwargs):
 # ================================================================================
 #       Delete
 # ================================================================================
-@blob_group.command("delete", help="[Not implemented] Delete a blob by ID")
+@blob_group.command("delete", help="Delete a blob by ID")
 @click.option("--blob-id", required=True, type=str, help="Blob ID to delete.")
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
 def delete_cmd(**kwargs):
     from cwmscli.commands.blob import delete_cmd
@@ -172,6 +174,7 @@ def delete_cmd(**kwargs):
 # ================================================================================
 @blob_group.command("update", help="[Not implemented] Update/patch a blob by ID")
 @click.option("--blob-id", required=True, type=str, help="Blob ID to update.")
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @click.option(
     "--input-file",
     required=False,
