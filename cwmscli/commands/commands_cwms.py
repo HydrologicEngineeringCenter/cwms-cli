@@ -36,7 +36,7 @@ def shefcritimport(filename, office, api_root, api_key, api_key_loc):
 @click.command("csv2cwms", help="Store CSV TimeSeries data to CWMS using a config file")
 @common_api_options
 @click.option(
-    "--input-keys",
+    "--input_keys",
     "input_keys",
     default="all",
     show_default=True,
@@ -61,17 +61,17 @@ def shefcritimport(filename, office, api_root, api_key, api_key_loc):
 )
 @click.option(
     "-df",
-    "--data-file",
+    "--data_file",
     "data_file",
     type=str,
     help="Override CSV file (else use config)",
 )
 @click.option("--log", show_default=True, help="Path to the log file.")
-@click.option("--dry-run", is_flag=True, help="Log only (no HTTP calls)")
+@click.option("--dry_run", is_flag=True, help="Log only (no HTTP calls)")
 @click.option("--begin", type=str, help="YYYY-MM-DDTHH:MM (local to --tz)")
 @click.option("-tz", "--timezone", "tz", default="GMT", show_default=True)
 @click.option(
-    "--ignore-ssl-errors", is_flag=True, help="Ignore TLS errors (testing only)"
+    "--ignore_ssl_errors", is_flag=True, help="Ignore TLS errors (testing only)"
 )
 @click.version_option(version=csv2cwms.__version__)
 @requires(reqs.cwms)
@@ -111,25 +111,25 @@ def blob_group():
 # ================================================================================
 @blob_group.command("upload", help="Upload a file as a blob")
 @click.option(
-    "--input-file",
+    "--input_file",
     required=True,
     type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
     help="Path to the file to upload.",
 )
-@click.option("--blob-id", required=True, type=str, help="Blob ID to create.")
+@click.option("--blob_id", required=True, type=str, help="Blob ID to create.")
 @click.option("--description", default=None, help="Optional description JSON or text.")
 @click.option(
-    "--media-type",
+    "--media_type",
     default=None,
     help="Override media type (guessed from file if omitted).",
 )
 @click.option(
-    "--overwrite/--no-overwrite",
+    "--overwrite/--no_overwrite",
     default=False,
     show_default=True,
     help="If true, replace existing blob.",
 )
-@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@click.option("--dry_run", is_flag=True, help="Show request; do not send.")
 @common_api_options
 def blob_upload(**kwargs):
     from cwmscli.commands.blob import upload_cmd
@@ -142,11 +142,11 @@ def blob_upload(**kwargs):
 # ================================================================================
 @blob_group.command("download", help="Download a blob by ID")
 # TODO: test XML
-@click.option("--blob-id", required=True, type=str, help="Blob ID to download.")
+@click.option("--blob_id", required=True, type=str, help="Blob ID to download.")
 @click.option(
     "--dest",
     default=None,
-    help="Destination file path. Defaults to blob-id.",
+    help="Destination file path. Defaults to blob_id.",
 )
 @common_api_options
 def blob_download(**kwargs):
@@ -159,7 +159,7 @@ def blob_download(**kwargs):
 #       Delete
 # ================================================================================
 @blob_group.command("delete", help="[Not implemented] Delete a blob by ID")
-@click.option("--blob-id", required=True, type=str, help="Blob ID to delete.")
+@click.option("--blob_id", required=True, type=str, help="Blob ID to delete.")
 @common_api_options
 def delete_cmd(**kwargs):
     from cwmscli.commands.blob import delete_cmd
@@ -171,7 +171,7 @@ def delete_cmd(**kwargs):
 #       Update
 # ================================================================================
 @blob_group.command("update", help="[Not implemented] Update/patch a blob by ID")
-@click.option("--blob-id", required=True, type=str, help="Blob ID to update.")
+@click.option("--blob_id", required=True, type=str, help="Blob ID to update.")
 @click.option(
     "--input-file",
     required=False,
@@ -191,7 +191,7 @@ def update_cmd(**kwargs):
 @blob_group.command("list", help="List blobs with optional filters and sorting")
 # TODO: Add link to regex docs when new CWMS-DATA site is deployed to PROD
 @click.option(
-    "--blob-id-like", help="LIKE filter for blob ID (e.g., ``*PNG``)."
+    "--blob_id_like", help="LIKE filter for blob ID (e.g., ``*PNG``)."
 )  # Escape the wildcard/asterisk for RTD generation with double backticks
 @click.option(
     "--columns",
