@@ -45,7 +45,7 @@ jobs:
         run: poetry build
 
       - name: Store Distribution
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: package-dist
           path: dist/
@@ -67,7 +67,7 @@ jobs:
 
     steps:
       - name: Download Distribution
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: package-dist
           path: dist/
@@ -89,13 +89,13 @@ jobs:
 
     steps:
       - name: Download Distribution
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           name: package-dist
           path: dist/
 
       - name: Sign Distribution
-        uses: sigstore/gh-action-sigstore-python@v3.0.1
+        uses: sigstore/gh-action-sigstore-python@v3.1.0
         with:
           inputs: |
             ./dist/*.tar.gz

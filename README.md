@@ -2,7 +2,7 @@
 
 command line utilities used for Corps Water Management Systems (CWMS) processes
 
-[![Docs](https://readthedocs.org/projects/cwms-cli/badge/?version=latest)](https://cwms-cli.readthedocs.io/en/latest/)
+[![Docs](https://readthedocs.org/projects/cwms-cli/badge/?version=latest)](https://cwms-cli.readthedocs.io/en/latest/) - 📖 Read the docs: https://cwms-cli.readthedocs.io/en/latest/
 
 ## Install
 
