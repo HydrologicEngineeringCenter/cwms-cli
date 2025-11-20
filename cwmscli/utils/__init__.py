@@ -1,11 +1,19 @@
 import click
 
+
+def to_uppercase(ctx, param, value):
+    if value is None:
+        return None
+    return value.upper()
+
+
 office_option = click.option(
     "-o",
     "--office",
     required=True,
     envvar="OFFICE",
     type=str,
+    callback=to_uppercase,
     help="Office to grab data for",
 )
 api_root_option = click.option(
