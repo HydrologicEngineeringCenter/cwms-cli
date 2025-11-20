@@ -10,7 +10,14 @@ import requests
 from dataretrieval import nwis
 
 
-def getusgs_rating_cda(api_root, office_id, days_back, api_key):
+def getusgs_rating_cda(
+    api_root: str,
+    office_id: str,
+    api_key: str,
+    days_back: float = 1,
+    rating_subset: list = None,
+):
+
     api_key = "apikey " + api_key
     cwms.api.init_session(api_root=api_root, api_key=api_key)
     logging.info(f"CDA connection: {api_root}")
@@ -30,16 +37,21 @@ def getusgs_rating_cda(api_root, office_id, days_back, api_key):
     USGS_ratings_empty = USGS_ratings[USGS_ratings["effective-dates"].isna()]
     USGS_ratings = USGS_ratings[USGS_ratings["effective-dates"].notna()]
 
-    logging.info(f"Getting list of ratings updated by USGS in past {days_back} days")
-    df = get_usgs_updated_ratings(days_back * 24)
+    if rating_subset is None:
+        logging.info(
+            f"Getting list of ratings updated by USGS in past {days_back} days"
+        )
+        df = get_usgs_updated_ratings(days_back * 24)
 
-    updated_ratings = pd.merge(
-        USGS_ratings,
-        df,
-        how="inner",
-        left_on=["USGS_St_Num", "rating-type"],
-        right_on=["USGS_St_Num", "rating-type"],
-    )
+        updated_ratings = pd.merge(
+            USGS_ratings,
+            df,
+            how="inner",
+            left_on=["USGS_St_Num", "rating-type"],
+            right_on=["USGS_St_Num", "rating-type"],
+        )
+    else:
+        updated_ratings = USGS_ratings
 
     updated_ratings.loc[:, "effective-dates"] = updated_ratings[
         "effective-dates"
@@ -53,6 +65,10 @@ def getusgs_rating_cda(api_root, office_id, days_back, api_key):
         updated_ratings = pd.concat(
             [updated_ratings, USGS_ratings_empty], ignore_index=True
         )
+    if rating_subset is not None:
+        updated_ratings = updated_ratings[
+            updated_ratings["rating-id"].isin(rating_subset)
+        ]
 
     cwms_write_ratings(updated_ratings)
 
