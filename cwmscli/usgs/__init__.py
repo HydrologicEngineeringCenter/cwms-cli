@@ -39,9 +39,21 @@ days_back_option = click.option(
 @api_root_option
 @api_key_option
 @api_key_loc_option
+@click.option(
+    "-b",
+    "--backfill",
+    default=None,
+    type=str,
+    help='Backfill timeseries ids, use list of timeseries ids (e.g. "ts_id1, ts_id2") to attempt to backfill a subset of timeseries with USGS data',
+)
 @requires(reqs.cwms, reqs.requests)
-def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc):
+def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc, backfill):
     from cwmscli.usgs.getusgs_cda import getusgs_cda
+
+    if backfill is not None:
+        backfill_list = backfill.replace(" ", "").split(",")
+    else:
+        backfill_list = None
 
     api_key = get_api_key(api_key, api_key_loc)
     getusgs_cda(
@@ -49,6 +61,7 @@ def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc):
         office_id=office,
         days_back=days_back,
         api_key=api_key,
+        backfill_tsids=backfill_list,
     )
 
 
@@ -134,8 +147,8 @@ def getusgs_measurements(
     if backfill is not None:
         if "group" in backfill:
             backfill_group = True
-        elif type(args.backfill) == str:
-            backfill_list = args.backfill.replace(" ", "").split(",")
+        elif type(backfill) == str:
+            backfill_list = backfill.replace(" ", "").split(",")
     api_key = get_api_key(api_key, api_key_loc)
     getusgs_measurement_cda(
         api_root=api_root,

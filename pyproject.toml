@@ -2,17 +2,17 @@
 name = "cwms-cli"
 repository = "https://github.com/HydrologicEngineeringCenter/cwms-cli"
 
-version = "0.1.0"
+version = "0.1.1"
 
 
 packages = [
     { include = "cwmscli" },
 ]
-description = "Command line utilities used for Corps Water Management Systems (CWMS) processes"
+description = "Command line utilities for Corps Water Management Systems (CWMS) python scripts. This is a collection of shared scripts across the enterprise Water Management Enterprise System (WMES) teams."
 readme = "README.md"
 license = "LICENSE"
-keywords = ["USACE", "CWMS"]
-authors = ["Hydrologic Engineering Center"]
+keywords = ["USACE", "CWMS", "CLI", "Hydrologic Engineering Center", "HEC", "Hydrology", "Hydraulics", "Water Resources", "DSS"]
+authors = ["Eric Novotny <eric.v.novotny@usace.army.mil>", "Charles Graham <charles.r.graham@usace.army.mil>"]
 
 [tool.poetry.dependencies]
 python = "^3.9"
