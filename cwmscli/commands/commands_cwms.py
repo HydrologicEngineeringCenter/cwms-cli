@@ -1,3 +1,5 @@
+import textwrap
+
 import click
 
 from cwmscli import requirements as reqs
@@ -94,12 +96,15 @@ def csv2cwms_cmd(**kwargs):
 @click.group(
     "blob",
     help="Manage CWMS Blobs (upload, download, delete, update, list)",
-    epilog="""
-  * Store a PDF/image as a CWMS blob with optional description
-  * Download a blob by id to your local filesystem
-  * Update a blob's name/description
-  * Bulk list blobs for an office
-""",
+    epilog=textwrap.dedent(
+        """
+    Example Usage:\n
+    - Store a PDF/image as a CWMS blob with optional description\n
+    - Download a blob by id to your local filesystem\n
+    - Update a blob's name/description/mime-type\n
+    - Bulk list blobs for an office  
+"""
+    ),
 )
 @requires(reqs.cwms)
 def blob_group():
@@ -148,6 +153,7 @@ def blob_upload(**kwargs):
     default=None,
     help="Destination file path. Defaults to blob-id.",
 )
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
 def blob_download(**kwargs):
     from cwmscli.commands.blob import download_cmd
@@ -158,8 +164,9 @@ def blob_download(**kwargs):
 # ================================================================================
 #       Delete
 # ================================================================================
-@blob_group.command("delete", help="[Not implemented] Delete a blob by ID")
+@blob_group.command("delete", help="Delete a blob by ID")
 @click.option("--blob-id", required=True, type=str, help="Blob ID to delete.")
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
 def delete_cmd(**kwargs):
     from cwmscli.commands.blob import delete_cmd
@@ -170,13 +177,30 @@ def delete_cmd(**kwargs):
 # ================================================================================
 #       Update
 # ================================================================================
-@blob_group.command("update", help="[Not implemented] Update/patch a blob by ID")
+@blob_group.command("update", help="Update/patch a blob by ID")
 @click.option("--blob-id", required=True, type=str, help="Blob ID to update.")
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@click.option(
+    "--description",
+    default=None,
+    help="New description JSON or text.",
+)
+@click.option(
+    "--media-type",
+    default=None,
+    help="New media type (guessed from file if omitted).",
+)
 @click.option(
     "--input-file",
     required=False,
     type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
     help="Optional file content to upload with update.",
+)
+@click.option(
+    "--overwrite/--no-overwrite",
+    default=False,
+    show_default=True,
+    help="If true, replace existing blob.",
 )
 @common_api_options
 def update_cmd(**kwargs):
