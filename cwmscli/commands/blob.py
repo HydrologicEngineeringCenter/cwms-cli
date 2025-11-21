@@ -365,7 +365,7 @@ def upload_cmd(
         return
 
     try:
-        cwms.store_blobs(blob, fail_if_exists=overwrite)
+        cwms.store_blobs(blob, fail_if_exists=not overwrite)
         logging.info(f"Uploaded blob: {blob_id_up}")
         logging.info(f"View: {api_root}blobs/{blob_id_up}?office={office}")
     except requests.HTTPError as e:
