@@ -92,7 +92,7 @@ def _save_base64(
 
 def store_blob(**kwargs):
     file_data = kwargs.get("file_data")
-    blob_id = kwargs.get("blob_id").upper()
+    blob_id = kwargs.get("blob_id", "").upper()
     # Attempt to determine what media type should be used for the mime-type if one is not presented based on the file extension
     media = kwargs.get("media_type") or get_media_type(kwargs.get("input_file"))
 
@@ -146,13 +146,12 @@ def store_blob(**kwargs):
 
 
 def retrieve_blob(**kwargs):
-    blob_id = kwargs.get("blob_id", "")
+    blob_id = kwargs.get("blob_id", "").upper()
     if not blob_id:
         logging.warning(
             "Valid blob_id required to download a blob. cwms-cli blob download --blob-id=myid. Run the list directive to see options for your office."
         )
         sys.exit(0)
-    blob_id = blob_id.upper()
     logging.debug(f"Office: {kwargs.get('office')}  Blob ID: {blob_id}")
     try:
         blob = cwms.get_blob(
