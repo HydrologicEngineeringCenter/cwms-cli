@@ -144,7 +144,7 @@ def shared_source_target_options(f):
 
 @click.group(
     name="load",
-    help="Load data from one CWMS Data API instance to another.",
+    help="Load data from one CWMS Data API instance to another",
     context_settings=CONTEXT,
 )
 def load_group():
