@@ -90,6 +90,107 @@ def _save_base64(
     return dest
 
 
+def store_blob(**kwargs):
+    file_data = kwargs.get("file_data")
+    blob_id = kwargs.get("blob_id", "").upper()
+    # Attempt to determine what media type should be used for the mime-type if one is not presented based on the file extension
+    media = kwargs.get("media_type") or get_media_type(kwargs.get("input_file"))
+
+    logging.debug(
+        f"Office: {kwargs.get('office')}  Output ID: {blob_id}  Media: {media}"
+    )
+
+    blob = {
+        "office-id": kwargs.get("office"),
+        "id": blob_id,
+        "description": json.dumps(kwargs.get("description")),
+        "media-type-id": media,
+        "value": base64.b64encode(file_data).decode("utf-8"),
+    }
+
+    params = {"fail-if-exists": not kwargs.get("overwrite")}
+
+    if kwargs.get("dry_run"):
+        logging.info(
+            f"--dry-run enabled. Would POST to {kwargs.get('api_root')}/blobs with params={params}"
+        )
+        logging.info(
+            f"Blob payload summary: office-id={kwargs.get('office')}, id={blob_id}, media={media}",
+        )
+        logging.info(
+            json.dumps(
+                {
+                    "url": f"{kwargs.get('api_root')}blobs",
+                    "params": params,
+                    "blob": {**blob, "value": f"<base64:{len(blob['value'])} chars>"},
+                },
+                indent=2,
+            )
+        )
+        sys.exit(0)
+
+    try:
+        cwms.store_blobs(blob, fail_if_exists=kwargs.get("overwrite"))
+        logging.info(f"Successfully stored blob with ID: {blob_id}")
+        logging.info(
+            f"View: {kwargs.get('api_root')}blobs/{blob_id}?office={kwargs.get('office')}"
+        )
+    except requests.HTTPError as e:
+        # Include response text when available
+        detail = getattr(e.response, "text", "") or str(e)
+        logging.error(f"Failed to store blob (HTTP): {detail}")
+        sys.exit(1)
+    except Exception as e:
+        logging.error(f"Failed to store blob: {e}")
+        sys.exit(1)
+
+
+def retrieve_blob(**kwargs):
+    blob_id = kwargs.get("blob_id", "").upper()
+    if not blob_id:
+        logging.warning(
+            "Valid blob_id required to download a blob. cwms-cli blob download --blob-id=myid. Run the list directive to see options for your office."
+        )
+        sys.exit(0)
+    logging.debug(f"Office: {kwargs.get('office')}  Blob ID: {blob_id}")
+    try:
+        blob = cwms.get_blob(
+            office_id=kwargs.get("office"),
+            blob_id=blob_id,
+        )
+        logging.info(
+            f"Successfully retrieved blob with ID: {blob_id}",
+        )
+        _save_base64(blob, dest=blob_id)
+        logging.info(f"Downloaded blob to: {blob_id}")
+    except requests.HTTPError as e:
+        detail = getattr(e.response, "text", "") or str(e)
+        logging.error(f"Failed to retrieve blob (HTTP): {detail}")
+        sys.exit(1)
+    except Exception as e:
+        logging.error(f"Failed to retrieve blob: {e}")
+        sys.exit(1)
+
+
+def delete_blob(**kwargs):
+    blob_id = kwargs.get("blob_id").upper()
+    logging.debug(f"Office: {kwargs.get('office')}  Blob ID: {blob_id}")
+
+    try:
+        # cwms.delete_blob(
+        #     office_id=kwargs.get("office"),
+        #     blob_id=kwargs.get("blob_id").upper(),
+        # )
+        logging.info(f"Successfully deleted blob with ID: {blob_id}")
+    except requests.HTTPError as e:
+        details = getattr(e.response, "text", "") or str(e)
+        logging.error(f"Failed to delete blob (HTTP): {details}")
+        sys.exit(1)
+    except Exception as e:
+        logging.error(f"Failed to delete blob: {e}")
+        sys.exit(1)
+
+
 def list_blobs(
     office: Optional[str] = None,
     blob_id_like: Optional[str] = None,

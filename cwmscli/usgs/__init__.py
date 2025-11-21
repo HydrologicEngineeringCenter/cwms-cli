@@ -24,7 +24,7 @@ from cwmscli.utils.deps import requires
 
 days_back_option = click.option(
     "-d",
-    "--days_back",
+    "--days-back",
     default="1",
     type=float,
     help="Days back from current time to get data.  Can be decimal and integer values",
@@ -71,9 +71,21 @@ def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc, backfi
 @api_root_option
 @api_key_option
 @api_key_loc_option
+@click.option(
+    "-rs",
+    "--rating-subset",
+    default=None,
+    type=str,
+    help='subset of rating spec ids to grab latest rating for (e.g. "rating_spec_id1, rating_spec_id2").',
+)
 @requires(reqs.cwms, reqs.requests, reqs.dataretrieval)
-def getusgs_ratings(office, days_back, api_root, api_key, api_key_loc):
+def getusgs_ratings(office, days_back, api_root, api_key, api_key_loc, rating_subset):
     from cwmscli.usgs.getUSGS_ratings_cda import getusgs_rating_cda
+
+    if rating_subset is not None:
+        rating_list = rating_subset.replace(" ", "").split(",")
+    else:
+        rating_list = None
 
     api_key = get_api_key(api_key, api_key_loc)
     getusgs_rating_cda(
@@ -81,6 +93,7 @@ def getusgs_ratings(office, days_back, api_root, api_key, api_key_loc):
         office_id=office,
         days_back=days_back,
         api_key=api_key,
+        rating_subset=rating_list,
     )
 
 
@@ -109,13 +122,13 @@ def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
 @usgs_group.command("measurements", help="Store USGS measurements into CWMS database")
 @click.option(
     "-d",
-    "--days_back_modified",
+    "--days-back-modified",
     default="2",
     help="Days back from current time measurements have been modified in USGS database. Can be integer value",
 )
 @click.option(
     "-c",
-    "--days_back_collected",
+    "--days-back-collected",
     default="365",
     help="Days back from current time measurements have been collected. Can be integer value",
 )
