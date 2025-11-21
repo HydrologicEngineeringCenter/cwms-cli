@@ -18,7 +18,7 @@ office_option = click.option(
 )
 api_root_option = click.option(
     "-a",
-    "--api_root",
+    "--api-root",
     required=True,
     envvar="CDA_API_ROOT",
     type=str,
@@ -34,18 +34,18 @@ api_coop_root_option = click.option(
 
 api_key_option = click.option(
     "-k",
-    "--api_key",
+    "--api-key",
     default=None,
     type=str,
     envvar="CDA_API_KEY",
-    help="api key for CDA. Can be user defined or place in env variable CDA_API_KEY. one of api_key or api_key_loc are required",
+    help="api key for CDA. Can be user defined or place in env variable CDA_API_KEY. one of api-key or api-key-loc are required",
 )
 api_key_loc_option = click.option(
     "-kl",
-    "--api_key_loc",
+    "--api-key-loc",
     default=None,
     type=str,
-    help="file storing Api Key. One of api_key or api_key_loc are required",
+    help="file storing Api Key. One of api-key or api-key-loc are required",
 )
 
 
@@ -57,7 +57,7 @@ def get_api_key(api_key: str, api_key_loc: str) -> str:
             return f.readline().strip()
     else:
         raise Exception(
-            "must add a value to either --api_key(-k) or --api_key_loc(-kl)"
+            "must add a value to either --api-key(-k) or --api-key-loc(-kl)"
         )
 
 

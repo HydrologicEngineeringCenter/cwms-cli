@@ -68,13 +68,13 @@ COLUMN_MAPPING = {
 
 
 def getusgs_measurement_cda(
-    api_root,
-    office_id,
-    api_key,
-    days_back_modified=2,
-    days_back_collected=365,
-    backfill_list=None,
-    backfill_group=None,
+    api_root: str,
+    office_id: str,
+    api_key: str,
+    days_back_modified: float = 2,
+    days_back_collected: float = 365,
+    backfill_list: list = None,
+    backfill_group: bool = False,
 ):
     apiKey = "apikey " + api_key
     api = cwms.api.init_session(api_root=api_root, api_key=apiKey)
