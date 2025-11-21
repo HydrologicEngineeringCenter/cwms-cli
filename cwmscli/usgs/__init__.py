@@ -24,7 +24,7 @@ from cwmscli.utils.deps import requires
 
 days_back_option = click.option(
     "-d",
-    "--days_back",
+    "--days-back",
     default="1",
     type=float,
     help="Days back from current time to get data.  Can be decimal and integer values",
@@ -39,9 +39,21 @@ days_back_option = click.option(
 @api_root_option
 @api_key_option
 @api_key_loc_option
+@click.option(
+    "-b",
+    "--backfill",
+    default=None,
+    type=str,
+    help='Backfill timeseries ids, use list of timeseries ids (e.g. "ts_id1, ts_id2") to attempt to backfill a subset of timeseries with USGS data',
+)
 @requires(reqs.cwms, reqs.requests)
-def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc):
+def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc, backfill):
     from cwmscli.usgs.getusgs_cda import getusgs_cda
+
+    if backfill is not None:
+        backfill_list = backfill.replace(" ", "").split(",")
+    else:
+        backfill_list = None
 
     api_key = get_api_key(api_key, api_key_loc)
     getusgs_cda(
@@ -49,6 +61,7 @@ def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc):
         office_id=office,
         days_back=days_back,
         api_key=api_key,
+        backfill_tsids=backfill_list,
     )
 
 
@@ -58,9 +71,21 @@ def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc):
 @api_root_option
 @api_key_option
 @api_key_loc_option
+@click.option(
+    "-rs",
+    "--rating-subset",
+    default=None,
+    type=str,
+    help='subset of rating spec ids to grab latest rating for (e.g. "rating_spec_id1, rating_spec_id2").',
+)
 @requires(reqs.cwms, reqs.requests, reqs.dataretrieval)
-def getusgs_ratings(office, days_back, api_root, api_key, api_key_loc):
+def getusgs_ratings(office, days_back, api_root, api_key, api_key_loc, rating_subset):
     from cwmscli.usgs.getUSGS_ratings_cda import getusgs_rating_cda
+
+    if rating_subset is not None:
+        rating_list = rating_subset.replace(" ", "").split(",")
+    else:
+        rating_list = None
 
     api_key = get_api_key(api_key, api_key_loc)
     getusgs_rating_cda(
@@ -68,6 +93,7 @@ def getusgs_ratings(office, days_back, api_root, api_key, api_key_loc):
         office_id=office,
         days_back=days_back,
         api_key=api_key,
+        rating_subset=rating_list,
     )
 
 
@@ -96,13 +122,13 @@ def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
 @usgs_group.command("measurements", help="Store USGS measurements into CWMS database")
 @click.option(
     "-d",
-    "--days_back_modified",
+    "--days-back-modified",
     default="2",
     help="Days back from current time measurements have been modified in USGS database. Can be integer value",
 )
 @click.option(
     "-c",
-    "--days_back_collected",
+    "--days-back-collected",
     default="365",
     help="Days back from current time measurements have been collected. Can be integer value",
 )
@@ -134,8 +160,8 @@ def getusgs_measurements(
     if backfill is not None:
         if "group" in backfill:
             backfill_group = True
-        elif type(args.backfill) == str:
-            backfill_list = args.backfill.replace(" ", "").split(",")
+        elif type(backfill) == str:
+            backfill_list = backfill.replace(" ", "").split(",")
     api_key = get_api_key(api_key, api_key_loc)
     getusgs_measurement_cda(
         api_root=api_root,
