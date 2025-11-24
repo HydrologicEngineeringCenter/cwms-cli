@@ -5,13 +5,13 @@ import mimetypes
 import os
 import re
 import sys
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Union
 
 import cwms
 import pandas as pd
 import requests
 
-from cwmscli.utils import get_api_key
+from cwmscli.utils import get_api_key, has_invalid_chars
 from cwmscli.utils.deps import requires
 
 # used to rebuild data URL for images
@@ -27,7 +27,7 @@ DATA_URL_RE = re.compile(r"^data:(?P<mime>[^;]+);base64,(?P<data>.+)$", re.I | r
         "link": "https://docs.python.org/3/library/imghdr.html",
     }
 )
-def _determine_ext(data: bytes | str, write_type: str) -> str:
+def _determine_ext(data: Union[bytes, str], write_type: str) -> str:
     """
     Attempt to determine the file extension from the data itself.
     Requires the imghdr module (lazy import) to inspect the bytes for image types.
@@ -51,7 +51,7 @@ def _determine_ext(data: bytes | str, write_type: str) -> str:
 def _save_base64(
     b64_or_dataurl: str,
     dest: str,
-    media_type_hint: str | None = None,
+    media_type_hint: Optional[str] = None,
 ) -> str:
     m = DATA_URL_RE.match(b64_or_dataurl.strip())
     if m:
