@@ -25,6 +25,7 @@ from cwmscli.utils.deps import requires
 @requires(reqs.cwms)
 def shefcritimport(filename, office, api_root, api_key, api_key_loc):
     from cwmscli.commands.shef_critfile_import import import_shef_critfile
+    from cwmscli.utils import get_api_key
 
     api_key = get_api_key(api_key, api_key_loc)
     import_shef_critfile(
