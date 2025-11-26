@@ -1,6 +1,6 @@
 # cwms-cli
 
-command line utilities used for Corps Water Management Systems (CWMS) processes
+A collection of scripts to create, read, update, list, and delete data through CWMS Data API (CDA) and other commonly used API in the US Army Corps of Engineers water management. CWMS-CLI wraps these API in a friendly to use terminal based interface.
 
 [![Docs](https://readthedocs.org/projects/cwms-cli/badge/?version=latest)](https://cwms-cli.readthedocs.io/en/latest/) - 📖 Read the docs: https://cwms-cli.readthedocs.io/en/latest/
 
@@ -12,6 +12,7 @@ pip install git+https://github.com/HydrologicEngineeringCenter/cwms-cli.git@main
 
 ## Command line implementation
 
+View the help in terminal:
 ```sh
 cwms-cli --help
 ```
