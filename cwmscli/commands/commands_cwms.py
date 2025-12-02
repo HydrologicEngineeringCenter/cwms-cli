@@ -320,11 +320,31 @@ def timeseries_group_upload(**kwargs):
 #       Download
 # ================================================================================
 @timeseries_group.command("retrieve", help="Download timeseries group")
-@click.option("--blob-id", required=True, type=str, help="Blob ID to download.")
+@click.option(
+    "--include-assigned",
+    default=True,
+    show_default=True,
+    type=bool,
+    help="Include the assigned timeseries in the returned timeseries groups. (default: true)",
+)
+@click.option(
+    "--timeseries-category-like",
+    type=str,
+    help="Posix regular expression matching against the timeseries category id",
+)
+@click.option(
+    "--category-office-id",
+    type=str,
+    help="Specifies the owning office of the timeseries group category",
+)
+@click.option(
+    "--timeseries-group-like",
+    type=str,
+    help="Posix regular expression matching against the timeseries group id",
+)
 @click.option(
     "--dest",
-    default=None,
-    help="Destination file path. Defaults to blob-id.",
+    help="Destination file path. Defaults to stdout.",
 )
 @click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
