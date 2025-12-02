@@ -250,3 +250,195 @@ def list_cmd(**kwargs):
 
 
 # endregion
+
+
+# region Time Series
+# ================================================================================
+#  Time Series
+# ================================================================================
+@click.group(
+    "timeseries",
+    help="Manage CWMS Time Series",
+    epilog=textwrap.dedent(
+        """
+    Example Usage:\n
+    - Manage Time Series Groups\n
+    - More Coming Soon!
+"""
+    ),
+)
+@requires(reqs.cwms)
+def timeseries():
+    pass
+
+
+# region Time Series Group
+# ================================================================================
+#  Time Series Group
+# ================================================================================
+@timeseries.group(
+    "group",
+    help="Manage CWMS Time Series Groups (upload, download, delete, update, list)",
+    epilog=textwrap.dedent(
+        """
+    Example Usage:\n
+    - Store Time Series Groups from CLI\n
+    - Download a Time Series Group to your local filesystem\n
+    - Update a Time Series Group description, category, and identifiers\n
+    - Bulk list Time Series Groups for a given office
+"""
+    ),
+)
+def timeseries_group():
+    pass
+
+
+# ================================================================================
+#       Store
+# ================================================================================
+@timeseries_group.command("store", help="Store a timeseries group")
+@click.option(
+    "--overwrite/--no-overwrite",
+    default=False,
+    show_default=True,
+    help="If true, replace existing timeseries group.",
+)
+@click.option(
+    "--input-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
+    help="Specify a relative/absolute path to a JSON file containing the request body",
+)
+@common_api_options
+def timeseries_group_upload(**kwargs):
+    from cwmscli.commands.timeseries.group import store_cmd
+
+    store_cmd(**kwargs)
+
+
+# ================================================================================
+#       Download
+# ================================================================================
+@timeseries_group.command("retrieve", help="Download timeseries group")
+@click.option("--blob-id", required=True, type=str, help="Blob ID to download.")
+@click.option(
+    "--dest",
+    default=None,
+    help="Destination file path. Defaults to blob-id.",
+)
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@common_api_options
+def blob_download(**kwargs):
+    from cwmscli.commands.timeseries.group import download_cmd
+
+    download_cmd(**kwargs)
+
+
+# ================================================================================
+#       Delete
+# ================================================================================
+@timeseries_group.command("delete", help="Delete a timeseries group")
+@click.option("--blob-id", required=True, type=str, help="Blob ID to delete.")
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@common_api_options
+def delete_cmd(**kwargs):
+    from cwmscli.commands.timeseries.group import delete_cmd
+
+    delete_cmd(**kwargs)
+
+
+# ================================================================================
+#       Update
+# ================================================================================
+@timeseries_group.command("update", help="Update/patch a timeseries group")
+@click.option("--blob-id", required=True, type=str, help="Blob ID to update.")
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@click.option(
+    "--description",
+    default=None,
+    help="New description JSON or text.",
+)
+@click.option(
+    "--media-type",
+    default=None,
+    help="New media type (guessed from file if omitted).",
+)
+@click.option(
+    "--input-file",
+    required=False,
+    type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
+    help="Optional file content to upload with update.",
+)
+@click.option(
+    "--overwrite/--no-overwrite",
+    default=False,
+    show_default=True,
+    help="If true, replace existing blob.",
+)
+@common_api_options
+def update_cmd(**kwargs):
+    from cwmscli.commands.timeseries.group import update_cmd
+
+    update_cmd(**kwargs)
+
+
+# timeseries_category_like=timeseries_category_like,
+# category_office_id=category_office_id,
+# timeseries_group_like=timeseries_group_like,
+
+
+# ================================================================================
+#       List
+# ================================================================================
+@timeseries_group.command("list", help="List blobs with optional filters and sorting")
+@click.option(
+    "--include-assigned",
+    default=False,
+    show_default=True,
+    help="Include the assigned timeseries in the returned timeseries groups. (default: true)",
+)
+@click.option(
+    "--timeseries-category-like",
+    help="Posix regular expression matching against the timeseries category id",
+)
+@click.option(
+    "--category-office-id",
+    help="Specifies the owning office of the timeseries group category",
+)
+@click.option(
+    "--timeseries-group-like",
+    help="Posix regular expression matching against the timeseries group id",
+)
+@click.option(
+    "--columns",
+    multiple=True,
+    callback=csv_to_list,
+    help="Columns to show (repeat or comma-separate).",
+)
+@click.option(
+    "--sort-by",
+    multiple=True,
+    callback=csv_to_list,
+    help="Columns to sort by (repeat or comma-separate).",
+)
+@click.option(
+    "--desc/--asc",
+    default=False,
+    show_default=True,
+    help="Sort descending instead of ascending.",
+)
+@click.option("--limit", type=int, default=None, help="Max rows to show.")
+@click.option(
+    "--to-csv",
+    type=click.Path(dir_okay=False, writable=True, path_type=str),
+    help="If set, write results to this CSV file.",
+)
+@common_api_options
+def list_cmd(**kwargs):
+    from cwmscli.commands.timeseries.group import list_cmd
+
+    list_cmd(**kwargs)
+
+
+# endregion
+# endregion
