@@ -321,16 +321,14 @@ def timeseries_group_upload(**kwargs):
 # ================================================================================
 @timeseries_group.command("retrieve", help="Download timeseries group")
 @click.option(
-    "--include-assigned",
-    default=True,
-    show_default=True,
-    type=bool,
-    help="Include the assigned timeseries in the returned timeseries groups. (default: true)",
+    "--group-id",
+    type=str,
+    help="Specifies the timeseries group whose data is to be included in the response",
 )
 @click.option(
-    "--timeseries-category-like",
+    "--office",
     type=str,
-    help="Posix regular expression matching against the timeseries category id",
+    help="Specifies the owning office of the timeseries assigned to the group whose data is to be included in the response. This will limit the assigned timeseries returned to only those assigned to the specified office.",
 )
 @click.option(
     "--category-office-id",
@@ -338,20 +336,29 @@ def timeseries_group_upload(**kwargs):
     help="Specifies the owning office of the timeseries group category",
 )
 @click.option(
-    "--timeseries-group-like",
+    "--group-office-id",
     type=str,
-    help="Posix regular expression matching against the timeseries group id",
+    help="Specifies the owning office of the timeseries group",
 )
 @click.option(
-    "--dest",
-    help="Destination file path. Defaults to stdout.",
+    "--category-id",
+    type=str,
+    help="Specifies the category containing the timeseries group whose data is to be included in the response.",
 )
 @click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@click.option(
+    "--dest-dir",
+    required=False,
+    type=click.Path(exists=True, dir_okay=True, readable=True, path_type=str),
+    help="""Specify a relative/absolute path to a directory where the output file will be saved.
+        The file will be named <office>_<group-id>.json.
+        If not specified, it will be written to stdout.""",
+)
 @common_api_options
-def blob_download(**kwargs):
-    from cwmscli.commands.timeseries.group import download_cmd
+def timeseries_group_download(**kwargs):
+    from cwmscli.commands.timeseries.group import retrieve_cmd
 
-    download_cmd(**kwargs)
+    retrieve_cmd(**kwargs)
 
 
 # ================================================================================
