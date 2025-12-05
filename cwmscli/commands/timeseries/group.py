@@ -125,12 +125,12 @@ def list_groups(
 
 
 def store_cmd(
-    input_file: str | None,
-    overwrite: bool,
-    dry_run: bool,
-    office: str,
-    api_root: str,
     api_key: str,
+    input_file: Optional[str],
+    overwrite: Optional[bool],
+    dry_run: Optional[bool],
+    office: Optional[str],
+    api_root: Optional[str],
 ):
     cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
     # ----------------------------
