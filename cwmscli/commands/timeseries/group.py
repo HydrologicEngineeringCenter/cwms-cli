@@ -9,6 +9,7 @@ import pandas as pd
 import requests
 
 from cwmscli.utils import get_api_key
+from cwmscli.utils.io import write_to_file
 
 
 def store_group(**kwargs):
@@ -69,30 +70,42 @@ def store_group(**kwargs):
         sys.exit(1)
 
 
-def retrieve_group(**kwargs):
-    group_id = kwargs.get("group_id", "").upper()
+def retrieve_group(
+    group_id: str,
+    category_office_id: str,
+    group_office_id: str,
+    category_id: str,
+    office: str,
+    dest_dir: Optional[str] = None,
+):
     if not group_id:
         logging.warning(
             "Valid group_id required to download a group. cwms-cli group download --group-id=myid. Run the list directive to see options for your office."
         )
         sys.exit(0)
-    logging.debug(f"Office: {kwargs.get('office')}  Group ID: {group_id}")
+    logging.debug(f"Office: {office}  Group ID: {group_id}")
     try:
-        group = cwms.get_group(
-            office_id=kwargs.get("office"),
+        group = cwms.get_timeseries_group(
             group_id=group_id,
+            category_office_id=category_office_id,
+            group_office_id=group_office_id,
+            category_id=category_id,
+            office_id=office,
         )
         logging.info(
             f"Successfully retrieved group with ID: {group_id}",
         )
-        _save_base64(group, dest=group_id)
-        logging.info(f"Downloaded group to: {group_id}")
+        if dest_dir:
+            write_to_file(
+                file_path=os.path.join((dest_dir or "."), f"{office}_{group_id}.json"),
+                data=json.dumps(group.json, indent=2),
+            )
+        else:
+            logging.info(group.df.to_string(index=False))
+            return group
     except requests.HTTPError as e:
         detail = getattr(e.response, "text", "") or str(e)
         logging.error(f"Failed to retrieve group (HTTP): {detail}")
-        sys.exit(1)
-    except Exception as e:
-        logging.error(f"Failed to retrieve group: {e}")
         sys.exit(1)
 
 
@@ -233,8 +246,16 @@ def store_cmd(
         sys.exit(1)
 
 
-def download_cmd(
-    group_id: str, dest: str, office: str, api_root: str, api_key: str, dry_run: bool
+def retrieve_cmd(
+    group_id: str,
+    category_office_id: str,
+    group_office_id: str,
+    category_id: str,
+    office: str,
+    api_root: str,
+    api_key: str,
+    dry_run: bool,
+    dest_dir: Optional[str] = None,
 ):
     if dry_run:
         logging.info(
@@ -242,21 +263,15 @@ def download_cmd(
         )
         return
     cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
-    bid = group_id.upper()
-    logging.debug(f"Office={office} GroupID={bid}")
 
-    try:
-        group_b64 = cwms.get_group(office_id=office, group_id=bid)
-        target = dest or bid
-        _save_base64(group_b64, dest=target)
-        logging.info(f"Downloaded group to: {target}")
-    except requests.HTTPError as e:
-        detail = getattr(e.response, "text", "") or str(e)
-        logging.error(f"Failed to download (HTTP): {detail}")
-        sys.exit(1)
-    except Exception as e:
-        logging.error(f"Failed to download: {e}")
-        sys.exit(1)
+    retrieve_group(
+        group_id=group_id,
+        category_office_id=category_office_id,
+        group_office_id=group_office_id,
+        category_id=category_id,
+        office=office,
+        dest_dir=dest_dir,
+    )
 
 
 def delete_cmd(group_id: str, office: str, api_root: str, api_key: str, dry_run: bool):
