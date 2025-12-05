@@ -12,64 +12,6 @@ from cwmscli.utils import get_api_key
 from cwmscli.utils.io import write_to_file
 
 
-def store_group(**kwargs):
-    file_data = kwargs.get("file_data")
-    group_id = kwargs.get("group_id", "").upper()
-    # Attempt to determine what media type should be used for the mime-type if one is not presented based on the file extension
-    media = kwargs.get("media_type") or get_media_type(kwargs.get("input_file"))
-
-    logging.debug(
-        f"Office: {kwargs.get('office')}  Output ID: {group_id}  Media: {media}"
-    )
-
-    group = {
-        "office-id": kwargs.get("office"),
-        "id": group_id,
-        "description": json.dumps(kwargs.get("description")),
-        "media-type-id": media,
-        "value": base64.b64encode(file_data).decode("utf-8"),
-    }
-
-    params = {"fail-if-exists": not kwargs.get("overwrite")}
-
-    if kwargs.get("dry_run"):
-        logging.info(
-            f"--dry-run enabled. Would POST to {kwargs.get('api_root')}/groups with params={params}"
-        )
-        logging.info(
-            f"Group payload summary: office-id={kwargs.get('office')}, id={group_id}, media={media}",
-        )
-        logging.info(
-            json.dumps(
-                {
-                    "url": f"{kwargs.get('api_root')}groups",
-                    "params": params,
-                    "group": {
-                        **group,
-                        "value": f"<base64:{len(group['value'])} chars>",
-                    },
-                },
-                indent=2,
-            )
-        )
-        sys.exit(0)
-
-    try:
-        cwms.store_groups(group, fail_if_exists=kwargs.get("overwrite"))
-        logging.info(f"Successfully stored group with ID: {group_id}")
-        logging.info(
-            f"View: {kwargs.get('api_root')}groups/{group_id}?office={kwargs.get('office')}"
-        )
-    except requests.HTTPError as e:
-        # Include response text when available
-        detail = getattr(e.response, "text", "") or str(e)
-        logging.error(f"Failed to store group (HTTP): {detail}")
-        sys.exit(1)
-    except Exception as e:
-        logging.error(f"Failed to store group: {e}")
-        sys.exit(1)
-
-
 def retrieve_group(
     group_id: str,
     category_office_id: str,
@@ -101,7 +43,8 @@ def retrieve_group(
                 data=json.dumps(group.json, indent=2),
             )
         else:
-            logging.info(group.df.to_string(index=False))
+            sys.stdout.write(json.dumps(group.json))
+            sys.stdout.write("\n")
             return group
     except requests.HTTPError as e:
         detail = getattr(e.response, "text", "") or str(e)
@@ -182,7 +125,7 @@ def list_groups(
 
 
 def store_cmd(
-    input_file: str,
+    input_file: str | None,
     overwrite: bool,
     dry_run: bool,
     office: str,
@@ -190,59 +133,53 @@ def store_cmd(
     api_key: str,
 ):
     cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
+    # ----------------------------
+    # Read file or stdin
+    # ----------------------------
+    file_data = None
     try:
-        file_size = os.path.getsize(input_file)
-        with open(input_file, "rb") as f:
-            file_data = f.read()
-        logging.info(f"Read file: {input_file} ({file_size} bytes)")
+        if input_file:
+            file_size = os.path.getsize(input_file)
+            with open(input_file, "rb") as f:
+                file_data = f.read().decode("utf-8")
+            logging.info(f"Read file: {input_file} ({file_size} bytes)")
+        else:
+            # Read from stdin (binary)
+            logging.info("Reading input from stdin...")
+            file_data = sys.stdin.buffer.read().decode("utf-8")
+            if not file_data:
+                logging.error("No input provided on stdin and no file specified.")
+                sys.exit(1)
+            logging.info(f"Read {len(file_data)} bytes from stdin")
     except Exception as e:
-        logging.error(f"Failed to read file: {e}")
+        logging.error(f"Failed to read input: {e}")
         sys.exit(1)
 
-    media = media_type or get_media_type(input_file)
-    group_id_up = group_id.upper()
-    logging.debug(f"Office={office} GroupID={group_id_up} Media={media}")
-
-    group = {
-        "office-id": office,
-        "id": group_id_up,
-        "description": (
-            json.dumps(description)
-            if isinstance(description, (dict, list))
-            else description
-        ),
-        "media-type-id": media,
-        "value": base64.b64encode(file_data).decode("utf-8"),
-    }
     params = {"fail-if-exists": not overwrite}
 
+    # ----------------------------
+    # Dry run
+    # ----------------------------
     if dry_run:
-        logging.info(f"DRY RUN: would POST {api_root}groups with params={params}")
+        logging.info(f"DRY RUN: would POST {api_root}group with params={params}")
         logging.info(
             json.dumps(
-                {
-                    "url": f"{api_root}groups",
-                    "params": params,
-                    "group": {
-                        **group,
-                        "value": f'<base64:{len(group["value"])} chars>',
-                    },
-                },
+                file_data,
                 indent=2,
             )
         )
         return
 
+    # ----------------------------
+    # Upload
+    # ----------------------------
     try:
-        cwms.store_groups(group, fail_if_exists=not overwrite)
-        logging.info(f"Uploaded group: {group_id_up}")
-        logging.info(f"View: {api_root}groups/{group_id_up}?office={office}")
+        logging.debug(f"Uploading timeseries group: {file_data}")
+        cwms.store_timeseries_groups(file_data, fail_if_exists=not overwrite)
+        logging.info(f"Uploaded group successfully.")
     except requests.HTTPError as e:
         detail = getattr(e.response, "text", "") or str(e)
         logging.error(f"Failed to upload (HTTP): {detail}")
-        sys.exit(1)
-    except Exception as e:
-        logging.error(f"Failed to upload: {e}")
         sys.exit(1)
 
 
@@ -262,7 +199,8 @@ def retrieve_cmd(
             f"DRY RUN: would GET {api_root} group with group-id={group_id} office={office}."
         )
         return
-    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
+
+    cwms.init_session(api_root=api_root, api_key=api_key)
 
     retrieve_group(
         group_id=group_id,
@@ -304,14 +242,10 @@ def update_cmd(
         return
     file_data = None
     if input_file:
-        try:
-            file_size = os.path.getsize(input_file)
-            with open(input_file, "rb") as f:
-                file_data = f.read()
-            logging.info(f"Read file: {input_file} ({file_size} bytes)")
-        except Exception as e:
-            logging.error(f"Failed to read file: {e}")
-            sys.exit(1)
+        file_size = os.path.getsize(input_file)
+        with open(input_file, "rb") as f:
+            file_data = f.read()
+        logging.info(f"Read file: {input_file} ({file_size} bytes)")
     # Setup minimum required payload
     group = {"office-id": office, "id": group_id.upper()}
     if description:
@@ -346,7 +280,7 @@ def list_cmd(
     api_root: str,
     api_key: str,
 ):
-    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
+    cwms.init_session(api_root=api_root, api_key=api_key)
     df = list_groups(
         office=office,
         include_assigned=include_assigned,

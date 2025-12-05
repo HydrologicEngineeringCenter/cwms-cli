@@ -305,10 +305,11 @@ def timeseries_group():
 )
 @click.option(
     "--input-file",
-    required=True,
+    required=False,
     type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
-    help="Specify a relative/absolute path to a JSON file containing the request body",
+    help="Specify a relative/absolute path to a JSON file containing the request body. If not specified, it will be read from stdin.",
 )
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
 def timeseries_group_upload(**kwargs):
     from cwmscli.commands.timeseries.group import store_cmd
