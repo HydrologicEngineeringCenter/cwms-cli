@@ -1,3 +1,5 @@
+import logging
+
 import click
 
 
@@ -5,6 +7,16 @@ def to_uppercase(ctx, param, value):
     if value is None:
         return None
     return value.upper()
+
+
+def _set_log_level(ctx, param, value):
+    if value is None:
+        return
+    level = getattr(logging, value.upper(), None)
+    if level is None:
+        raise click.BadParameter(f"Invalid log level: {value}")
+    logging.getLogger().setLevel(level)
+    return value
 
 
 office_option = click.option(
@@ -47,6 +59,17 @@ api_key_loc_option = click.option(
     type=str,
     help="file storing Api Key. One of api-key or api-key-loc are required",
 )
+log_level_option = click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False
+    ),
+    default=None,
+    callback=_set_log_level,
+    expose_value=False,  # Callback will set the log level of all methods
+    is_eager=True,  # Run before other commands (to cover any logging statements)
+    help="Set logging verbosity (overrides default INFO).",
+)
 
 
 def get_api_key(api_key: str, api_key_loc: str) -> str:
@@ -62,6 +85,7 @@ def get_api_key(api_key: str, api_key_loc: str) -> str:
 
 
 def common_api_options(f):
+    f = log_level_option(f)
     f = office_option(f)
     f = api_root_option(f)
     f = api_key_option(f)
