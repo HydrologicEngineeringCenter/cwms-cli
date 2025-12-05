@@ -64,7 +64,8 @@ log_level_option = click.option(
     type=click.Choice(
         ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False
     ),
-    default=None,
+    default="INFO",
+    envvar="LOG_LEVEL",
     callback=_set_log_level,
     expose_value=False,  # Callback will set the log level of all methods
     is_eager=True,  # Run before other commands (to cover any logging statements)
