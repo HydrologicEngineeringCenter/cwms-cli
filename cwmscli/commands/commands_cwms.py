@@ -5,7 +5,7 @@ import click
 from cwmscli import requirements as reqs
 from cwmscli.callbacks import csv_to_list
 from cwmscli.commands import csv2cwms
-from cwmscli.utils import api_key_loc_option, common_api_options
+from cwmscli.utils import api_key_loc_option, common_api_options, to_uppercase
 from cwmscli.utils.deps import requires
 
 
@@ -329,6 +329,7 @@ def timeseries_group_upload(**kwargs):
 @click.option(
     "--office",
     type=str,
+    callback=to_uppercase,
     help="Specifies the owning office of the timeseries assigned to the group whose data is to be included in the response. This will limit the assigned timeseries returned to only those assigned to the specified office.",
 )
 @click.option(
