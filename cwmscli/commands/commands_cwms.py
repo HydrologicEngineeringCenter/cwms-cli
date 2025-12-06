@@ -366,8 +366,22 @@ def timeseries_group_download(**kwargs):
 # ================================================================================
 #       Delete
 # ================================================================================
-@timeseries_group.command("delete", help="Delete a timeseries group")
-@click.option("--blob-id", required=True, type=str, help="Blob ID to delete.")
+@timeseries_group.command("delete", help="Deletes requested time series group")
+@click.option(
+    "--group-id", required=True, type=str, help="The time series group to be deleted"
+)
+@click.option(
+    "--category-id",
+    required=True,
+    type=str,
+    help="Specifies the time series category of the time series group to be deleted",
+)
+@click.option(
+    "--office",
+    type=str,
+    callback=to_uppercase,
+    help="Specifies the owning office of the time series group to be deleted",
+)
 @click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
 def delete_cmd(**kwargs):

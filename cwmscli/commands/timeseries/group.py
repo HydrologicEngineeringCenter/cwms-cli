@@ -212,7 +212,14 @@ def retrieve_cmd(
     )
 
 
-def delete_cmd(group_id: str, office: str, api_root: str, api_key: str, dry_run: bool):
+def delete_cmd(
+    group_id: str,
+    category_id: str,
+    office: str,
+    api_root: str,
+    api_key: str,
+    dry_run: bool,
+):
 
     if dry_run:
         logging.info(
@@ -220,7 +227,9 @@ def delete_cmd(group_id: str, office: str, api_root: str, api_key: str, dry_run:
         )
         return
     cwms.init_session(api_root=api_root, api_key=api_key)
-    cwms.delete_group(office_id=office, group_id=group_id)
+    cwms.delete_timeseries_group(
+        office_id=office, group_id=group_id, category_id=category_id
+    )
     logging.info(f"Deleted group: {group_id} for office: {office}")
 
 
