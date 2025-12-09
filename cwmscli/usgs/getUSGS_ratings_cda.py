@@ -1,4 +1,5 @@
 import logging
+import sys
 from datetime import datetime, timedelta
 from json import loads
 
@@ -9,7 +10,14 @@ import requests
 from dataretrieval import nwis
 
 
-def getusgs_rating_cda(api_root, office_id, days_back, api_key):
+def getusgs_rating_cda(
+    api_root: str,
+    office_id: str,
+    api_key: str,
+    days_back: float = 1,
+    rating_subset: list = None,
+):
+
     api_key = "apikey " + api_key
     cwms.api.init_session(api_root=api_root, api_key=api_key)
     logging.info(f"CDA connection: {api_root}")
@@ -29,16 +37,21 @@ def getusgs_rating_cda(api_root, office_id, days_back, api_key):
     USGS_ratings_empty = USGS_ratings[USGS_ratings["effective-dates"].isna()]
     USGS_ratings = USGS_ratings[USGS_ratings["effective-dates"].notna()]
 
-    logging.info(f"Getting list of ratings updated by USGS in past {days_back} days")
-    df = get_usgs_updated_ratings(days_back * 24)
+    if rating_subset is None:
+        logging.info(
+            f"Getting list of ratings updated by USGS in past {days_back} days"
+        )
+        df = get_usgs_updated_ratings(days_back * 24)
 
-    updated_ratings = pd.merge(
-        USGS_ratings,
-        df,
-        how="inner",
-        left_on=["USGS_St_Num", "rating-type"],
-        right_on=["USGS_St_Num", "rating-type"],
-    )
+        updated_ratings = pd.merge(
+            USGS_ratings,
+            df,
+            how="inner",
+            left_on=["USGS_St_Num", "rating-type"],
+            right_on=["USGS_St_Num", "rating-type"],
+        )
+    else:
+        updated_ratings = USGS_ratings
 
     updated_ratings.loc[:, "effective-dates"] = updated_ratings[
         "effective-dates"
@@ -52,6 +65,10 @@ def getusgs_rating_cda(api_root, office_id, days_back, api_key):
         updated_ratings = pd.concat(
             [updated_ratings, USGS_ratings_empty], ignore_index=True
         )
+    if rating_subset is not None:
+        updated_ratings = updated_ratings[
+            updated_ratings["rating-id"].isin(rating_subset)
+        ]
 
     cwms_write_ratings(updated_ratings)
 
@@ -61,6 +78,10 @@ def get_rating_ids_from_specs(office_id):
     rating_specs = cwms.get_rating_specs(office_id=office_id).df
     if "effective-dates" not in rating_specs.columns:
         rating_specs["effective-dates"] = np.nan
+    # Determine if any specs return
+    if rating_specs.empty:
+        logging.warning(f"No rating specifications found for office {office_id}")
+        sys.exit()
     rating_specs = rating_specs.dropna(subset=["description"])
     for rating_type in rating_types:
         rating_specs.loc[

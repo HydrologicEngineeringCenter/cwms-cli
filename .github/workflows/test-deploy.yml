@@ -1,0 +1,129 @@
+name: Deployment
+
+# The deployment workflow should only run when code based changes are merged into the `main` branch.
+# Since a branch protection rule prevents directly pushing to `main` this workflow will
+# only run on a successful merge request of source code with a specified version
+on:
+  push:
+    branches:
+      - main
+    # Only run when relevant files change (adjust these globs as needed)
+    paths:
+      - "cwmscli/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "poetry.lock"
+      - ".github/workflows/test-deploy.yml"
+
+  workflow_dispatch:
+
+jobs:
+  # Build and test the distribution before deploying to the various platforms. This allows
+  # us to store the build artifacts and reuse them in the deployment jobs below.
+  build:
+    name: Build Distribution
+    runs-on: ubuntu-latest
+
+    # Expose whether the version changed to downstream jobs
+    outputs:
+      version_changed: ${{ steps.check_version.outputs.version_changed }}
+      current_version: ${{ steps.check_version.outputs.current_version }}
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Use previous commit to compare pyproject.toml
+          fetch-depth: 2
+
+      - name: Check if version changed
+        id: check_version
+        run: |
+          set -e
+
+          # Extract current version from pyproject.toml
+          curr_version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' pyproject.toml)
+
+          # Try to get previous pyproject.toml from HEAD^
+          prev_version=""
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            if git show HEAD^:pyproject.toml >/tmp/pyproject_prev.toml 2>/dev/null; then
+              prev_version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' /tmp/pyproject_prev.toml)
+            fi
+          fi
+
+          echo "Current version:  $curr_version"
+          echo "Previous version: $prev_version"
+
+          if [ "$curr_version" != "$prev_version" ]; then
+            echo "version_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "version_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "current_version=$curr_version" >> "$GITHUB_OUTPUT"
+
+      - name: Set Up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.x'
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v4
+
+      - name: Cache Virtual Environment
+        uses: actions/cache@v4
+        with:
+          path: ./.venv
+          key: venv-${{ hashFiles('poetry.lock') }}
+
+      - name: Install Dependencies
+        run: poetry install
+
+      # The tests should have already been run in the testing workflow, but we run them
+      # again here to make sure that we do not deploy a broken distribution.
+      - name: Run Tests
+        run: poetry run pytest tests/mock/
+
+      # Once the tests have passed we can build the distribution and store it, so it can
+      # be accessed in the jobs below.
+      - name: Build Distribution
+        run: poetry build
+
+      - name: Store Distribution
+        uses: actions/upload-artifact@v5
+        with:
+          name: package-dist
+          path: dist/
+
+  # The development distribution is a snapshot of the package and is deployed each time
+  # changes are merged into the main branch.
+  deploy-dev:
+    name: Publish Development Distribution
+    runs-on: ubuntu-latest
+
+    # The distribution will only be published if the tests have passed.
+    needs:
+      - build
+
+    # Only publish if the version actually changed
+    if: needs.build.outputs.version_changed == 'true'
+
+    # Set up the environment for trusted publishing on PyPI.
+    environment:
+      name: development
+      url: https://test.pypi.org/p/cwms-cli
+
+    permissions:
+      id-token: write # IMPORTANT: mandatory for trusted publishing
+
+    steps:
+      - name: Download Distribution
+        uses: actions/download-artifact@v6
+        with:
+          name: package-dist
+          path: dist/
+
+      - name: Publish Distribution To Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/

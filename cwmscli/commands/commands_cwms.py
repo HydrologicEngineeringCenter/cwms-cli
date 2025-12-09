@@ -1,3 +1,5 @@
+import textwrap
+
 import click
 
 from cwmscli import requirements as reqs
@@ -23,6 +25,7 @@ from cwmscli.utils.deps import requires
 @requires(reqs.cwms)
 def shefcritimport(filename, office, api_root, api_key, api_key_loc):
     from cwmscli.commands.shef_critfile_import import import_shef_critfile
+    from cwmscli.utils import get_api_key
 
     api_key = get_api_key(api_key, api_key_loc)
     import_shef_critfile(
@@ -36,11 +39,11 @@ def shefcritimport(filename, office, api_root, api_key, api_key_loc):
 @click.command("csv2cwms", help="Store CSV TimeSeries data to CWMS using a config file")
 @common_api_options
 @click.option(
-    "-l",
-    "--location",
+    "--input-keys",
+    "input_keys",
     default="all",
     show_default=True,
-    help='Location ID. Use "-p=all" for all locations.',
+    help='Input keys. Defaults to all keys/files with --input-keys=all. These are the keys under "input_files" in a given config file. This option lets you run a single file from a config that contains multiple files. Example: --input-keys=file1',
 )
 @click.option(
     "-lb",
@@ -67,15 +70,6 @@ def shefcritimport(filename, office, api_root, api_key, api_key_loc):
     help="Override CSV file (else use config)",
 )
 @click.option("--log", show_default=True, help="Path to the log file.")
-@click.option(
-    "-dp",
-    "--data-path",
-    "data_path",
-    default=".",
-    show_default=True,
-    type=click.Path(exists=True, file_okay=False),
-    help="Directory where csv files are stored",
-)
 @click.option("--dry-run", is_flag=True, help="Log only (no HTTP calls)")
 @click.option("--begin", type=str, help="YYYY-MM-DDTHH:MM (local to --tz)")
 @click.option("-tz", "--timezone", "tz", default="GMT", show_default=True)
@@ -103,12 +97,15 @@ def csv2cwms_cmd(**kwargs):
 @click.group(
     "blob",
     help="Manage CWMS Blobs (upload, download, delete, update, list)",
-    epilog="""
-  * Store a PDF/image as a CWMS blob with optional description
-  * Download a blob by id to your local filesystem
-  * Update a blob's name/description
-  * Bulk list blobs for an office
-""",
+    epilog=textwrap.dedent(
+        """
+    Example Usage:\n
+    - Store a PDF/image as a CWMS blob with optional description\n
+    - Download a blob by id to your local filesystem\n
+    - Update a blob's name/description/mime-type\n
+    - Bulk list blobs for an office  
+"""
+    ),
 )
 @requires(reqs.cwms)
 def blob_group():
@@ -157,6 +154,7 @@ def blob_upload(**kwargs):
     default=None,
     help="Destination file path. Defaults to blob-id.",
 )
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
 def blob_download(**kwargs):
     from cwmscli.commands.blob import download_cmd
@@ -167,8 +165,9 @@ def blob_download(**kwargs):
 # ================================================================================
 #       Delete
 # ================================================================================
-@blob_group.command("delete", help="[Not implemented] Delete a blob by ID")
+@blob_group.command("delete", help="Delete a blob by ID")
 @click.option("--blob-id", required=True, type=str, help="Blob ID to delete.")
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
 def delete_cmd(**kwargs):
     from cwmscli.commands.blob import delete_cmd
@@ -179,13 +178,30 @@ def delete_cmd(**kwargs):
 # ================================================================================
 #       Update
 # ================================================================================
-@blob_group.command("update", help="[Not implemented] Update/patch a blob by ID")
+@blob_group.command("update", help="Update/patch a blob by ID")
 @click.option("--blob-id", required=True, type=str, help="Blob ID to update.")
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@click.option(
+    "--description",
+    default=None,
+    help="New description JSON or text.",
+)
+@click.option(
+    "--media-type",
+    default=None,
+    help="New media type (guessed from file if omitted).",
+)
 @click.option(
     "--input-file",
     required=False,
     type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
     help="Optional file content to upload with update.",
+)
+@click.option(
+    "--overwrite/--no-overwrite",
+    default=False,
+    show_default=True,
+    help="If true, replace existing blob.",
 )
 @common_api_options
 def update_cmd(**kwargs):
