@@ -1,0 +1,49 @@
+import pytest
+from click.testing import CliRunner
+
+from cwmscli.__main__ import cli
+
+## Expectations
+# - The help commands should run without requiring an import
+# - Help text should include "Usage: <command> <subcommand> --help"
+# - Every command and subcommand should be tested for help text to ensure help renders as expected and no early import errors occur
+
+
+def iter_commands(cmd, path=()):
+    """
+    Recursively walk all commands under a Click Group.
+
+    Yields (path_tuple, command_obj), where path_tuple is like:
+        ("usgs", "ratings", "etc")
+    """
+    commands = getattr(cmd, "commands", {})
+    for name, sub in commands.items():
+        new_path = path + (name,)
+        yield new_path, sub
+        # If the subcommand is itself a Group, recurse
+        if hasattr(sub, "commands"):
+            yield from iter_commands(sub, new_path)
+
+
+@pytest.fixture
+def runner():
+    return CliRunner()
+
+
+def test_root_help(runner):
+    """Top-level CLI should have working help."""
+    result = runner.invoke(cli, ["--help"])
+    assert result.exit_code == 0
+    assert "Usage:" in result.output
+
+
+@pytest.mark.parametrize("path,command", list(iter_commands(cli)))
+def test_every_command_has_help(runner, path, command):
+    """
+    Run through every command and subcommand, ensuring that the help page renders.
+    This ensures that no early import errors occur in any command.
+    """
+    args = list(path) + ["--help"]
+    result = runner.invoke(cli, args)
+    assert result.exit_code == 0, f"Failed on: {' '.join(args)}"
+    assert "Usage:" in result.output
