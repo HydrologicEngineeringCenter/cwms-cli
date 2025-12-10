@@ -25,7 +25,7 @@ black = "^24.2.0"
 isort = "^5.13.2"
 mypy = "^1.9.0"
 pre-commit = "^3.6.2"
-#pytest = "^8.1.1"
+pytest = { version = "^9.0.2", python = ">=3.10" }
 #pytest-cov = "^4.1.0"
 #pandas-stubs = "^2.2.1.240316"
 yamlfix = "^1.16.0"
