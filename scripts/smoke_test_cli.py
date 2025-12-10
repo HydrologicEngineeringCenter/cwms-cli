@@ -2,7 +2,7 @@
 
 from click.testing import CliRunner
 
-from cwmscli.cli import cli
+from cwmscli.__main__ import cli
 
 runner = CliRunner()
 result = runner.invoke(cli, ["--help"])
