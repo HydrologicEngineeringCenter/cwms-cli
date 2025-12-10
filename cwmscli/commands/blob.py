@@ -27,22 +27,21 @@ DATA_URL_RE = re.compile(r"^data:(?P<mime>[^;]+);base64,(?P<data>.+)$", re.I | r
         "link": "https://docs.python.org/3/library/imghdr.html",
     }
 )
-def _determine_ext(data: bytes | str, write_type: str) -> str:
+def _determine_ext(data: bytes) -> str:
     """
     Attempt to determine the file extension from the data itself.
     Requires the imghdr module (lazy import) to inspect the bytes for image types.
     If not an image, defaults to .bin
 
     Args:
-        data: The binary data or base64 string to inspect.
-        write_type: The mode in which the data will be written ('wb' for binary, 'w' for text).
+        data: The binary data to inspect.
 
     Returns:
         The determined file extension, including the leading dot (e.g., '.png', '.jpg').
     """
     import imghdr
 
-    kind = imghdr.what(None, data)
+    kind: Optional[str] = imghdr.what(None, data)
     if kind == "jpeg":
         kind = "jpg"
     return f".{kind}" if kind else ".bin"
@@ -51,7 +50,7 @@ def _determine_ext(data: bytes | str, write_type: str) -> str:
 def _save_base64(
     b64_or_dataurl: str,
     dest: str,
-    media_type_hint: str | None = None,
+    media_type_hint: Optional[str] = None,
 ) -> str:
     m = DATA_URL_RE.match(b64_or_dataurl.strip())
     if m:
@@ -80,8 +79,8 @@ def _save_base64(
                 ext = ".jpg"
         # last resort, try to determine from the data itself
         # requires imghdr to dig into the bytes to determine image type
-        if not ext:
-            ext = _determine_ext(data, write_type)
+        if not ext and isinstance(data, bytes):
+            ext = _determine_ext(data)
         dest = base + ext
 
     os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
@@ -228,7 +227,7 @@ def list_blobs(
     if limit is not None:
         df = df.head(limit)
 
-    logging.info(f"Found {len(df):,} blobs")
+    logging.info(f"Found {len(df):,} blob(s)")
     # List the blobs in the logger
     for _, row in df.iterrows():
         logging.info(f"Blob ID: {row['id']}, Description: {row.get('description')}")
@@ -238,77 +237,6 @@ def list_blobs(
 def get_media_type(file_path: str) -> str:
     mime_type, _ = mimetypes.guess_type(file_path)
     return mime_type or "application/octet-stream"
-
-
-def main(
-    directive: str,
-    input_file: str,
-    blob_id: str,
-    description: Optional[str],
-    media_type: Optional[str],
-    office: str,
-    api_root: str,
-    api_key: str,
-    overwrite: Optional[bool] = True,
-    dry_run: Optional[bool] = False,
-):
-    """
-    Upload, Download, Delete, or Update blob data in CWMS.
-
-    DIRECTIVE is the action to perform (upload, download, delete, update).
-    INPUT_FILE is the path to the file on disk.
-    BLOB_ID   is the blob ID to store under.
-    """
-
-    cwms.api.init_session(api_root=api_root, api_key=api_key)
-    file_data = None
-    if directive in ["upload", "update"]:
-        if not input_file or not os.path.isfile(input_file):
-            logging.warning(
-                "Valid input_file required for upload/update. Use --input-file to specify."
-            )
-            sys.exit(0)
-        try:
-            file_size = os.path.getsize(input_file)
-            with open(input_file, "rb") as f:
-                file_data = f.read()
-            logging.info(f"Read file: {input_file} ({file_size} bytes)")
-        except Exception as e:
-            logging.error(f"Failed to read file: {e}")
-            sys.exit(1)
-
-    # Determine what should be done based on directive
-    if directive == "upload":
-        store_blob(
-            office=office,
-            api_root=api_root,
-            input_file=input_file,
-            blob_id=blob_id,
-            description=description,
-            media_type=media_type,
-            file_data=file_data,
-            overwrite=overwrite,
-            dry_run=dry_run,
-        )
-    elif directive == "list":
-        list_blobs(office=office, blob_id_like=blob_id, sort_by="blob_id")
-    elif directive == "download":
-        retrieve_blob(
-            office=office,
-            blob_id=blob_id,
-        )
-    elif directive == "delete":
-        # TODO: Delete endpoint does not exist in cwms-python yet
-        logging.warning(
-            "[NOT IMPLEMENTED] Delete Blob is not supported yet!\n\thttps://github.com/HydrologicEngineeringCenter/cwms-python/issues/192"
-        )
-        pass
-    elif directive == "update":
-        # TODO: Patch endpoint does not exist in cwms-python yet
-        logging.warning(
-            "[NOT IMPLEMENTED] Update Blob is not supported yet! Consider overwriting instead if a rename is not needed.\n\thttps://github.com/HydrologicEngineeringCenter/cwms-python/issues/192"
-        )
-        pass
 
 
 def upload_cmd(
@@ -322,7 +250,7 @@ def upload_cmd(
     api_root: str,
     api_key: str,
 ):
-    cwms.api.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
+    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
     try:
         file_size = os.path.getsize(input_file)
         with open(input_file, "rb") as f:
@@ -350,7 +278,7 @@ def upload_cmd(
     params = {"fail-if-exists": not overwrite}
 
     if dry_run:
-        logging.info(f"--dry-run: would POST {api_root}blobs with params={params}")
+        logging.info(f"DRY RUN: would POST {api_root}blobs with params={params}")
         logging.info(
             json.dumps(
                 {
@@ -364,7 +292,7 @@ def upload_cmd(
         return
 
     try:
-        cwms.store_blobs(blob, fail_if_exists=overwrite)
+        cwms.store_blobs(blob, fail_if_exists=not overwrite)
         logging.info(f"Uploaded blob: {blob_id_up}")
         logging.info(f"View: {api_root}blobs/{blob_id_up}?office={office}")
     except requests.HTTPError as e:
@@ -376,8 +304,15 @@ def upload_cmd(
         sys.exit(1)
 
 
-def download_cmd(blob_id: str, dest: str, office: str, api_root: str, api_key: str):
-    cwms.api.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
+def download_cmd(
+    blob_id: str, dest: str, office: str, api_root: str, api_key: str, dry_run: bool
+):
+    if dry_run:
+        logging.info(
+            f"DRY RUN: would GET {api_root} blob with blob-id={blob_id} office={office}."
+        )
+        return
+    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
     bid = blob_id.upper()
     logging.debug(f"Office={office} BlobID={bid}")
 
@@ -395,18 +330,62 @@ def download_cmd(blob_id: str, dest: str, office: str, api_root: str, api_key: s
         sys.exit(1)
 
 
-def delete_cmd(blob_id: str, office: str, api_root: str, api_key: str):
-    logging.warning(
-        "[NOT IMPLEMENTED] Delete Blob is not supported yet.\n"
-        "See: https://github.com/HydrologicEngineeringCenter/cwms-python/issues/192"
-    )
+def delete_cmd(blob_id: str, office: str, api_root: str, api_key: str, dry_run: bool):
+
+    if dry_run:
+        logging.info(
+            f"DRY RUN: would DELETE {api_root} blob with blob-id={blob_id} office={office}"
+        )
+        return
+    cwms.init_session(api_root=api_root, api_key=api_key)
+    cwms.delete_blob(office_id=office, blob_id=blob_id)
+    logging.info(f"Deleted blob: {blob_id} for office: {office}")
 
 
-def update_cmd(blob_id: str, input_file: str, office: str, api_root: str, api_key: str):
-    logging.warning(
-        "[NOT IMPLEMENTED] Update Blob is not supported yet. Consider --overwrite with upload.\n"
-        "See: https://github.com/HydrologicEngineeringCenter/cwms-python/issues/192"
-    )
+def update_cmd(
+    input_file: str,
+    blob_id: str,
+    description: str,
+    media_type: str,
+    overwrite: bool,
+    dry_run: bool,
+    office: str,
+    api_root: str,
+    api_key: str,
+):
+    if dry_run:
+        logging.info(
+            f"DRY RUN: would PATCH {api_root} blob with blob-id={blob_id} office={office}"
+        )
+        return
+    file_data = None
+    if input_file:
+        try:
+            file_size = os.path.getsize(input_file)
+            with open(input_file, "rb") as f:
+                file_data = f.read()
+            logging.info(f"Read file: {input_file} ({file_size} bytes)")
+        except Exception as e:
+            logging.error(f"Failed to read file: {e}")
+            sys.exit(1)
+    # Setup minimum required payload
+    blob = {"office-id": office, "id": blob_id.upper()}
+    if description:
+        blob["description"] = description
+    if media_type:
+        blob["media-type-id"] = media_type
+    else:
+        logging.info("Media type not specified; Retrieving existing media type...")
+        blob_metadata = cwms.get_blobs(office_id=office, blob_id_like=blob_id)
+        blob["media-type-id"] = blob_metadata.df.get(
+            "media-type-id", "application/octet-stream"
+        )[0]
+        logging.info(f"Using existing media type: {blob['media-type-id']}")
+
+    if file_data:
+        blob["value"] = base64.b64encode(file_data).decode("utf-8")
+    cwms.init_session(api_root=api_root, api_key=api_key)
+    cwms.update_blob(blob, fail_if_not_exists=not overwrite)
 
 
 def list_cmd(
@@ -420,7 +399,7 @@ def list_cmd(
     api_root: str,
     api_key: str,
 ):
-    cwms.api.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
+    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
     df = list_blobs(
         office=office,
         blob_id_like=blob_id_like,

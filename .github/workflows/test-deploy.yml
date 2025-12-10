@@ -1,14 +1,20 @@
 name: Deployment
 
-# The deployment workflow should only run when changes are merged into the `main` branch.
+# The deployment workflow should only run when code based changes are merged into the `main` branch.
 # Since a branch protection rule prevents directly pushing to `main` this workflow will
-# only run on a successful merge request.
+# only run on a successful merge request of source code with a specified version
 on:
   push:
     branches:
       - main
+    # Only run when relevant files change (adjust these globs as needed)
+    paths:
+      - "cwmscli/**"
+      - "tests/**"
+      - "pyproject.toml"
+      - "poetry.lock"
+      - ".github/workflows/test-deploy.yml"
 
-  # Allow the workflow to be manually triggered from the Actions tab.
   workflow_dispatch:
 
 jobs:
@@ -18,8 +24,43 @@ jobs:
     name: Build Distribution
     runs-on: ubuntu-latest
 
+    # Expose whether the version changed to downstream jobs
+    outputs:
+      version_changed: ${{ steps.check_version.outputs.version_changed }}
+      current_version: ${{ steps.check_version.outputs.current_version }}
+
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
+        with:
+          # Use previous commit to compare pyproject.toml
+          fetch-depth: 2
+
+      - name: Check if version changed
+        id: check_version
+        run: |
+          set -e
+
+          # Extract current version from pyproject.toml
+          curr_version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' pyproject.toml)
+
+          # Try to get previous pyproject.toml from HEAD^
+          prev_version=""
+          if git rev-parse HEAD^ >/dev/null 2>&1; then
+            if git show HEAD^:pyproject.toml >/tmp/pyproject_prev.toml 2>/dev/null; then
+              prev_version=$(sed -n 's/^version *= *"\(.*\)"/\1/p' /tmp/pyproject_prev.toml)
+            fi
+          fi
+
+          echo "Current version:  $curr_version"
+          echo "Previous version: $prev_version"
+
+          if [ "$curr_version" != "$prev_version" ]; then
+            echo "version_changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "version_changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+          echo "current_version=$curr_version" >> "$GITHUB_OUTPUT"
 
       - name: Set Up Python
         uses: actions/setup-python@v6
@@ -63,6 +104,9 @@ jobs:
     # The distribution will only be published if the tests have passed.
     needs:
       - build
+
+    # Only publish if the version actually changed
+    if: needs.build.outputs.version_changed == 'true'
 
     # Set up the environment for trusted publishing on PyPI.
     environment:
