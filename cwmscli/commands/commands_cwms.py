@@ -262,7 +262,7 @@ def list_cmd(**kwargs):
     epilog=textwrap.dedent(
         """
     Example Usage:\n
-    - Manage Time Series Groups\n
+    - cwms-cli timeseries group --help : Manage Time Series Groups\n
     - More Coming Soon!
 """
     ),
