@@ -29,28 +29,13 @@ jobs:
       - name: Configure Poetry to use in-project virtualenv
         run: poetry config virtualenvs.in-project true
 
-      - name: Install dependencies
-        run: poetry install --with dev --no-interaction --no-root
+      - name: Install dependencies (including dev/test) and project
+        run: poetry install --with dev --no-interaction
 
-      # -----------------------------
-      # Python 3.9: SMOKE TEST ONLY
-      # -----------------------------
       - name: Smoke-test CLI on Python 3.9
         if: matrix.python-version == '3.9'
-        run: |
-          echo "Running CLI smoke tests..."
-          poetry run python - <<'EOF'
-          import cwmscli
-          from cwmscli.cli import cli
-          from click.testing import CliRunner
+        run: poetry run python scripts/smoke_test_cli.py
 
-          runner = CliRunner()
-          result = runner.invoke(cli, ["--help"])
-          assert result.exit_code == 0, "CLI failed to run under Python 3.9"
-          print("CLI loads and runs under Python 3.9 ✔")
-          EOF
-
-      # Skip for the 3.9 run
-      - name: Run full test suite
+      - name: Run full test suite (Python >= 3.10)
         if: matrix.python-version != '3.9'
         run: poetry run pytest -q
