@@ -7,10 +7,6 @@ import re
 import sys
 from typing import Optional, Sequence
 
-import cwms
-import pandas as pd
-import requests
-
 from cwmscli.utils import get_api_key
 from cwmscli.utils.deps import requires
 
@@ -91,6 +87,9 @@ def _save_base64(
 
 
 def store_blob(**kwargs):
+    import cwms
+    import requests
+
     file_data = kwargs.get("file_data")
     blob_id = kwargs.get("blob_id", "").upper()
     # Attempt to determine what media type should be used for the mime-type if one is not presented based on the file extension
@@ -146,6 +145,9 @@ def store_blob(**kwargs):
 
 
 def retrieve_blob(**kwargs):
+    import cwms
+    import requests
+
     blob_id = kwargs.get("blob_id", "").upper()
     if not blob_id:
         logging.warning(
@@ -173,14 +175,17 @@ def retrieve_blob(**kwargs):
 
 
 def delete_blob(**kwargs):
+    import cwms
+    import requests
+
     blob_id = kwargs.get("blob_id").upper()
     logging.debug(f"Office: {kwargs.get('office')}  Blob ID: {blob_id}")
 
     try:
-        # cwms.delete_blob(
-        #     office_id=kwargs.get("office"),
-        #     blob_id=kwargs.get("blob_id").upper(),
-        # )
+        cwms.delete_blob(
+            office_id=kwargs.get("office"),
+            blob_id=kwargs.get("blob_id").upper(),
+        )
         logging.info(f"Successfully deleted blob with ID: {blob_id}")
     except requests.HTTPError as e:
         details = getattr(e.response, "text", "") or str(e)
@@ -200,6 +205,8 @@ def list_blobs(
     limit: Optional[int] = None,
 ) -> pd.DataFrame:
     logging.info(f"Listing blobs for office: {office!r}...")
+    import cwms
+
     result = cwms.get_blobs(office_id=office, blob_id_like=blob_id_like)
 
     # Accept either a DataFrame or a JSON/dict-like response
@@ -251,6 +258,9 @@ def upload_cmd(
     api_root: str,
     api_key: str,
 ):
+    import cwms
+    import requests
+
     cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
     try:
         file_size = os.path.getsize(input_file)
