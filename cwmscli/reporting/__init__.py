@@ -91,6 +91,12 @@ def _render_template(
         "version": "3.1.0",
         "desc": "Templating for pre/post-processing",
     },
+    {
+        "module": "yaml",
+        "package": "PyYAML",
+        "version": "6.0",
+        "desc": "YAML parsing for report configuration",
+    },
 )
 def reporting_cli(config_path, template_dir, template_name, out_path):
     import cwms
