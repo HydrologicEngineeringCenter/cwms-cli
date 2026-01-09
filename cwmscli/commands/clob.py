@@ -13,6 +13,7 @@ import requests
 
 from cwmscli.utils import get_api_key, has_invalid_chars
 
+
 def list_clobs(
     office: Optional[str] = None,
     clob_id_like: Optional[str] = None,
@@ -112,7 +113,9 @@ def upload_cmd(
         # IDs with / can't be used directly in the path
         # TODO: check for other disallowed characters
         if has_invalid_chars(clob_id_up):
-            logging.info(f"View: {api_root}clobs/ignored?clob-id={clob_id_up}&office={office}")
+            logging.info(
+                f"View: {api_root}clobs/ignored?clob-id={clob_id_up}&office={office}"
+            )
         else:
             logging.info(f"View: {api_root}clobs/{clob_id_up}?office={office}")
     except requests.HTTPError as e:
@@ -228,4 +231,11 @@ def list_cmd(
         # Friendly console preview
         with pd.option_context("display.max_rows", 500, "display.max_columns", None):
             # Left-align all columns
-            logging.info("\n" + df.apply(lambda s: (s:=s.astype(str).str.strip()).str.ljust(s.str.len().max())).to_string(index=False, justify='left'))
+            logging.info(
+                "\n"
+                + df.apply(
+                    lambda s: (s := s.astype(str).str.strip()).str.ljust(
+                        s.str.len().max()
+                    )
+                ).to_string(index=False, justify="left")
+            )

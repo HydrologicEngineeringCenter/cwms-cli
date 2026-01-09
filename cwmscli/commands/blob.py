@@ -194,7 +194,9 @@ def upload_cmd(
         cwms.store_blobs(blob, fail_if_exists=not overwrite)
         logging.info(f"Uploaded blob: {blob_id_up}")
         if has_invalid_chars(blob_id_up):
-            logging.info(f"View: {api_root}blobs/ignored?blob-id={blob_id_up}&office={office}")
+            logging.info(
+                f"View: {api_root}blobs/ignored?blob-id={blob_id_up}&office={office}"
+            )
         else:
             logging.info(f"View: {api_root}blobs/{blob_id_up}?office={office}")
     except requests.HTTPError as e:
@@ -317,4 +319,11 @@ def list_cmd(
         # Friendly console preview
         with pd.option_context("display.max_rows", 500, "display.max_columns", None):
             # Left-align all columns
-            logging.info("\n" + df.apply(lambda s: (s:=s.astype(str).str.strip()).str.ljust(s.str.len().max())).to_string(index=False, justify='left'))
+            logging.info(
+                "\n"
+                + df.apply(
+                    lambda s: (s := s.astype(str).str.strip()).str.ljust(
+                        s.str.len().max()
+                    )
+                ).to_string(index=False, justify="left")
+            )
