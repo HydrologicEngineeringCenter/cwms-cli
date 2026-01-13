@@ -1,8 +1,9 @@
 # cwmscli/load/timeseries_ids.py
 from turtle import pd
 from typing import Optional
-import pandas as pd
+
 import click
+import pandas as pd
 
 
 def load_timeseries_ids(
@@ -30,34 +31,34 @@ def load_timeseries_ids(
     cwms.init_session(api_root=target_cda, api_key=target_api_key)
     # only grab time_ids for locations that are in the target database
     locations = cwms.get_locations_catalog(office_id=source_office)
-    ts_ids[['location-id', 'param', 'type', 'int', 'dur', 'ver']
-           ] = ts_ids['time-series-id'].str.split('.', expand=True)
-    locs = locations.df.rename(
-        columns={'name': 'location-id', 'office': 'office-id'})
-    ts_lo_ids = pd.merge(ts_ids, locs, how='inner', on=[
-                         'location-id', 'office-id'])
+    ts_ids[["location-id", "param", "type", "int", "dur", "ver"]] = ts_ids[
+        "time-series-id"
+    ].str.split(".", expand=True)
+    locs = locations.df.rename(columns={"name": "location-id", "office": "office-id"})
+    ts_lo_ids = pd.merge(ts_ids, locs, how="inner", on=["location-id", "office-id"])
 
     if verbose:
         click.echo(f"Found {len(ts_lo_ids)} timeseries IDs to copy.")
 
     errors = 0
     for i, row in ts_lo_ids.iterrows():
-        ts_id = row['time-series-id']
+        ts_id = row["time-series-id"]
         if dry_run:
             click.echo(
                 f"[dry-run] would store Timeseries ID(name={ts_id}) to {target_cda} ({source_office})"
             )
             continue
         t_id_json = {
-            "office-id": row['office-id'],
+            "office-id": row["office-id"],
             "time-series-id": ts_id,
-            "timezone-name": row['timezone-name'],
-            "interval-offset-minutes": float(row['interval-offset-minutes']),
-            "active": row['active_x']
+            "timezone-name": row["timezone-name"],
+            "interval-offset-minutes": float(row["interval-offset-minutes"]),
+            "active": row["active_x"],
         }
         try:
             result = cwms.store_timeseries_identifier(
-                data=t_id_json, fail_if_exists=False)
+                data=t_id_json, fail_if_exists=False
+            )
             if verbose:
                 click.echo(result)
         except Exception as e:

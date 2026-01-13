@@ -1,4 +1,5 @@
 from typing import Iterable, Optional
+
 import click
 import cwms
 
@@ -11,9 +12,8 @@ def load_locations(
     verbose: int,
     dry_run: bool,
     like: Optional[str],
-    location_kind_like: Optional[Iterable[str]] = 'ALL'
+    location_kind_like: Optional[Iterable[str]] = "ALL",
 ):
-
     if verbose:
         click.echo(
             f"[load locations] source={source_cda} ({source_office}) -> target={target_cda}"
@@ -31,14 +31,13 @@ def load_locations(
 
     locations = []
 
-    if 'ALL' in kinds:
-        locations = cwms.get_locations(
-            office_id=source_office).json
+    if "ALL" in kinds:
+        locations = cwms.get_locations(office_id=source_office).json
     else:
         locations = []
         for kind in kinds:
             cat_kwargs_k = dict(cat_kwargs)
-            if kind != 'ALL':
+            if kind != "ALL":
                 cat_kwargs_k["location_kind_like"] = kind
 
             if verbose >= 2:
@@ -70,7 +69,7 @@ def load_locations(
     errors = 0
     for loc in locations:
         try:
-            if loc['active'] is True:
+            if loc["active"] is True:
                 result = cwms.store_location(data=loc, fail_if_exists=False)
                 if verbose:
                     click.echo(result)

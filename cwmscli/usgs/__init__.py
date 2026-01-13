@@ -1,9 +1,6 @@
 import click
 
 from cwmscli import requirements as reqs
-from cwmscli.utils.deps import requires
-
-from cwmscli import requirements as reqs
 from cwmscli.utils import (
     api_key_loc_option,
     api_key_option,
@@ -114,8 +111,7 @@ def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
     from cwmscli.usgs.rating_ini_file_import import rating_ini_file_import
 
     api_key = get_api_key(api_key, api_key_loc)
-    rating_ini_file_import(
-        api_root=api_root, api_key=api_key, ini_filename=filename)
+    rating_ini_file_import(api_root=api_root, api_key=api_key, ini_filename=filename)
 
 
 @usgs_group.command("measurements", help="Store USGS measurements into CWMS database")

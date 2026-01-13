@@ -4,9 +4,12 @@ from typing import Iterable, Optional
 import click
 
 from cwmscli import requirements as reqs
+from cwmscli.load.root import (
+    load_group,
+    shared_source_target_options,
+    validate_cda_targets,
+)
 from cwmscli.utils.deps import requires
-
-from cwmscli.load.root import load_group, shared_source_target_options, validate_cda_targets
 
 
 @load_group.group(

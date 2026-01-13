@@ -1,8 +1,9 @@
 # cwmscli/load/location_group.py
 import re
 from typing import Optional
-import cwms
+
 import click
+import cwms
 
 
 def exact_or_regex(ids: list[str]) -> str:
@@ -26,7 +27,6 @@ def copy_from_group(
     filter_office: bool,
     dry_run: bool,
 ):
-
     group_office_id = group_office_id or source_office
     category_office_id = category_office_id or source_office
 
@@ -80,20 +80,17 @@ def copy_from_group(
         locations = []
         BATCH = 200  # optional batching
         for batch in (
-            member_ids[i: i + BATCH] for i in range(0, len(member_ids), BATCH)
+            member_ids[i : i + BATCH] for i in range(0, len(member_ids), BATCH)
         ):
             pattern = exact_or_regex(batch)
-            resp = cwms.get_locations(
-                office_id=source_office, location_ids=pattern)
+            resp = cwms.get_locations(office_id=source_office, location_ids=pattern)
             if verbose and getattr(resp, "df", None) is not None:
-                click.echo(
-                    f"Fetched {len(resp.df)} matching Locations in batch")
+                click.echo(f"Fetched {len(resp.df)} matching Locations in batch")
             if resp and resp.json:
                 locations.extend(resp.json)
 
     except Exception as e:
-        raise click.ClickException(
-            f"Failed to fetch locations from source: {e}")
+        raise click.ClickException(f"Failed to fetch locations from source: {e}")
 
     if verbose:
         click.echo(f"Fetched {len(locations)} Location objects from source")
