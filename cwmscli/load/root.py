@@ -64,7 +64,7 @@ def validate_cda_targets(func):
 
         click.secho(
             f"Source: {source_cda} (office={source_office or '-'})\n"
-            f"Target: {target_cda} (office={target_office or '-'})",
+            f"Target: {target_cda} (office={source_office or '-'})",
             fg="green" if not same_root else "yellow",
         )
         return func(*args, **kwargs)
@@ -94,15 +94,16 @@ def shared_source_target_options(f):
         help="Target CWMS Data API root. Default: http://localhost:8081/cwms-data/",
     )(f)
     f = click.option(
-        "--target-office",
-        envvar="CDA_TARGET_OFFICE",
-        required=True,
-        help="Target office ID for writes.",
-    )(f)
-    f = click.option(
         "--target-api-key",
         envvar="CDA_API_KEY",
         help="Target API key (if required by the target CDA).",
+    )(f)
+    f = click.option(
+        "--dry-run/--no-dry-run",
+        is_flag=True,
+        default=False,
+        show_default=True,
+        help="Show what would be written without storing to target.",
     )(f)
     f = click.option(
         "-v",

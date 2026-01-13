@@ -1,19 +1,8 @@
 # cwmscli/load/location_group.py
-import os
 import re
 from typing import Optional
-
+import cwms
 import click
-
-from cwmscli import requirements as reqs
-from cwmscli.utils.deps import requires
-
-from .root import (
-    CONTEXT,
-    load_group,
-    shared_source_target_options,
-    validate_cda_targets,
-)
 
 
 def exact_or_regex(ids: list[str]) -> str:
@@ -24,56 +13,10 @@ def exact_or_regex(ids: list[str]) -> str:
     return r"^(?:" + "|".join(re.escape(x) for x in ids) + r")$"
 
 
-@load_group.group(
-    name="location",
-    help="Location utilities (copy, group operations)",
-    context_settings=CONTEXT,
-)
-def load_location_group():
-    pass
-
-
-@load_location_group.command(
-    "group",
-    help="Copy locations from a CWMS Location Group (source CDA) to a target CDA.",
-)
-@shared_source_target_options
-@click.option(
-    "--group-id", required=True, help="Location Group ID (e.g., 'Ark Basin')."
-)
-@click.option(
-    "--category-id", required=True, help="Location Category ID (e.g., 'Basin')."
-)
-@click.option(
-    "--group-office-id",
-    default=None,
-    help="Owning office of the Location Group (defaults to --source-office).",
-)
-@click.option(
-    "--category-office-id",
-    default=None,
-    help="Owning office of the Category (defaults to --source-office).",
-)
-@click.option(
-    "--filter-office/--no-filter-office",
-    default=True,
-    show_default=True,
-    help="If set, only copy members whose 'office-id' equals --source-office.",
-)
-@click.option(
-    "--dry-run/--no-dry-run",
-    is_flag=True,
-    default=False,
-    show_default=True,
-    help="Show what would be written without storing to target.",
-)
-@requires(reqs.cwms)
-@validate_cda_targets
 def copy_from_group(
     source_cda: str,
     source_office: str,
     target_cda: str,
-    target_office: str,
     target_api_key: Optional[str],
     verbose: int,
     group_id: str,
@@ -83,14 +26,13 @@ def copy_from_group(
     filter_office: bool,
     dry_run: bool,
 ):
-    import cwms
 
     group_office_id = group_office_id or source_office
     category_office_id = category_office_id or source_office
 
     if verbose:
         click.echo(
-            f"[load location group] source={source_cda} ({source_office}) -> target={target_cda} ({target_office})"
+            f"[load location group] source={source_cda} ({source_office}) -> target={target_cda})"
         )
         click.echo(
             f"  group={group_id}  category={category_id}  "
@@ -138,17 +80,20 @@ def copy_from_group(
         locations = []
         BATCH = 200  # optional batching
         for batch in (
-            member_ids[i : i + BATCH] for i in range(0, len(member_ids), BATCH)
+            member_ids[i: i + BATCH] for i in range(0, len(member_ids), BATCH)
         ):
             pattern = exact_or_regex(batch)
-            resp = cwms.get_locations(office_id=source_office, location_ids=pattern)
+            resp = cwms.get_locations(
+                office_id=source_office, location_ids=pattern)
             if verbose and getattr(resp, "df", None) is not None:
-                click.echo(f"Fetched {len(resp.df)} matching Locations in batch")
+                click.echo(
+                    f"Fetched {len(resp.df)} matching Locations in batch")
             if resp and resp.json:
                 locations.extend(resp.json)
 
     except Exception as e:
-        raise click.ClickException(f"Failed to fetch locations from source: {e}")
+        raise click.ClickException(
+            f"Failed to fetch locations from source: {e}")
 
     if verbose:
         click.echo(f"Fetched {len(locations)} Location objects from source")
@@ -156,21 +101,9 @@ def copy_from_group(
     if dry_run:
         for loc in locations:
             click.echo(
-                f"[dry-run] would store Location(name={loc.name}) to {target_cda} ({target_office})"
+                f"[dry-run] would store Location(name={loc.name}) to {target_cda} ({source_office})"
             )
         return
-
-    if not target_api_key and os.getenv("CDA_API_KEY"):
-        if click.confirm(
-            "No target API key provided. Use CDA_API_KEY environment variable for target?",
-            default=True,
-        ):
-            target_api_key = os.getenv("CDA_API_KEY")
-        else:
-            click.echo(
-                "No target API key provided; Cannot write to target API without key. Exiting."
-            )
-            return
 
     try:
         cwms.init_session(api_root=target_cda, api_key=target_api_key)
