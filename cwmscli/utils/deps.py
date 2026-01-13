@@ -1,7 +1,17 @@
 import importlib
 import importlib.metadata
+import os
 
 import click
+
+
+def _pip_command():
+    # Check OS to determine pip vs pip3
+    if os.name == "nt":
+        return "pip"
+    # Avoid potential issues with multiple python (2/3) versions on Unix/Linux systems
+    else:
+        return "pip3"
 
 
 def requires(*requirements):
@@ -84,7 +94,9 @@ def requires(*requirements):
                     error_lines.append("Missing module(s):")
                     for msg, _ in missing:
                         error_lines.append(msg)
-                    install_cmd = "pip install " + " ".join(pkg for _, pkg in missing)
+                    install_cmd = f"{_pip_command()} install " + " ".join(
+                        pkg for _, pkg in missing
+                    )
                     error_lines.append(
                         f"\nInstall missing packages:\n    {install_cmd}"
                     )
