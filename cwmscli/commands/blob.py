@@ -331,7 +331,6 @@ def download_cmd(
 
 
 def delete_cmd(blob_id: str, office: str, api_root: str, api_key: str, dry_run: bool):
-
     if dry_run:
         logging.info(
             f"DRY RUN: would DELETE {api_root} blob with blob-id={blob_id} office={office}"
