@@ -1,0 +1,41 @@
+name: CLI Tests
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    name: Test CLI on ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        # Test 3.9 for T7, 3.12 for general/cloud use
+        python-version: ["3.9", "3.12"]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install Poetry
+        uses: abatilo/actions-poetry@v4
+
+      - name: Configure Poetry to use in-project virtualenv
+        run: poetry config virtualenvs.in-project true
+
+      - name: Install dependencies (including dev/test) and project
+        run: poetry install --with dev --no-interaction
+
+      - name: Smoke-test CLI on Python 3.9
+        if: matrix.python-version == '3.9'
+        run: poetry run python scripts/smoke_test_cli.py
+
+      - name: Run full test suite (Python >= 3.10)
+        if: matrix.python-version != '3.9'
+        run: poetry run pytest -q
