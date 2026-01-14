@@ -14,7 +14,6 @@ def getusgs_cda(
     api_key: str,
     backfill_tsids: list = None,
 ):
-
     api_key = "apikey " + api_key
     cwms.api.init_session(api_root=api_root, api_key=api_key)
     logging.info(f"CDA connection: {api_root}")
@@ -249,7 +248,6 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
             USGS_data_row = USGS_data_method.loc[USGS_Id_param]
         if USGS_data_row is not None:
             try:
-
                 # grab the time series values obtained from USGS API.
                 values_df = pd.DataFrame(USGS_data_row["values"])
                 if values_df.shape[0] > 1:
