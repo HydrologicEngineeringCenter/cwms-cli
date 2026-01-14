@@ -10,7 +10,6 @@ rating_types = {
 
 
 def rating_ini_file_import(api_root, api_key, ini_filename):
-
     api_key = "apikey " + api_key
     cwms.api.init_session(api_root=api_root, api_key=api_key)
 

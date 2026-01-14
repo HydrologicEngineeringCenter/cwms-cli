@@ -478,7 +478,6 @@ def check_and_drop_duplicates(df_store, df_existing):
     """
 
     if not df_existing.empty:
-
         # cast number columns as int, sometimes USGS won't resolve to int...drop those rows
         df_invalid = df_store[pd.to_numeric(df_store["number"], errors="coerce").isna()]
         if not df_invalid.empty:
@@ -603,7 +602,6 @@ def realtime_mode(DAYS_BACK_COLLECTED, DAYS_BACK_MODIFIED, measurement_site_df):
         f"Fetching USGS discharge measurements from {startDT.isoformat()} (modified in last {DAYS_BACK_MODIFIED} days)..."
     )
     try:
-
         df_meas_usgs, meta = nwis.get_discharge_measurements(
             # sites=["05058000", "05059500"],
             period=f"P{DAYS_BACK_COLLECTED}D",
@@ -829,9 +827,11 @@ def backfill_mode(BACKFILL_LIST, measurement_site_df):
             logging.info(
                 "Overwrite flag is off. Filtering out any conflicting measurements"
             )
-            df_store, df_rejected_number, df_rejected_instant = (
-                check_and_drop_duplicates(df_meas_usgs, df_existing)
-            )
+            (
+                df_store,
+                df_rejected_number,
+                df_rejected_instant,
+            ) = check_and_drop_duplicates(df_meas_usgs, df_existing)
 
             if not df_rejected_number.empty:
                 logging.info(
