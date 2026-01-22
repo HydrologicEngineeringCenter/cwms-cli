@@ -124,7 +124,8 @@ def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
 @click.option(
     "-c",
     "--days-back-collected",
-    default="365",
+    default=365,
+    type=float,
     help="Days back from current time measurements have been collected. Can be integer value",
 )
 @office_option
