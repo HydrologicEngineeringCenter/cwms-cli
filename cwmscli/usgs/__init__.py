@@ -118,7 +118,8 @@ def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
 @click.option(
     "-d",
     "--days-back-modified",
-    default="2",
+    default=2,
+    type=float,
     help="Days back from current time measurements have been modified in USGS database. Can be integer value",
 )
 @click.option(
