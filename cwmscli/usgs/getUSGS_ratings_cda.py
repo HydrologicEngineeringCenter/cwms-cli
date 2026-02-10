@@ -17,7 +17,6 @@ def getusgs_rating_cda(
     days_back: float = 1,
     rating_subset: list = None,
 ):
-
     api_key = "apikey " + api_key
     cwms.api.init_session(api_root=api_root, api_key=api_key)
     logging.info(f"CDA connection: {api_root}")
@@ -180,7 +179,6 @@ def get_begin_with_date(data, str_starts):
 
 
 def get_usgs_effective_date(data, rating_type):
-
     date_string = None
     if rating_type == "EXSA":
         line = data[data[0].str.startswith("# //RATING SHIFTED=")].iloc[0, 0]

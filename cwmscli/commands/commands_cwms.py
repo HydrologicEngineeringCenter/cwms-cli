@@ -107,7 +107,6 @@ def csv2cwms_cmd(**kwargs):
 """
     ),
 )
-@requires(reqs.cwms)
 def blob_group():
     pass
 
@@ -130,13 +129,14 @@ def blob_group():
     help="Override media type (guessed from file if omitted).",
 )
 @click.option(
-    "--overwrite/--no-overwrite",
+    "--overwrite",
     default=False,
     show_default=True,
     help="If true, replace existing blob.",
 )
 @click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
+@requires(reqs.cwms)
 def blob_upload(**kwargs):
     from cwmscli.commands.blob import upload_cmd
 
@@ -156,6 +156,7 @@ def blob_upload(**kwargs):
 )
 @click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
+@requires(reqs.cwms)
 def blob_download(**kwargs):
     from cwmscli.commands.blob import download_cmd
 
@@ -169,6 +170,7 @@ def blob_download(**kwargs):
 @click.option("--blob-id", required=True, type=str, help="Blob ID to delete.")
 @click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
+@requires(reqs.cwms)
 def delete_cmd(**kwargs):
     from cwmscli.commands.blob import delete_cmd
 
@@ -204,6 +206,7 @@ def delete_cmd(**kwargs):
     help="If true, replace existing blob.",
 )
 @common_api_options
+@requires(reqs.cwms)
 def update_cmd(**kwargs):
     from cwmscli.commands.blob import update_cmd
 
@@ -243,6 +246,7 @@ def update_cmd(**kwargs):
     help="If set, write results to this CSV file.",
 )
 @common_api_options
+@requires(reqs.cwms)
 def list_cmd(**kwargs):
     from cwmscli.commands.blob import list_cmd
 

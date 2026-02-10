@@ -1,6 +1,7 @@
 import click
 
 from cwmscli.commands import commands_cwms
+from cwmscli.load import __main__ as load
 from cwmscli.usgs import usgs_group
 
 
@@ -13,4 +14,4 @@ cli.add_command(usgs_group, name="usgs")
 cli.add_command(commands_cwms.shefcritimport)
 cli.add_command(commands_cwms.csv2cwms_cmd)
 cli.add_command(commands_cwms.blob_group)
-cli.add_command(commands_cwms.timeseries)
+cli.add_command(load.load_group)

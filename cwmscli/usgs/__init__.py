@@ -1,18 +1,6 @@
 import click
 
 from cwmscli import requirements as reqs
-from cwmscli.utils.deps import requires
-
-
-@click.group()
-def usgs_group():
-    """USGS utilities"""
-    pass
-
-
-import click
-
-from cwmscli import requirements as reqs
 from cwmscli.utils import (
     api_key_loc_option,
     api_key_option,
@@ -21,6 +9,13 @@ from cwmscli.utils import (
     office_option,
 )
 from cwmscli.utils.deps import requires
+
+
+@click.group()
+def usgs_group():
+    """USGS utilities"""
+    pass
+
 
 days_back_option = click.option(
     "-d",
@@ -123,13 +118,15 @@ def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
 @click.option(
     "-d",
     "--days-back-modified",
-    default="2",
+    default=2,
+    type=int,
     help="Days back from current time measurements have been modified in USGS database. Can be integer value",
 )
 @click.option(
     "-c",
     "--days-back-collected",
-    default="365",
+    default=365,
+    type=int,
     help="Days back from current time measurements have been collected. Can be integer value",
 )
 @office_option
