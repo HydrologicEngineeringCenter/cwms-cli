@@ -65,8 +65,7 @@ def setup_logging(cfg: LoggingConfig) -> None:
     # If a log file is specified, disable color completely
     color_enabled = False if cfg.log_file else cfg.color
 
-    # Initialize colorama once. If color is disabled, strip ANSI if any slips through.
-    # convert=True helps on Windows terminals that need conversion.
+    # Initialize colorama once, per the docs. Do NOT intialize colorama in each handler/formatter
     colorama_init(autoreset=True, strip=not color_enabled)
     colors.set_enabled(color_enabled)
 
