@@ -7,7 +7,7 @@ import click
 from cwmscli.commands import commands_cwms
 from cwmscli.load import __main__ as load
 from cwmscli.usgs import usgs_group
-from cwmscli.utils.logging_setup import LoggingConfig, setup_logging
+from cwmscli.utils.logging import LoggingConfig, setup_logging
 from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
 
 
