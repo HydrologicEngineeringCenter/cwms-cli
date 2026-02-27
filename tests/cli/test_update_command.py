@@ -23,7 +23,7 @@ def test_update_command_runs_pip_upgrade(monkeypatch):
     )
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["update"])
+    result = runner.invoke(cli, ["update"], input="y\n")
 
     assert result.exit_code == 0
     assert "Current cwms-cli version: 1.2.3" in result.output
@@ -50,7 +50,7 @@ def test_update_command_includes_pre_flag(monkeypatch):
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["update", "--pre"])
+    result = runner.invoke(cli, ["update", "--pre", "--yes"])
 
     assert result.exit_code == 0
     assert calls[0][0][-1] == "--pre"
@@ -63,7 +63,24 @@ def test_update_command_surfaces_pip_failure(monkeypatch):
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["update"])
+    result = runner.invoke(cli, ["update", "--yes"])
 
     assert result.exit_code == 1
     assert "cwms-cli update failed" in result.output
+
+
+def test_update_command_cancelled_by_user(monkeypatch):
+    calls = []
+
+    def fake_run(cmd, check=False):
+        calls.append((cmd, check))
+        return _DummyResult(0)
+
+    monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["update"], input="n\n")
+
+    assert result.exit_code == 0
+    assert "Update canceled." in result.output
+    assert not calls

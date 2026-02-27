@@ -100,13 +100,26 @@ def csv2cwms_cmd(**kwargs):
     default=False,
     help="Include pre-release versions during update.",
 )
-def update_cli_cmd(pre: bool) -> None:
+@click.option(
+    "-y",
+    "--yes",
+    is_flag=True,
+    default=False,
+    help="Skip confirmation prompt and run update immediately.",
+)
+def update_cli_cmd(pre: bool, yes: bool) -> None:
     current_version = get_cwms_cli_version()
     click.echo(f"Current cwms-cli version: {current_version}")
 
     cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "cwms-cli"]
     if pre:
         cmd.append("--pre")
+
+    if not yes:
+        proceed = click.confirm("Proceed with updating cwms-cli via pip?", default=True)
+        if not proceed:
+            click.echo("Update canceled.")
+            return
 
     click.echo(f"Running: {' '.join(cmd)}")
     try:
