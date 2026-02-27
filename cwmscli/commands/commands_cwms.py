@@ -117,11 +117,42 @@ def blob_group():
 @blob_group.command("upload", help="Upload a file as a blob")
 @click.option(
     "--input-file",
-    required=True,
+    required=False,
     type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
-    help="Path to the file to upload.",
+    help="Path to a single file to upload.",
 )
-@click.option("--blob-id", required=True, type=str, help="Blob ID to create.")
+@click.option(
+    "--input-dir",
+    required=False,
+    type=click.Path(exists=True, file_okay=False, readable=True, path_type=str),
+    help="Directory containing multiple files to upload.",
+)
+@click.option(
+    "--file-regex",
+    default=".*",
+    show_default=True,
+    type=str,
+    help="Regex used to match files in --input-dir (matched against relative path).",
+)
+@click.option(
+    "--recursive/--no-recursive",
+    default=False,
+    show_default=True,
+    help="Recurse into subdirectories when using --input-dir.",
+)
+@click.option(
+    "--blob-id",
+    required=False,
+    type=str,
+    help="Blob ID to create for single-file upload.",
+)
+@click.option(
+    "--blob-id-prefix",
+    default="",
+    show_default=True,
+    type=str,
+    help="Prefix added to generated blob IDs for directory uploads.",
+)
 @click.option("--description", default=None, help="Optional description JSON or text.")
 @click.option(
     "--media-type",
