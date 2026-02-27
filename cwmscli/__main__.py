@@ -69,13 +69,15 @@ def main() -> None:
         "on",
     }
     try:
+        if len(sys.argv) == 1:
+            cli.main(args=["--help"], prog_name="cwms-cli", standalone_mode=False)
+            raise SystemExit(0)
         cli(standalone_mode=False)
-    except click.exceptions.NoArgsIsHelpError as e:
-        if e.ctx is not None:
-            click.echo(e.ctx.get_help())
-        raise SystemExit(0)
     except SystemExit:
         raise
+    except click.ClickException as e:
+        e.show()
+        raise SystemExit(e.exit_code)
     except Exception as e:
         if is_cert_verify_error(e) and not debug:
             # Keep this short, no stack trace.
