@@ -8,6 +8,7 @@ import click
 from cwmscli.commands import commands_cwms
 from cwmscli.load import __main__ as load
 from cwmscli.usgs import usgs_group
+from cwmscli.utils.click_help import add_version_to_help_tree
 from cwmscli.utils.logging import LoggingConfig, setup_logging
 from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
 
@@ -46,6 +47,7 @@ cli.add_command(commands_cwms.shefcritimport)
 cli.add_command(commands_cwms.csv2cwms_cmd)
 cli.add_command(commands_cwms.blob_group)
 cli.add_command(load.load_group)
+add_version_to_help_tree(cli)
 
 
 def main() -> None:
