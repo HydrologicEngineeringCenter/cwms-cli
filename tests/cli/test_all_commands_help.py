@@ -45,6 +45,12 @@ def test_root_version_flag(runner):
     assert f"cwms-cli version {get_cwms_cli_version()}" in result.output
 
 
+def test_log_level_info_is_accepted(runner):
+    result = runner.invoke(cli, ["--log-level", "INFO", "--version"])
+    assert result.exit_code == 0
+    assert f"cwms-cli version {get_cwms_cli_version()}" in result.output
+
+
 @pytest.mark.parametrize("path,command", list(iter_commands(cli)))
 def test_every_command_has_help(runner, path, command):
     """
