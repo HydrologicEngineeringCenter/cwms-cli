@@ -1,4 +1,4 @@
-import logging
+import logging as py_logging
 
 import click
 
@@ -12,10 +12,10 @@ def to_uppercase(ctx, param, value):
 def _set_log_level(ctx, param, value):
     if value is None:
         return
-    level = getattr(logging, value.upper(), None)
+    level = getattr(py_logging, value.upper(), None)
     if level is None:
         raise click.BadParameter(f"Invalid log level: {value}")
-    logging.getLogger().setLevel(level)
+    py_logging.getLogger().setLevel(level)
     return value
 
 
