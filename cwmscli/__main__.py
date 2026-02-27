@@ -52,6 +52,7 @@ def cli(log_file: Optional[str], no_color: bool, log_level: str) -> None:
 cli.add_command(usgs_group, name="usgs")
 cli.add_command(commands_cwms.shefcritimport)
 cli.add_command(commands_cwms.csv2cwms_cmd)
+cli.add_command(commands_cwms.update_cli_cmd)
 cli.add_command(commands_cwms.blob_group)
 cli.add_command(load.load_group)
 add_version_to_help_tree(cli)

@@ -1,3 +1,5 @@
+import subprocess
+import sys
 import textwrap
 
 import click
@@ -7,6 +9,7 @@ from cwmscli.callbacks import csv_to_list
 from cwmscli.commands import csv2cwms
 from cwmscli.utils import api_key_loc_option, common_api_options, to_uppercase
 from cwmscli.utils.deps import requires
+from cwmscli.utils.version import get_cwms_cli_version
 
 
 @click.command(
@@ -88,6 +91,35 @@ def csv2cwms_cmd(**kwargs):
         click.echo(f"csv2cwms v{__version__}")
         return
     csv2_main(**kwargs)
+
+
+@click.command("update", help="Update cwms-cli to the latest version using pip.")
+@click.option(
+    "--pre",
+    is_flag=True,
+    default=False,
+    help="Include pre-release versions during update.",
+)
+def update_cli_cmd(pre: bool) -> None:
+    current_version = get_cwms_cli_version()
+    click.echo(f"Current cwms-cli version: {current_version}")
+
+    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "cwms-cli"]
+    if pre:
+        cmd.append("--pre")
+
+    click.echo(f"Running: {' '.join(cmd)}")
+    try:
+        result = subprocess.run(cmd, check=False)
+    except OSError as e:
+        raise click.ClickException(f"Unable to run pip update command: {e}") from e
+
+    if result.returncode != 0:
+        raise click.ClickException(
+            "cwms-cli update failed. Please review pip output above."
+        )
+
+    click.echo("Update complete. Run `cwms-cli --version` to verify.")
 
 
 # region Blob
