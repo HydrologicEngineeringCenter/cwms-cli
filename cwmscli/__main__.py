@@ -8,11 +8,19 @@ import click
 from cwmscli.commands import commands_cwms
 from cwmscli.load import __main__ as load
 from cwmscli.usgs import usgs_group
+from cwmscli.utils.click_help import add_version_to_help_tree
 from cwmscli.utils.logging import LoggingConfig, setup_logging
 from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
+from cwmscli.utils.version import get_cwms_cli_version
 
 
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
+@click.version_option(
+    get_cwms_cli_version(),
+    "--version",
+    "-V",
+    message="cwms-cli version %(version)s",
+)
 @click.option(
     "--log-file",
     type=click.Path(dir_okay=False, writable=True, resolve_path=True),
@@ -46,6 +54,7 @@ cli.add_command(commands_cwms.shefcritimport)
 cli.add_command(commands_cwms.csv2cwms_cmd)
 cli.add_command(commands_cwms.blob_group)
 cli.add_command(load.load_group)
+add_version_to_help_tree(cli)
 
 
 def main() -> None:
@@ -60,13 +69,15 @@ def main() -> None:
         "on",
     }
     try:
+        if len(sys.argv) == 1:
+            cli.main(args=["--help"], prog_name="cwms-cli", standalone_mode=False)
+            raise SystemExit(0)
         cli(standalone_mode=False)
-    except click.exceptions.NoArgsIsHelpError as e:
-        if e.ctx is not None:
-            click.echo(e.ctx.get_help())
-        raise SystemExit(0)
     except SystemExit:
         raise
+    except click.ClickException as e:
+        e.show()
+        raise SystemExit(e.exit_code)
     except Exception as e:
         if is_cert_verify_error(e) and not debug:
             # Keep this short, no stack trace.
