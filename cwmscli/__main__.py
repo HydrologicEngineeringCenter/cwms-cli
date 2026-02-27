@@ -11,9 +11,16 @@ from cwmscli.usgs import usgs_group
 from cwmscli.utils.click_help import add_version_to_help_tree
 from cwmscli.utils.logging import LoggingConfig, setup_logging
 from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
+from cwmscli.utils.version import get_cwms_cli_version
 
 
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
+@click.version_option(
+    get_cwms_cli_version(),
+    "--version",
+    "-V",
+    message="cwms-cli version %(version)s",
+)
 @click.option(
     "--log-file",
     type=click.Path(dir_okay=False, writable=True, resolve_path=True),
