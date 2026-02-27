@@ -2,6 +2,7 @@ import pytest
 from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
+from cwmscli.utils.version import get_cwms_cli_version
 
 ## Expectations
 # - The help commands should run without requiring an import
@@ -35,6 +36,7 @@ def test_root_help(runner):
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0
     assert "Usage:" in result.output
+    assert f"Version: {get_cwms_cli_version()}" in result.output
 
 
 @pytest.mark.parametrize("path,command", list(iter_commands(cli)))
@@ -47,3 +49,4 @@ def test_every_command_has_help(runner, path, command):
     result = runner.invoke(cli, args)
     assert result.exit_code == 0, f"Failed on: {' '.join(args)}"
     assert "Usage:" in result.output
+    assert f"Version: {get_cwms_cli_version()}" in result.output
