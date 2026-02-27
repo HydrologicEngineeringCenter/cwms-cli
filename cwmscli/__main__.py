@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from typing import Optional
 
 import click
 
@@ -31,7 +32,7 @@ from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
     ),
     default="INFO",
 )
-def cli(log_file: str | None, no_color: bool, log_level: str) -> None:
+def cli(log_file: Optional[str], no_color: bool, log_level: str) -> None:
     level = getattr(logging, log_level.upper(), logging.INFO)
 
     # Disable colors if stdout isn't a TTY (piped/redirected)

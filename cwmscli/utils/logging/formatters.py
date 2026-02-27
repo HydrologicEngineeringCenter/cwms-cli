@@ -1,6 +1,6 @@
 import json
 import re
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import pandas as pd
 
@@ -61,7 +61,7 @@ def format_df_for_log(
     df: pd.DataFrame,
     *,
     c: ColorFn,
-    col_colors: dict[int, str] | None = None,
+    col_colors: Optional[Dict[int, str]] = None,
     json_color: bool = True,
     max_rows: int = 500,
 ) -> str:
@@ -73,7 +73,7 @@ def format_df_for_log(
     Args:
         df (pd.DataFrame): The DataFrame to format.
         c (ColorFn): A function that applies color to a string, e.g., c(text, color_name).
-        col_colors (dict[int, str] | None, optional): A mapping from column indices to color names.
+        col_colors (Optional[Dict[int, str]], optional): A mapping from column indices to color names.
             If None, defaults to {0: "BLUE", 1: "GREEN"}.
         json_color (bool, optional): Whether to apply colorization to JSON values. Defaults to True.
         max_rows (int, optional): Maximum number of rows to display. Defaults to 500.
@@ -90,10 +90,10 @@ def format_df_for_log(
     """
     col_colors = col_colors or {0: "BLUE", 1: "GREEN"}
 
-    lines: list[str] = []
+    lines: List[str] = []
     with pd.option_context("display.max_rows", max_rows, "display.max_columns", None):
         for row in df.itertuples(index=False, name=None):
-            parts: list[str] = []
+            parts: List[str] = []
             for idx, val in enumerate(row):
                 cell = _format_cell(val, c=c, json_color=json_color)
                 if idx in col_colors:
