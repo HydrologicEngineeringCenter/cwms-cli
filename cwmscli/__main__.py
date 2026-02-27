@@ -12,7 +12,7 @@ from cwmscli.usgs import usgs_group
 from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
 
 
-@click.group()
+@click.group(context_settings=dict(help_option_names=["-h", "--help"]))
 def cli():
     pass
 
