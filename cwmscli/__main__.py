@@ -61,6 +61,10 @@ def main() -> None:
     }
     try:
         cli(standalone_mode=False)
+    except click.exceptions.NoArgsIsHelpError as e:
+        if e.ctx is not None:
+            click.echo(e.ctx.get_help())
+        raise SystemExit(0)
     except SystemExit:
         raise
     except Exception as e:
