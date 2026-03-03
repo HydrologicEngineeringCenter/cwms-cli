@@ -1,5 +1,4 @@
 # cwmscli/load/timeseries_ids.py
-from turtle import pd
 from typing import Optional
 
 import click
@@ -27,8 +26,6 @@ def load_timeseries_ids(
     ts_ids = cwms.get_timeseries_identifiers(
         office_id=source_office, timeseries_id_regex=timeseries_id_regex
     ).df
-
-    cwms.init_session(api_root=target_cda, api_key=target_api_key)
     # only grab time_ids for locations that are in the target database
     locations = cwms.get_locations_catalog(office_id=source_office)
     ts_ids[["location-id", "param", "type", "int", "dur", "ver"]] = ts_ids[
@@ -40,6 +37,7 @@ def load_timeseries_ids(
     if verbose:
         click.echo(f"Found {len(ts_lo_ids)} timeseries IDs to copy.")
 
+    cwms.init_session(api_root=target_cda, api_key=target_api_key)
     errors = 0
     for i, row in ts_lo_ids.iterrows():
         ts_id = row["time-series-id"]
