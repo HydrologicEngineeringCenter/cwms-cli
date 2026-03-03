@@ -1,11 +1,14 @@
 from __future__ import annotations
 
 import sys
+from typing import Optional
 
 import click
 
 from cwmscli.utils import colors
 from cwmscli.utils.version import get_cwms_cli_version
+
+DOCS_BASE_URL = "https://cwms-cli.readthedocs.io/en/latest"
 
 
 def _render_version_line(ctx: click.Context) -> str:
@@ -20,7 +23,41 @@ def _render_version_line(ctx: click.Context) -> str:
     return f"Version: {colors.c(get_cwms_cli_version(), 'cyan', bright=True)}"
 
 
-def _inject_version_line(help_text: str, ctx: click.Context) -> str:
+def _docs_url_for_context(ctx: click.Context) -> Optional[str]:
+    # Show docs links only on command root pages:
+    # - cwms-cli --help (depth 1)
+    # - cwms-cli <top-level-command> --help (depth 2)
+    depth = 0
+    cur = ctx
+    while cur is not None:
+        depth += 1
+        cur = cur.parent
+
+    if depth == 1:
+        return f"{DOCS_BASE_URL}/cli.html"
+    if depth != 2:
+        return None
+
+    command = (ctx.info_name or getattr(ctx.command, "name", None) or "").strip()
+    page_map = {
+        "blob": "blob",
+    }
+    # Link to dedicated pages that are created in \docs
+    if command in page_map:
+        return f"{DOCS_BASE_URL}/cli/{page_map[command]}.html"
+
+    # Fallback to the root CLI page with command anchor.
+    return f"{DOCS_BASE_URL}/cli.html#cwms-cli-{command}"
+
+
+def _render_docs_line(ctx: click.Context) -> Optional[str]:
+    docs_url = _docs_url_for_context(ctx)
+    if docs_url is None:
+        return None
+    return f"Docs: {colors.c(docs_url, 'blue', bright=True)}"
+
+
+def _inject_help_header(help_text: str, ctx: click.Context) -> str:
     lines = help_text.splitlines()
     if not lines:
         return help_text
@@ -30,24 +67,29 @@ def _inject_version_line(help_text: str, ctx: click.Context) -> str:
         return help_text
 
     version_line = _render_version_line(ctx)
+    docs_line = _render_docs_line(ctx)
     if lines[0].startswith("Usage:"):
         lines.insert(1, version_line)
+        if docs_line is not None:
+            lines.insert(2, docs_line)
     else:
         lines.insert(0, version_line)
+        if docs_line is not None:
+            lines.insert(1, docs_line)
     return "\n".join(lines)
 
 
 def _wrap_get_help(command: click.Command) -> None:
     original_get_help = command.get_help
 
-    def get_help_with_version(ctx: click.Context) -> str:
-        return _inject_version_line(original_get_help(ctx), ctx)
+    def get_help_with_header(ctx: click.Context) -> str:
+        return _inject_help_header(original_get_help(ctx), ctx)
 
-    command.get_help = get_help_with_version  # type: ignore[method-assign]
+    command.get_help = get_help_with_header  # type: ignore[method-assign]
 
 
 def add_version_to_help_tree(command: click.Command) -> None:
-    """Patch a command tree so every help output shows the CLI version."""
+    """Patch a command tree so every help output shows the CLI version and docs link."""
     stack = [command]
     seen: set[int] = set()
 
