@@ -3,12 +3,12 @@ from __future__ import annotations
 import os
 import ssl
 import sys
-from typing import Iterable
+from typing import Iterable, Optional, Set
 
 
 def _walk_exception_chain(exc: BaseException) -> Iterable[BaseException]:
-    seen: set[int] = set()
-    cur: BaseException | None = exc
+    seen: Set[int] = set()
+    cur: Optional[BaseException] = exc
     while cur is not None and id(cur) not in seen:
         seen.add(id(cur))
         yield cur

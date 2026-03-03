@@ -2,6 +2,8 @@ import pytest
 from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
+from cwmscli.utils.click_help import DOCS_BASE_URL
+from cwmscli.utils.version import get_cwms_cli_version
 
 ## Expectations
 # - The help commands should run without requiring an import
@@ -35,6 +37,20 @@ def test_root_help(runner):
     result = runner.invoke(cli, ["--help"])
     assert result.exit_code == 0
     assert "Usage:" in result.output
+    assert f"Version: {get_cwms_cli_version()}" in result.output
+    assert f"Docs: {DOCS_BASE_URL}/cli.html" in result.output
+
+
+def test_root_version_flag(runner):
+    result = runner.invoke(cli, ["--version"])
+    assert result.exit_code == 0
+    assert f"cwms-cli version {get_cwms_cli_version()}" in result.output
+
+
+def test_log_level_info_is_accepted(runner):
+    result = runner.invoke(cli, ["--log-level", "INFO", "--version"])
+    assert result.exit_code == 0
+    assert f"cwms-cli version {get_cwms_cli_version()}" in result.output
 
 
 @pytest.mark.parametrize("path,command", list(iter_commands(cli)))
@@ -47,3 +63,14 @@ def test_every_command_has_help(runner, path, command):
     result = runner.invoke(cli, args)
     assert result.exit_code == 0, f"Failed on: {' '.join(args)}"
     assert "Usage:" in result.output
+    assert f"Version: {get_cwms_cli_version()}" in result.output
+    if len(path) == 1:
+        page_map = {
+            "blob": f"{DOCS_BASE_URL}/cli/blob.html",
+        }
+        expected_docs = page_map.get(
+            path[0], f"{DOCS_BASE_URL}/cli.html#cwms-cli-{path[0]}"
+        )
+        assert f"Docs: {expected_docs}" in result.output
+    else:
+        assert "Docs:" not in result.output

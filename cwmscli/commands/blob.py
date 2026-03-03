@@ -326,7 +326,7 @@ def download_cmd(
             f"DRY RUN: would GET {api_root} blob with blob-id={blob_id} office={office}."
         )
         return
-    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
+    cwms.init_session(api_root=api_root)
     bid = blob_id.upper()
     logging.debug(f"Office={office} BlobID={bid}")
 
@@ -419,7 +419,7 @@ def list_cmd(
     import cwms
     import pandas as pd
 
-    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
+    cwms.init_session(api_root=api_root)
     df = list_blobs(
         office=office,
         blob_id_like=blob_id_like,
