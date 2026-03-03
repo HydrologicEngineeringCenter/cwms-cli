@@ -58,7 +58,7 @@ def load_timeseries_ids_all(
 
 @timeseries.command(
     "data",
-    help="Copy timeseries data for a single location in a target CDA from a source CDA.",
+    help="Copy timeseries data (by timeseries ID or timeseries group) into a target CDA from a source CDA.",
 )
 @shared_source_target_options
 @click.option(
