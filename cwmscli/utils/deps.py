@@ -40,7 +40,7 @@ def requires(*requirements):
             {
                 "module": "cwms",
                 "package": "cwms-python",
-                "version": "0.8.0",
+                "version": "1.0.1",
                 "desc": "CWMS REST API Python client",
                 "link": "https://github.com/hydrologicengineeringcenter/cwms-python"
             },
