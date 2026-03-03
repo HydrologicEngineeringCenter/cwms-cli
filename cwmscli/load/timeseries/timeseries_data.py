@@ -1,12 +1,10 @@
-# cwmscli/load/timeseries_ids.py
-import json
+# cwmscli/load/timeseries/timeseries_data.py
 import logging
 from datetime import datetime
 from typing import Optional
 
 import click
 import pandas as pd
-from cwms import JSON
 
 
 def _load_timeseries_data(
@@ -16,10 +14,10 @@ def _load_timeseries_data(
     target_api_key: Optional[str],
     verbose: int,
     dry_run: bool,
-    ts_id: str,
-    ts_group: str,
-    ts_group_category_id: str,
-    ts_group_category_office_id: str,
+    ts_id: Optional[str] = None,
+    ts_group: Optional[str] = None,
+    ts_group_category_id: Optional[str] = None,
+    ts_group_category_office_id: Optional[str] = None,
     begin: Optional[datetime] = None,
     end: Optional[datetime] = None,
 ):
@@ -33,12 +31,13 @@ def _load_timeseries_data(
     cwms.init_session(api_root=source_cda, api_key=None)
     # User has a ts_id
     if ts_id and not ts_group:
-        ts_data = [
-            cwms.get_timeseries(
-                ts_id=ts_id, office_id=source_office, begin=begin, end=end
-            )
-        ]
-        # only grab time_ids for locations that are in the target database
+        ts_data = cwms.get_timeseries(
+            ts_id=ts_id,
+            office_id=source_office,
+            begin=begin,
+            end=end,
+        )
+        # store the retrieved timeseries data into the target database
         try:
             if dry_run:
                 click.echo("Dry run enabled. No changes will be made.")
@@ -106,4 +105,4 @@ def _load_timeseries_data(
                 )
 
     if verbose:
-        click.echo("Timeseries ID copy operation completed.")
+        click.echo("Timeseries data copy operation completed.")
