@@ -61,7 +61,6 @@ def test_every_command_has_help(runner, path, command):
     if len(path) == 1:
         page_map = {
             "blob": f"{DOCS_BASE_URL}/cli/blob.html",
-            "update": f"{DOCS_BASE_URL}/cli/update.html",
         }
         expected_docs = page_map.get(
             path[0], f"{DOCS_BASE_URL}/cli.html#cwms-cli-{path[0]}"
