@@ -5,9 +5,9 @@ import mimetypes
 import os
 import re
 import sys
-from typing import Optional, Sequence
+from typing import Optional, Sequence, Tuple
 
-from cwmscli.utils import get_api_key
+from cwmscli.utils import colors, get_api_key
 from cwmscli.utils.deps import requires
 
 # used to rebuild data URL for images
@@ -247,30 +247,24 @@ def get_media_type(file_path: str) -> str:
     return mime_type or "application/octet-stream"
 
 
-def upload_cmd(
+def _read_file_bytes(input_file: str) -> bytes:
+    file_size = os.path.getsize(input_file)
+    with open(input_file, "rb") as f:
+        file_data = f.read()
+    logging.info(f"Read file: {input_file} ({file_size} bytes)")
+    return file_data
+
+
+def _store_blob_payload(
+    *,
+    file_data: bytes,
     input_file: str,
     blob_id: str,
     description: str,
     media_type: str,
     overwrite: bool,
-    dry_run: bool,
     office: str,
-    api_root: str,
-    api_key: str,
 ):
-    import cwms
-    import requests
-
-    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
-    try:
-        file_size = os.path.getsize(input_file)
-        with open(input_file, "rb") as f:
-            file_data = f.read()
-        logging.info(f"Read file: {input_file} ({file_size} bytes)")
-    except Exception as e:
-        logging.error(f"Failed to read file: {e}")
-        sys.exit(1)
-
     media = media_type or get_media_type(input_file)
     blob_id_up = blob_id.upper()
     logging.debug(f"Office={office} BlobID={blob_id_up} Media={media}")
@@ -287,32 +281,179 @@ def upload_cmd(
         "value": base64.b64encode(file_data).decode("utf-8"),
     }
     params = {"fail-if-exists": not overwrite}
+    return blob, params, blob_id_up
 
-    if dry_run:
-        logging.info(f"DRY RUN: would POST {api_root}blobs with params={params}")
+
+def _iter_matching_files(
+    input_dir: str, file_regex: str, recursive: bool
+) -> list[Tuple[str, str]]:
+    try:
+        pattern = re.compile(file_regex)
+    except re.error as e:
+        raise ValueError(f"Invalid --file-regex: {e}") from e
+
+    matches: list[Tuple[str, str]] = []
+    for root, _, files in os.walk(input_dir):
+        for name in files:
+            full_path = os.path.join(root, name)
+            rel_path = os.path.relpath(full_path, input_dir).replace(os.sep, "/")
+            if pattern.search(rel_path):
+                matches.append((full_path, rel_path))
+        if not recursive:
+            break
+    matches.sort(key=lambda x: x[1].lower())
+    return matches
+
+
+def _blob_id_for_path(input_dir: str, rel_path: str, blob_id_prefix: str) -> str:
+    rel_no_ext = os.path.splitext(rel_path)[0].replace("/", "_")
+    return f"{blob_id_prefix}{rel_no_ext}".upper()
+
+
+def upload_cmd(
+    input_file: Optional[str],
+    input_dir: Optional[str],
+    file_regex: str,
+    recursive: bool,
+    blob_id: Optional[str],
+    blob_id_prefix: str,
+    description: str,
+    media_type: str,
+    overwrite: bool,
+    dry_run: bool,
+    office: str,
+    api_root: str,
+    api_key: str,
+):
+    import cwms
+    import requests
+
+    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
+
+    using_single = bool(input_file)
+    using_multi = bool(input_dir)
+    if using_single == using_multi:
+        logging.error("Choose exactly one input source: --input-file or --input-dir.")
+        sys.exit(2)
+
+    uploads: list[Tuple[str, str]] = []
+    if using_single:
+        if not blob_id:
+            logging.error("--blob-id is required when using --input-file.")
+            sys.exit(2)
+        uploads = [(input_file, blob_id)]
+    else:
+        try:
+            matches = _iter_matching_files(input_dir, file_regex, recursive)
+        except ValueError as e:
+            logging.error(str(e))
+            sys.exit(2)
+        if not matches:
+            logging.error(
+                f"No files in {input_dir!r} matched --file-regex {file_regex!r}."
+            )
+            sys.exit(1)
+        uploads = [
+            (
+                full_path,
+                _blob_id_for_path(
+                    input_dir=input_dir,
+                    rel_path=rel_path,
+                    blob_id_prefix=blob_id_prefix,
+                ),
+            )
+            for full_path, rel_path in matches
+        ]
         logging.info(
-            json.dumps(
-                {
-                    "url": f"{api_root}blobs",
-                    "params": params,
-                    "blob": {**blob, "value": f'<base64:{len(blob["value"])} chars>'},
-                },
-                indent=2,
+            colors.c(
+                f"Matched {len(uploads)} file(s) in {input_dir} with regex: {file_regex}",
+                "cyan",
+                bright=True,
             )
         )
-        return
 
-    try:
-        cwms.store_blobs(blob, fail_if_exists=not overwrite)
-        logging.info(f"Uploaded blob: {blob_id_up}")
-        logging.info(f"View: {api_root}blobs/{blob_id_up}?office={office}")
-    except requests.HTTPError as e:
-        detail = getattr(e.response, "text", "") or str(e)
-        logging.error(f"Failed to upload (HTTP): {detail}")
+    failures = 0
+    for file_path, next_blob_id in uploads:
+        try:
+            file_data = _read_file_bytes(file_path)
+            blob, params, blob_id_up = _store_blob_payload(
+                file_data=file_data,
+                input_file=file_path,
+                blob_id=next_blob_id,
+                description=description,
+                media_type=media_type,
+                overwrite=overwrite,
+                office=office,
+            )
+            if dry_run:
+                logging.info(
+                    colors.c(
+                        f"[DRY RUN] {file_path} -> {blob_id_up}",
+                        "yellow",
+                        bright=True,
+                    )
+                )
+                logging.info(
+                    json.dumps(
+                        {
+                            "url": f"{api_root}blobs",
+                            "params": params,
+                            "blob": {
+                                **blob,
+                                "value": f'<base64:{len(blob["value"])} chars>',
+                            },
+                        },
+                        indent=2,
+                    )
+                )
+                continue
+
+            cwms.store_blobs(blob, fail_if_exists=not overwrite)
+            logging.info(
+                colors.c(
+                    f"[OK] Uploaded {file_path} as {blob_id_up}",
+                    "green",
+                    bright=True,
+                )
+            )
+            logging.info(f"View: {api_root}blobs/{blob_id_up}?office={office}")
+        except requests.HTTPError as e:
+            failures += 1
+            detail = getattr(e.response, "text", "") or str(e)
+            logging.error(
+                colors.c(
+                    f"[FAIL] {file_path} -> {next_blob_id.upper()} (HTTP): {detail}",
+                    "red",
+                    bright=True,
+                )
+            )
+        except Exception as e:
+            failures += 1
+            logging.error(
+                colors.c(
+                    f"[FAIL] {file_path} -> {next_blob_id.upper()}: {e}",
+                    "red",
+                    bright=True,
+                )
+            )
+
+    success_count = len(uploads) - failures
+    if failures:
+        logging.warning(
+            colors.c(
+                f"Upload completed with failures: {success_count}/{len(uploads)} succeeded, {failures} failed.",
+                "yellow",
+                bright=True,
+            )
+        )
         sys.exit(1)
-    except Exception as e:
-        logging.error(f"Failed to upload: {e}")
-        sys.exit(1)
+    logging.info(
+        colors.c(
+            f"Upload completed successfully: {success_count}/{len(uploads)} file(s).",
+            "green",
+            bright=True,
+        )
+    )
 
 
 def download_cmd(
