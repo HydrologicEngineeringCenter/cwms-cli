@@ -114,7 +114,10 @@ def blob_group():
 # ================================================================================
 #       Upload
 # ================================================================================
-@blob_group.command("upload", help="Upload a file as a blob")
+@blob_group.command(
+    "upload",
+    help="Upload a single file or a directory of files as CWMS blob(s).",
+)
 @click.option(
     "--input-file",
     required=False,
