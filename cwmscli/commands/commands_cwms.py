@@ -338,3 +338,20 @@ def users_roles_add(ctx, user_name, roles):
     from cwmscli.commands.users import add_roles
 
     add_roles(user_name=user_name, roles=roles, **ctx.obj)
+
+
+@users_roles.command("delete", help="Remove one or more roles from an existing user")
+@click.option("--user-name", type=str, default=None, help="Existing user name.")
+@click.option(
+    "--roles",
+    multiple=True,
+    default=None,
+    callback=csv_to_list,
+    help="Role name(s) to delete. Repeat the option or pass a comma-separated list.",
+)
+@click.pass_context
+@requires(reqs.cwms)
+def users_roles_delete(ctx, user_name, roles):
+    from cwmscli.commands.users import delete_roles
+
+    delete_roles(user_name=user_name, roles=roles, **ctx.obj)

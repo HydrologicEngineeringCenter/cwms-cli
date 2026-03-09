@@ -93,7 +93,7 @@ def _split_roles(raw_roles: tuple[str, ...] | list[str] | None) -> list[str]:
     return [role.strip() for role in raw_roles if role and role.strip()]
 
 
-def _validate_add_inputs(
+def _validate_role_inputs(
     users: list[dict], available_roles: list[str], user_name: str, roles: list[str]
 ) -> tuple[str, list[str]]:
     existing_user = _existing_user_name(users, user_name)
@@ -129,8 +129,10 @@ def _render_roles_table(roles: list[str]) -> str:
     return _format_table(["Role"], rows)
 
 
-def _prompt_for_add_inputs(available_roles: list[str]) -> tuple[str, list[str]]:
-    click.echo("Enter the target user and one or more roles to add.")
+def _prompt_for_role_inputs(
+    action: str, available_roles: list[str]
+) -> tuple[str, list[str]]:
+    click.echo(f"Enter the target user and one or more roles to {action}.")
     click.echo("")
     user_name = click.prompt("User name", type=str).strip()
     click.echo("")
@@ -197,9 +199,11 @@ def add_roles(
 
     if not provided_user_name and not provided_roles:
         office = _prompt_for_office(office)
-        provided_user_name, provided_roles = _prompt_for_add_inputs(available_roles)
+        provided_user_name, provided_roles = _prompt_for_role_inputs(
+            "add", available_roles
+        )
 
-    existing_user, validated_roles = _validate_add_inputs(
+    existing_user, validated_roles = _validate_role_inputs(
         users, available_roles, provided_user_name, provided_roles
     )
 
@@ -212,6 +216,52 @@ def add_roles(
 
     click.echo(
         f"Added {len(validated_roles)} role(s) to user "
+        f"{colors.c(existing_user, 'cyan', bright=True)} for office "
+        f"{colors.c(office, 'cyan', bright=True)}."
+    )
+    click.echo(_render_roles_table(validated_roles))
+
+
+def delete_roles(
+    office: str,
+    api_root: str,
+    api_key: str,
+    api_key_loc: str,
+    user_name: str | None,
+    roles: tuple[str, ...] | list[str] | None,
+) -> None:
+    provided_user_name = (user_name or "").strip()
+    provided_roles = _split_roles(roles)
+
+    if bool(provided_user_name) ^ bool(provided_roles):
+        raise click.ClickException(
+            "Either specify all delete arguments (--user-name and --roles) or run "
+            f"{_cmd('cwms-cli users roles delete')} interactively with no delete-specific args."
+        )
+
+    cwms = _init_cwms(api_root, api_key, api_key_loc)
+    users = _fetch_users(cwms)
+    available_roles = _fetch_roles(cwms)
+
+    if not provided_user_name and not provided_roles:
+        office = _prompt_for_office(office)
+        provided_user_name, provided_roles = _prompt_for_role_inputs(
+            "delete", available_roles
+        )
+
+    existing_user, validated_roles = _validate_role_inputs(
+        users, available_roles, provided_user_name, provided_roles
+    )
+
+    try:
+        cwms.delete_user_roles(
+            user_name=existing_user, office_id=office, roles=validated_roles
+        )
+    except cwms.api.ApiError as error:
+        _handle_api_error(error, cwms)
+
+    click.echo(
+        f"Deleted {len(validated_roles)} role(s) from user "
         f"{colors.c(existing_user, 'cyan', bright=True)} for office "
         f"{colors.c(office, 'cyan', bright=True)}."
     )
