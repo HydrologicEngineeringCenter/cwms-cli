@@ -296,3 +296,21 @@ def list_cmd(**kwargs):
     from cwmscli.commands.blob import list_cmd
 
     list_cmd(**kwargs)
+
+
+@click.group(
+    "users",
+    help="Manage CWMS users and user-management roles",
+)
+def users_group():
+    pass
+
+
+@users_group.command("roles", help="List assignable CWMS user-management roles")
+@api_key_loc_option
+@common_api_options
+@requires(reqs.cwms)
+def users_roles(**kwargs):
+    from cwmscli.commands.users import list_roles
+
+    list_roles(**kwargs)
