@@ -18,12 +18,28 @@ def _format_table(headers: list[str], rows: list[list[str]]) -> str:
     return "\n".join(lines)
 
 
+def _format_api_error(error: Exception, cwms_module) -> str:
+    message = str(error)
+    if isinstance(error, cwms_module.api.PermissionError):
+        status_text = "CDA responded with 403 Forbidden."
+        if status_text in message:
+            message = message.replace(status_text, colors.err(status_text))
+        message = (
+            f"{message} Use an admin API key or sign in as a user with user-management "
+            "admin roles. I.e. 'CWMS User Admins'"
+        )
+    return message
+
+
 def list_roles(office: str, api_root: str, api_key: str, api_key_loc: str) -> None:
     import cwms
 
     resolved_api_key = get_api_key(api_key, api_key_loc)
     cwms.init_session(api_root=api_root, api_key=resolved_api_key)
-    roles = sorted(cwms.get_roles(), key=str.casefold)
+    try:
+        roles = sorted(cwms.get_roles(), key=str.casefold)
+    except cwms.api.ApiError as error:
+        raise click.ClickException(_format_api_error(error, cwms)) from None
 
     header_count = colors.c(str(len(roles)), "cyan", bright=True)
     click.echo(f"Available roles for user management: {header_count}")
@@ -32,8 +48,5 @@ def list_roles(office: str, api_root: str, api_key: str, api_key_loc: str) -> No
         click.echo(colors.warn(f"No roles were returned for office {office}."))
         return
 
-    rows = [
-        [colors.dim(str(index)), colors.c(role, "green")]
-        for index, role in enumerate(roles, start=1)
-    ]
-    click.echo(_format_table(["#", "Role"], rows))
+    rows = [[colors.c(role, "green")] for role in roles]
+    click.echo(_format_table(["Role"], rows))
