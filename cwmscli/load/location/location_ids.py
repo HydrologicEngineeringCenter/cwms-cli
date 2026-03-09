@@ -79,5 +79,5 @@ def load_locations(
 
     if errors:
         raise click.ClickException(f"Completed with {errors} error(s).")
-    if verbose:
-        click.echo("Done.")
+
+    click.echo("Done.")
