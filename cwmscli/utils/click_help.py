@@ -41,6 +41,9 @@ def _docs_url_for_context(ctx: click.Context) -> Optional[str]:
     command = (ctx.info_name or getattr(ctx.command, "name", None) or "").strip()
     page_map = {
         "blob": "blob",
+        "update": "update",
+        "users": "users",
+        "version": "version",
     }
     # Link to dedicated pages that are created in \docs
     if command in page_map:
