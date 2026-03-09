@@ -306,11 +306,35 @@ def users_group():
     pass
 
 
-@users_group.command("roles", help="List assignable CWMS user-management roles")
+@users_group.group(
+    "roles",
+    help="List assignable CWMS user-management roles and manage user role assignments",
+    invoke_without_command=True,
+)
 @api_key_loc_option
 @common_api_options
+@click.pass_context
 @requires(reqs.cwms)
-def users_roles(**kwargs):
-    from cwmscli.commands.users import list_roles
+def users_roles(ctx, **kwargs):
+    ctx.obj = dict(kwargs)
+    if ctx.invoked_subcommand is None:
+        from cwmscli.commands.users import list_roles
 
-    list_roles(**kwargs)
+        list_roles(**kwargs)
+
+
+@users_roles.command("add", help="Add one or more roles to an existing user")
+@click.option("--user-name", type=str, default=None, help="Existing user name.")
+@click.option(
+    "--roles",
+    multiple=True,
+    default=None,
+    callback=csv_to_list,
+    help="Role name(s) to add. Repeat the option or pass a comma-separated list.",
+)
+@click.pass_context
+@requires(reqs.cwms)
+def users_roles_add(ctx, user_name, roles):
+    from cwmscli.commands.users import add_roles
+
+    add_roles(user_name=user_name, roles=roles, **ctx.obj)
