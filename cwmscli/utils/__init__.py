@@ -59,6 +59,14 @@ api_key_loc_option = click.option(
     type=str,
     help="file storing Api Key. One of api-key or api-key-loc are required",
 )
+usgs_api_key_option = click.option(
+    "-u",
+    "--usgs-api-key",
+    default=None,
+    type=str,
+    envvar="USGS_API_KEY",
+    help="USGS API key for waterdata.usgs.gov requests. Can also be set via USGS_API_KEY environment variable.",
+)
 log_level_option = click.option(
     "--log-level",
     type=click.Choice(

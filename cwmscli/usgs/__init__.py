@@ -7,6 +7,7 @@ from cwmscli.utils import (
     api_root_option,
     get_api_key,
     office_option,
+    usgs_api_key_option,
 )
 from cwmscli.utils.deps import requires
 
@@ -122,35 +123,35 @@ def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
     type=int,
     help="Days back from current time measurements have been modified in USGS database. Can be integer value",
 )
-@click.option(
-    "-c",
-    "--days-back-collected",
-    default=365,
-    type=int,
-    help="Days back from current time measurements have been collected. Can be integer value",
-)
 @office_option
 @api_root_option
 @api_key_option
 @api_key_loc_option
+@usgs_api_key_option
 @click.option(
     "-b",
     "--backfill",
     default=None,
     type=str,
-    help="Backfill POR data, use list of USGS IDs (e.g. 05057200, 05051300) or the word 'group' to attempt to backfill all sites in the OFFICE id's Data Acquisition->USGS Measurements group",
+    help="Backfill POR data, use a comma-separated list of CWMS location IDs (e.g. Dazey,Baldhill_Dam-Tailwater) or the word 'group' to attempt to backfill all sites in the office's Data Acquisition->USGS Measurements group",
 )
-@requires(reqs.cwms, reqs.requests, reqs.dataretrieval)
+@click.option(
+    "--channel/--no-channel",
+    default=True,
+    help="Fetch and store USGS channel measurements in supplemental-streamflow-measurement. Use --no-channel to disable.",
+)
+@requires(reqs.cwms, reqs.requests)
 def getusgs_measurements(
     days_back_modified,
-    days_back_collected,
     office,
     api_root,
     api_key,
     api_key_loc,
+    usgs_api_key,
     backfill,
+    channel,
 ):
-    from cwmscli.usgs.getusgs_measurements_cda import getusgs_measurement_cda
+    from cwmscli.usgs.getusgs_measurements_cda import getUSGS_measurement_cda
 
     backfill_group = False
     backfill_list = False
@@ -159,13 +160,15 @@ def getusgs_measurements(
             backfill_group = True
         elif type(backfill) == str:
             backfill_list = backfill.replace(" ", "").split(",")
+
     api_key = get_api_key(api_key, api_key_loc)
-    getusgs_measurement_cda(
+    getUSGS_measurement_cda(
         api_root=api_root,
         office_id=office,
         api_key=api_key,
+        usgs_api_key=usgs_api_key,
         days_back_modified=days_back_modified,
-        days_back_collected=days_back_collected,
         backfill_list=backfill_list,
         backfill_group=backfill_group,
+        fetch_channel=channel,
     )
