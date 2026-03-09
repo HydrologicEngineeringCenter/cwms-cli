@@ -30,6 +30,50 @@ Examples
 
   ``cwms-cli users roles``
 
+Add a role to a user
+--------------------
+
+Use ``cwms-cli users roles add`` to add one or more roles to an existing user
+for an office. This command maps to the CWMS user-management POST operation on
+``/user/{user-name}/roles/{office-id}``.
+
+Before sending the request, the CLI validates that:
+
+- the target user exists in the CDA ``/users`` catalog
+- each requested role exists in the CDA ``/roles`` catalog
+
+Interactive mode
+~~~~~~~~~~~~~~~~
+
+Run the add command without add-specific arguments to use the interactive flow:
+
+``cwms-cli users roles add``
+
+The interactive flow will:
+
+- Ask if the office you have set is the one you want to use
+- let you override that office before the request is sent
+- prompt for the user name
+- show the available roles
+- let you enter one or more roles to add
+
+Argument mode
+~~~~~~~~~~~~~
+
+If you already know the values you want, you can pass them directly:
+
+``cwms-cli users roles add --office SPK --api-root http://localhost:8082/cwms-data/ --api-key <ADMIN_KEY> --user-name q0hectest --roles "CWMS User Admins" --roles "Viewer Users"``
+
+You can also pass roles as a comma-separated list:
+
+``cwms-cli users roles add --office SPK --api-root http://localhost:8082/cwms-data/ --api-key <ADMIN_KEY> --user-name q0hectest --roles "CWMS User Admins,Viewer Users"``
+
+All-or-none add arguments
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+For add-specific options, provide all required values or none of them.
+
+
 See also
 --------
 
