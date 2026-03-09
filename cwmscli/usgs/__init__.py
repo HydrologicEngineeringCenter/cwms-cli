@@ -7,7 +7,7 @@ from cwmscli.utils import (
     api_root_option,
     get_api_key,
     office_option,
-    usgs_api_key_option, 
+    usgs_api_key_option,
 )
 from cwmscli.utils.deps import requires
 
@@ -127,7 +127,7 @@ def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
 @api_root_option
 @api_key_option
 @api_key_loc_option
-@usgs_api_key_option 
+@usgs_api_key_option
 @click.option(
     "-b",
     "--backfill",
