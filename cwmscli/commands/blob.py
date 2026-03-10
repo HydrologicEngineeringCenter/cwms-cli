@@ -284,7 +284,7 @@ def _store_blob_payload(
     return blob, params, blob_id_up
 
 
-def _iter_matching_files(
+def _list_matching_files(
     input_dir: str, file_regex: str, recursive: bool
 ) -> list[Tuple[str, str]]:
     try:
@@ -328,7 +328,7 @@ def upload_cmd(
     import cwms
     import requests
 
-    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
+    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
 
     using_single = bool(input_file)
     using_multi = bool(input_dir)
@@ -344,7 +344,7 @@ def upload_cmd(
         uploads = [(input_file, blob_id)]
     else:
         try:
-            matches = _iter_matching_files(input_dir, file_regex, recursive)
+            matches = _list_matching_files(input_dir, file_regex, recursive)
         except ValueError as e:
             logging.error(str(e))
             sys.exit(2)

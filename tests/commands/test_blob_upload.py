@@ -3,17 +3,17 @@ import types
 
 import pytest
 
-from cwmscli.commands.blob import _blob_id_for_path, _iter_matching_files, upload_cmd
+from cwmscli.commands.blob import _blob_id_for_path, _list_matching_files, upload_cmd
 
 
-def test_iter_matching_files_filters_by_regex(tmp_path):
+def test_list_matching_files_filters_by_regex(tmp_path):
     (tmp_path / "one.txt").write_text("1")
     (tmp_path / "two.bin").write_text("2")
     sub = tmp_path / "subdir"
     sub.mkdir()
     (sub / "three.txt").write_text("3")
 
-    matches = _iter_matching_files(str(tmp_path), r".*\.txt$", recursive=True)
+    matches = _list_matching_files(str(tmp_path), r".*\.txt$", recursive=True)
     rel_paths = [rel for _, rel in matches]
     assert rel_paths == ["one.txt", "subdir/three.txt"]
 
