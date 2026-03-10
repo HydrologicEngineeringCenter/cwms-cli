@@ -31,3 +31,38 @@ Formatting of code is done via black. You must ensure you have walked through th
 ## Code Review
 
 Create an [issue](https://github.com/hydrologicengineeringcenter/cwms-cli/issues) using one of the templates. Then from that issue on the sidebar select "create branch from issue". This ensures branches are linked to issues and issues are properly closed when resolved. Leaving no orphaned issues.  
+
+## Run GitHub Actions locally
+
+You can rehearse the main GitHub Actions workflows locally with
+[`act`](https://github.com/nektos/act) before pushing a branch.
+
+
+This is **NOT** required and is more of a convenience to test locally before waiting for the actions to run it the first time/subsequent times. 
+
+### Prerequisites:
+
+- `act`
+- Docker
+
+### Repo-local setup is already included:
+
+- `.actrc` configures the default `ubuntu-latest` runner image
+- `.github/act/pull_request.json` provides a local pull request event payload
+- `scripts/run-local-actions.sh` wraps the common workflows
+
+### Examples:
+
+```sh
+scripts/run-local-actions.sh cli-tests
+scripts/run-local-actions.sh code-check
+scripts/run-local-actions.sh docs
+scripts/run-local-actions.sh all
+```
+
+### Notes:
+
+- When you run `run-local-actions.sh` it will prompt if you would like to install `act`. It assumes you have docker installed already.
+- Deployment-oriented workflows such as PyPI publish are not included in the wrapper because they rely on GitHub-hosted credentials and release context.
+- You can pass through extra `act` arguments. Example: `scripts/run-local-actions.sh docs -j html`
+
