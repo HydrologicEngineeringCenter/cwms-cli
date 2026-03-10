@@ -66,7 +66,7 @@ def test_update_command_surfaces_pip_failure(monkeypatch):
     result = runner.invoke(cli, ["update", "--yes"])
 
     assert result.exit_code == 1
-    assert "cwms-cli update failed" in result.stderr
+    assert "cwms-cli update failed" in result.output
 
 
 def test_update_command_cancelled_by_user(monkeypatch):
