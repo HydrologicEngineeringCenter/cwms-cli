@@ -3,5 +3,6 @@
 
    cli
    cli/blob
+   cli/users
    cli/update
    cli/version

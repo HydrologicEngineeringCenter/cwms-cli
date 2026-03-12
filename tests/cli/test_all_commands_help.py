@@ -32,6 +32,26 @@ def runner():
     return CliRunner()
 
 
+def help_args_for_path(path):
+    args = list(path) + ["--help"]
+    # Some Click versions require parent-group required options to be present
+    # even when help is requested on a nested subcommand.
+    if len(path) >= 3 and path[:2] == ("users", "roles"):
+        return [
+            "users",
+            "roles",
+            "--office",
+            "SPK",
+            "--api-root",
+            "https://example.test/cda/",
+            "--api-key",
+            "ignored",
+            *path[2:],
+            "--help",
+        ]
+    return args
+
+
 def test_root_help(runner):
     """Top-level CLI should have working help."""
     result = runner.invoke(cli, ["--help"])
@@ -59,7 +79,7 @@ def test_every_command_has_help(runner, path, command):
     Run through every command and subcommand, ensuring that the help page renders.
     This ensures that no early import errors occur in any command.
     """
-    args = list(path) + ["--help"]
+    args = help_args_for_path(path)
     result = runner.invoke(cli, args)
     assert result.exit_code == 0, f"Failed on: {' '.join(args)}"
     assert "Usage:" in result.output
@@ -67,6 +87,8 @@ def test_every_command_has_help(runner, path, command):
     if len(path) == 1:
         page_map = {
             "blob": f"{DOCS_BASE_URL}/cli/blob.html",
+            "update": f"{DOCS_BASE_URL}/cli/update.html",
+            "users": f"{DOCS_BASE_URL}/cli/users.html",
         }
         expected_docs = page_map.get(
             path[0], f"{DOCS_BASE_URL}/cli.html#cwms-cli-{path[0]}"
