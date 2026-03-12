@@ -7,9 +7,20 @@ A collection of scripts to create, read, update, list, and delete data through C
 ## Install
 
 ```sh
-pip3 install git+https://github.com/HydrologicEngineeringCenter/cwms-cli.git@main
+pip install cwms-cli
 ```
 Note: If you are on Windows OS, you may just need to use the command `pip`
+
+
+### Update
+```sh
+pip install update
+```
+
+Or as of version `0.3.0+`
+```sh
+cwms-cli update
+```
 
 ## Command line implementation
 
