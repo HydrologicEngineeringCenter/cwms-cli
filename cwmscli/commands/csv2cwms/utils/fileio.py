@@ -18,7 +18,7 @@ def load_csv(file_path):
         raise ValueError("Data file must be a CSV file.")
     if not os.path.exists(file_path):
         raise FileNotFoundError(
-            f"File not found: {file_path}. Be sure to set the path correctly in the configuration file. And use the argument --data-path to specify the directory containing the data files."
+            f"File not found: {file_path}. Be sure to set the path correctly in the configuration file under data_path."
         )
     with open(file_path, "r") as f:
         reader = csv.reader(f)
