@@ -23,6 +23,7 @@ try:
     from .utils import (
         determine_interval,
         eval_expression,
+        expression_columns,
         load_csv,
         logger,
         parse_date,
@@ -36,6 +37,7 @@ except ImportError:
     from utils import (
         determine_interval,
         eval_expression,
+        expression_columns,
         load_csv,
         logger,
         parse_date,
@@ -96,6 +98,36 @@ def load_timeseries(file_data, file_key, config):
     # Map column names to indexes (case-insensitive)
     header_map = {col.strip().lower(): i for i, col in enumerate(header)}
     logger.debug(f"Header map (column name -> index): {header_map}")
+    available_columns = [col.strip() for col in header]
+
+    missing_columns = []
+    for name, meta in ts_config.items():
+        column_config = meta["columns"]
+        expr_columns = expression_columns(column_config)
+        missing_for_expr = [
+            col for col in expr_columns if col.strip().lower() not in header_map
+        ]
+        if missing_for_expr:
+            missing_columns.append((name, column_config, expr_columns, missing_for_expr))
+
+    if missing_columns:
+        details = []
+        for name, column_config, referenced_columns, missing_for_expr in missing_columns:
+            config_label = "column" if len(referenced_columns) == 1 else "column expression"
+            details.append(
+                "Timeseries "
+                f"{c(name, 'blue')}: configured {config_label} {c(column_config, 'yellow')} "
+                f"references missing CSV columns {c(', '.join(missing_for_expr), 'red')}"
+            )
+
+        raise ValueError(
+            "Configured CSV columns were not found in the input file. "
+            f"Skipping {c(file_key, 'red')}.\n"
+            + "\n".join(details)
+            + "\n"
+            + "Available CSV columns: "
+            + c(", ".join(available_columns), "cyan")
+        )
 
     for name, meta in ts_config.items():
         expr = meta["columns"]
