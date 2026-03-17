@@ -18,8 +18,9 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 # or as a package by running `python scada_ts` from the parent directory
 try:
     # Relative imports for modules
-    from . import __author__, __license__, __version__
     from cwmscli.utils.colors import c
+
+    from . import __author__, __license__, __version__
     from .utils import (
         determine_interval,
         eval_expression,
@@ -35,7 +36,6 @@ try:
     )
 except ImportError:
     from __init__ import __author__, __license__, __version__
-    from cwmscli.utils.colors import c
     from utils import (
         determine_interval,
         eval_expression,
@@ -50,6 +50,8 @@ except ImportError:
         setup_logger,
     )
 
+    from cwmscli.utils.colors import c
+
 # Load environment variables
 API_KEY = os.getenv("CDA_API_KEY")
 OFFICE = os.getenv("CDA_OFFICE", "SWT")
@@ -59,6 +61,65 @@ if [API_KEY, OFFICE, HOST].count(None) > 0:
     raise ValueError(
         "Environment variables CDA_API_KEY, CDA_OFFICE, and CDA_HOST must be set."
     )
+
+VALID_USE_IF_MULTIPLE = {"first", "last", "average", "error"}
+
+
+def _normalize_epoch_rows(data):
+    normalized = {}
+    for epoch, rows in data.items():
+        # If the value is already a list of rows, keep it as is. Otherwise, wrap it in a list.
+        if isinstance(rows, list) and rows and isinstance(rows[0], list):
+            normalized[epoch] = rows
+        else:
+            normalized[epoch] = [rows]
+    return normalized
+
+
+def _resolve_use_if_multiple(config, file_config):
+    # File-specific setting takes precedence over global setting, default to "error" if not set
+    strategy = file_config.get(
+        "use_if_multiple", config.get("use_if_multiple", "error")
+    )
+    normalized = str(strategy).strip().lower()
+    if normalized not in VALID_USE_IF_MULTIPLE:
+        valid = ", ".join(sorted(VALID_USE_IF_MULTIPLE))
+        raise ValueError(
+            f"Invalid use_if_multiple value {c(str(strategy), 'yellow')}. Expected one of {c(valid, 'cyan')}."
+        )
+    return normalized
+
+
+def _select_value(name, epoch, rows, expr, header_map, precision, strategy, timezone):
+    raw_values = [eval_expression(expr, row, header_map) for row in rows]
+
+    if len(raw_values) > 1:
+        logger.warning(
+            f"Multiple values found [{c(name, 'blue')}] at "
+            f"{c(str(datetime.fromtimestamp(epoch, tz=timezone)), 'cyan')}; "
+            f"using [{c(strategy, 'yellow')}]."
+        )
+
+    if strategy == "error" and len(raw_values) > 1:
+        raise ValueError(
+            f"Multiple values found for timeseries {c(name, 'blue')} at "
+            f"{c(str(datetime.fromtimestamp(epoch, tz=timezone)), 'cyan')}. "
+            "Set use_if_multiple to first, last, or average."
+        )
+
+    if strategy == "first":
+        value = raw_values[0]
+    elif strategy == "last":
+        value = raw_values[-1]
+    elif strategy == "average":
+        numeric_values = [value for value in raw_values if value is not None]
+        value = sum(numeric_values) / len(numeric_values) if numeric_values else None
+    else:
+        value = raw_values[-1]
+
+    value = round(value, precision) if value is not None else None
+    quality = 3 if value is not None else 5
+    return value, quality
 
 
 def parse_file(file_path, begin_time, date_format, timezone="GMT"):
@@ -73,14 +134,13 @@ def parse_file(file_path, begin_time, date_format, timezone="GMT"):
         if not row:
             continue
         row_datetime = parse_date(row[0], tz_str=timezone, date_format=date_format)
-        # Guarantee only one entry per timestamp
-        ts_data[int(row_datetime.timestamp())] = row
+        ts_data.setdefault(int(row_datetime.timestamp()), []).append(row)
     return {"header": header, "data": ts_data, "source_timezone": source_timezone}
 
 
 def load_timeseries(file_data, file_key, config):
     header = file_data.get("header", [])
-    data = file_data.get("data", {})
+    data = _normalize_epoch_rows(file_data.get("data", {}))
     source_timezone = file_data.get("source_timezone", safe_zoneinfo("UTC"))
 
     if not header or not data:
@@ -94,6 +154,7 @@ def load_timeseries(file_data, file_key, config):
     round_to_nearest = file_config.get(
         "round_to_nearest", config.get("round_to_nearest", False)
     )
+    use_if_multiple = _resolve_use_if_multiple(config, file_config)
 
     # Interval in seconds
     interval = config.get("interval")
@@ -118,12 +179,21 @@ def load_timeseries(file_data, file_key, config):
             col for col in expr_columns if col.strip().lower() not in header_map
         ]
         if missing_for_expr:
-            missing_columns.append((name, column_config, expr_columns, missing_for_expr))
+            missing_columns.append(
+                (name, column_config, expr_columns, missing_for_expr)
+            )
 
     if missing_columns:
         details = []
-        for name, column_config, referenced_columns, missing_for_expr in missing_columns:
-            config_label = "column" if len(referenced_columns) == 1 else "column expression"
+        for (
+            name,
+            column_config,
+            referenced_columns,
+            missing_for_expr,
+        ) in missing_columns:
+            config_label = (
+                "column" if len(referenced_columns) == 1 else "column expression"
+            )
             details.append(
                 "Timeseries "
                 f"{c(name, 'blue')}: configured {config_label} {c(column_config, 'yellow')} "
@@ -160,14 +230,14 @@ def load_timeseries(file_data, file_key, config):
                 ) from err
 
             rounded_data = {}
-            for raw_epoch, raw_row in data.items():
+            for raw_epoch, raw_rows in data.items():
                 rounded_epoch = int(
                     round_datetime_to_interval(
                         datetime.fromtimestamp(raw_epoch, tz=source_timezone),
                         interval_parameter,
                     ).timestamp()
                 )
-                rounded_data[rounded_epoch] = raw_row
+                rounded_data.setdefault(rounded_epoch, []).extend(raw_rows)
             ts_data = rounded_data
             logger.info(
                 f"Rounding timestamps for {c(name, 'blue')} to nearest {c(interval_parameter, 'cyan')}."
@@ -178,11 +248,18 @@ def load_timeseries(file_data, file_key, config):
         ts_end_epoch = max(ts_data.keys())
         epoch = ts_start_epoch
         while epoch <= ts_end_epoch:
-            row = ts_data.get(epoch)
-            if row:
-                value = eval_expression(expr, row, header_map)
-                value = round(value, precision) if value is not None else None
-                quality = 3 if value is not None else 5
+            rows = ts_data.get(epoch)
+            if rows:
+                value, quality = _select_value(
+                    name,
+                    epoch,
+                    rows,
+                    expr,
+                    header_map,
+                    precision,
+                    use_if_multiple,
+                    source_timezone,
+                )
             else:
                 value = None
                 quality = 5
@@ -211,6 +288,7 @@ def load_timeseries(file_data, file_key, config):
 
 def config_check(config):
     """Checks a configuration file for required keys"""
+    _resolve_use_if_multiple(config, {})
     if not config.get("interval"):
         logger.warning(
             "Configuration file does not contain an 'interval' key (and value in seconds), this is recommended per CSV file to avoid ambiguity."
@@ -223,6 +301,7 @@ def config_check(config):
     if not config.get("input_files"):
         raise ValueError("Configuration file must contain an 'input_files' key.")
     for file_key, file_data in config.get("input_files").items():
+        _resolve_use_if_multiple(config, file_data)
         # Only check the specified keys or if all keys are specified
         if file_key != "all" and file_key != file_key.lower():
             continue
