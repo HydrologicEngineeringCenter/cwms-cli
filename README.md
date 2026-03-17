@@ -14,7 +14,7 @@ Note: If you are on Windows OS, you may just need to use the command `pip`
 
 ### Update
 ```sh
-pip install update
+pip install cwms-cli --upgrade
 ```
 
 Or as of version `0.3.0+`
