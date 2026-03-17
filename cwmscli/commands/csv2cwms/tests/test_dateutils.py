@@ -18,6 +18,30 @@ def test_parse_date_invalid_format():
         parse_date("25-03-2025")
 
 
+def test_parse_date_uses_single_user_format():
+    tz = safe_zoneinfo("UTC")
+    expected = datetime(2025, 3, 25, 14, 30, tzinfo=tz)
+    assert (
+        parse_date(
+            "2025/03/25 14:30", date_format="%Y/%m/%d %H:%M", tz_str="UTC"
+        )
+        == expected
+    )
+
+
+def test_parse_date_uses_ordered_format_list():
+    tz = safe_zoneinfo("UTC")
+    expected = datetime(2025, 3, 25, 14, 30, tzinfo=tz)
+    assert (
+        parse_date(
+            "2025-03-25 14:30",
+            date_format=["%m/%d/%Y %H:%M", "%Y-%m-%d %H:%M"],
+            tz_str="UTC",
+        )
+        == expected
+    )
+
+
 def test_determine_interval_regular_spacing():
     now = datetime(2025, 3, 25, 14, 30, tzinfo=safe_zoneinfo("UTC"))
     interval = 900  # 15 minutes
