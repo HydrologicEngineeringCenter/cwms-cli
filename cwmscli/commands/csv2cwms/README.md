@@ -101,3 +101,11 @@ Example:
 Where `ObservedAt` is the literal text in the first row header of the CSV file column. 
 
 If the first column is not a parseable date and `date_col` is not set, you will get an error.
+
+## Timezone
+
+The `--timezone` option defaults to `GMT`.
+
+Set `--timezone` when the timestamps in the CSV are local times rather than GMT/UTC. This matters because `csv2cwms` uses the timezone when parsing CSV timestamps, converting them to epoch values, and rounding them into interval buckets.
+
+If the source CSV was produced in a local timezone such as `America/Chicago` and you leave the default `GMT`, the stored timestamps can be shifted by the wrong UTC offset.

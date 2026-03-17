@@ -24,6 +24,7 @@ Important config behavior
 
 - By default, the timestamp is assumed to be in the first CSV column.
 - Set ``date_col`` to the CSV header name when the timestamp is in a different column.
+- The default timezone is ``GMT``.
 - If ``round_to_nearest`` is enabled, config file ``interval`` takes precedence.
 - If ``interval`` is not configured, rounding falls back to the interval parsed
   from the CWMS time series ``interval`` part. See
@@ -32,6 +33,23 @@ Important config behavior
   for more on TSID structure.
 - If multiple rows land in the same rounded timestamp, ``use_if_multiple``
   controls whether the first, last, average, or an error is used. Error is the default behavior.
+
+Timezone handling
+-----------------
+
+The ``--timezone`` option defaults to ``GMT``.
+
+Set ``--timezone`` when the timestamps in the CSV represent local clock time
+instead of GMT/UTC. This matters because ``csv2cwms`` uses that timezone when:
+
+- parsing timestamp strings from the CSV
+- converting parsed timestamps into epoch values
+- rounding timestamps into interval buckets
+
+If the CSV timestamps are local plant, office, or regional times and you leave
+the timezone at the default ``GMT``, the stored times can be shifted by the
+wrong UTC offset. Set a real zone such as ``America/Chicago`` when the source
+CSV was produced in that local timezone.
 
 Quality codes
 -------------
