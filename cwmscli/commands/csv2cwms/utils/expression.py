@@ -1,16 +1,28 @@
 import re
 
+EXPRESSION_TOKEN_PATTERN = r'"[^"]+"|\'[^\']+\'|\+|\-|\*|\/|[^\+\-\*\/]+'
+OPERATORS = {"+", "-", "*", "/"}
+
+
+def expression_columns(expr):
+    """Return column identifiers referenced by an expression, excluding operators."""
+    tokens = re.findall(EXPRESSION_TOKEN_PATTERN, expr.replace(" ", ""))
+    columns = []
+    for token in tokens:
+        if token in OPERATORS:
+            continue
+        columns.append(token.strip('"').strip("'"))
+    return columns
+
 
 def eval_expression(expr, row, header_map):
     """
-    Evaluate simple math expressions (+, -, *) using values from the row based on column names in the expression.
+    Evaluate simple math expressions (+, -, *, /) using values from the row based on column names in the expression.
     """
-    tokens = re.findall(
-        r'"[^"]+"|\'[^\']+\'|\+|\-|\*|[^\+\-\*]+', expr.replace(" ", "")
-    )
+    tokens = re.findall(EXPRESSION_TOKEN_PATTERN, expr.replace(" ", ""))
     result = None
     for i, token in enumerate(tokens):
-        if token in {"+", "-", "*"}:
+        if token in OPERATORS:
             continue
 
         col_name = token.strip('"').strip("'").lower()
@@ -36,4 +48,9 @@ def eval_expression(expr, row, header_map):
                 result -= val
             elif op == "*":
                 result *= val
+            elif op == "/":
+                # Handle 
+                if val == 0:
+                    return None
+                result /= val
     return result
