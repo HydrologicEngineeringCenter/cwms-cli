@@ -2,6 +2,8 @@
 
 Writes CSV timeseries data to CDA using a configuration file.
 
+Start with the canonical example config at [`examples/complete_config.json`](examples/complete_config.json). It shows the current supported keys and should be treated as the reference example for this command.
+
 To View the Help: `cwms-cli csv2cwms --help`
 
 ## USAGE (--help)
