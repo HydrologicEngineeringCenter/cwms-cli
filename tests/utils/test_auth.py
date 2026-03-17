@@ -1,6 +1,13 @@
 import urllib.parse
 
-from cwmscli.utils.auth import OIDCLoginConfig, login_with_browser
+import pytest
+
+from cwmscli.utils.auth import (
+    CallbackBindError,
+    OIDCLoginConfig,
+    _receive_callback,
+    login_with_browser,
+)
 
 
 def test_login_with_browser_includes_pkce_parameters(monkeypatch):
@@ -53,3 +60,22 @@ def test_login_with_browser_includes_pkce_parameters(monkeypatch):
         "redirect_uri": "http://127.0.0.1:5000",
         "code_verifier": "verifier-token",
     }
+
+
+def test_receive_callback_reports_port_already_in_use(monkeypatch):
+    config = OIDCLoginConfig()
+
+    def fake_server(_server_address, _handler_cls):
+        error = OSError(
+            10048, "Only one usage of each socket address is normally permitted"
+        )
+        error.winerror = 10048
+        raise error
+
+    monkeypatch.setattr("cwmscli.utils.auth._SingleRequestServer", fake_server)
+
+    with pytest.raises(CallbackBindError) as excinfo:
+        _receive_callback(config)
+
+    assert "port is already in use" in str(excinfo.value)
+    assert "Another `cwms-cli login` instance may still be running" in str(excinfo.value)

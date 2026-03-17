@@ -147,6 +147,14 @@ def _verify_setting(verify: Optional[str]) -> Any:
     return True
 
 
+def _is_address_in_use_error(error: OSError) -> bool:
+    if getattr(error, "errno", None) in {98, 10048}:
+        return True
+    if getattr(error, "winerror", None) == 10048:
+        return True
+    return "address already in use" in str(error).lower()
+
+
 def _generate_token(length: int) -> str:
     alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     return "".join(secrets.choice(alphabet) for _ in range(length))
@@ -223,6 +231,13 @@ def _receive_callback(config: OIDCLoginConfig) -> Dict[str, str]:
                     )
             return server.callback_params
     except OSError as e:
+        if _is_address_in_use_error(e):
+            raise CallbackBindError(
+                f"Could not listen on {config.redirect_uri} because that port is already in use. "
+                "Another `cwms-cli login` instance may still be running. Stop it before continuing, "
+                "or try a different callback port with --redirect-port, for example "
+                "`cwms-cli login --redirect-port 5555`."
+            ) from e
         raise CallbackBindError(
             f"Could not listen on {config.redirect_uri}. "
             "Try a different callback port with --redirect-port, for example "

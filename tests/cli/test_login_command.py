@@ -4,6 +4,7 @@ from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
 from cwmscli.utils.auth import (
+    CallbackBindError,
     DEFAULT_CLIENT_ID,
     DEFAULT_OIDC_BASE_URL,
     DEFAULT_REDIRECT_HOST,
@@ -79,3 +80,39 @@ def test_login_defaults_can_start_and_prompt(monkeypatch):
     assert saved["launch_browser"] is True
     assert saved["authorization_url_callback"] is None
     assert saved["token_file"] == Path("/tmp/federation-eams.json")
+
+
+def test_login_shows_actionable_message_when_callback_port_is_in_use(monkeypatch):
+    runner = CliRunner()
+
+    def fake_import_module(name):
+        if name == "requests":
+            return object()
+        return __import__(name)
+
+    def fake_version(_package):
+        return "999.0.0"
+
+    def fake_login_with_browser(
+        config, launch_browser=True, authorization_url_callback=None
+    ):
+        raise CallbackBindError(
+            "Could not listen on http://127.0.0.1:5000 because that port is already in use. "
+            "Another `cwms-cli login` instance may still be running. Stop it before continuing, "
+            "or try a different callback port with --redirect-port, for example "
+            "`cwms-cli login --redirect-port 5555`."
+        )
+
+    monkeypatch.setattr(
+        "cwmscli.utils.deps.importlib.import_module", fake_import_module
+    )
+    monkeypatch.setattr("cwmscli.utils.deps.importlib.metadata.version", fake_version)
+    monkeypatch.setattr(
+        "cwmscli.utils.auth.login_with_browser", fake_login_with_browser
+    )
+
+    result = runner.invoke(cli, ["login"])
+
+    assert result.exit_code == 1
+    assert "port is already in use" in result.output
+    assert "Another `cwms-cli login` instance may still be running" in result.output
