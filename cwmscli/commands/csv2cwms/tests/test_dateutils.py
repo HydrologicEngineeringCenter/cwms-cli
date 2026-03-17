@@ -2,7 +2,15 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from ..utils.dateutils import determine_interval, parse_date, safe_zoneinfo
+from cwmscli.utils.intervals import ALL_INTERVAL_PARAMETERS
+
+from ..utils.dateutils import (
+    determine_interval,
+    interval_parameter_to_seconds,
+    parse_date,
+    round_datetime_to_interval,
+    safe_zoneinfo,
+)
 
 
 def test_parse_date_valid_formats():
@@ -39,6 +47,55 @@ def test_parse_date_uses_ordered_format_list():
             tz_str="UTC",
         )
         == expected
+    )
+
+
+def test_interval_parameter_to_seconds():
+    assert interval_parameter_to_seconds("15Minutes") == 900
+    assert interval_parameter_to_seconds("1Hour") == 3600
+    assert interval_parameter_to_seconds("1Day") == 86400
+
+
+def test_interval_parameter_list_includes_schema_values():
+    assert "1Week" in ALL_INTERVAL_PARAMETERS
+    assert "~15Minutes" in ALL_INTERVAL_PARAMETERS
+    assert "1Decade" in ALL_INTERVAL_PARAMETERS
+
+
+def test_interval_parameter_to_seconds_rejects_irregular_interval():
+    with pytest.raises(ValueError):
+        interval_parameter_to_seconds("~15Minutes")
+
+
+def test_round_datetime_to_interval_hour():
+    tz = safe_zoneinfo("UTC")
+    dt = datetime(2025, 3, 25, 14, 31, tzinfo=tz)
+    assert round_datetime_to_interval(dt, "1Hour") == datetime(
+        2025, 3, 25, 15, 0, tzinfo=tz
+    )
+
+
+def test_round_datetime_to_interval_minutes():
+    tz = safe_zoneinfo("UTC")
+    dt = datetime(2025, 3, 25, 14, 8, tzinfo=tz)
+    assert round_datetime_to_interval(dt, "15Minutes") == datetime(
+        2025, 3, 25, 14, 15, tzinfo=tz
+    )
+
+
+def test_round_datetime_to_interval_5_minutes():
+    tz = safe_zoneinfo("UTC")
+    dt = datetime(2025, 3, 25, 14, 3, 31, tzinfo=tz)
+    assert round_datetime_to_interval(dt, "5Minutes") == datetime(
+        2025, 3, 25, 14, 5, tzinfo=tz
+    )
+
+
+def test_round_datetime_to_interval_30_minutes():
+    tz = safe_zoneinfo("UTC")
+    dt = datetime(2025, 3, 25, 14, 16, tzinfo=tz)
+    assert round_datetime_to_interval(dt, "30Minutes") == datetime(
+        2025, 3, 25, 14, 30, tzinfo=tz
     )
 
 

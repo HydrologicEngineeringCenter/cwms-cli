@@ -1,4 +1,5 @@
 import importlib
+from datetime import datetime
 
 import pytest
 
@@ -41,3 +42,49 @@ def test_load_timeseries_missing_column_aborts(monkeypatch):
     assert "Headwater+MissingColumn" in message
     assert "MissingColumn" in message
     assert "Available CSV columns: Time, Headwater, Tailwater" in message
+
+
+def test_load_timeseries_rounds_to_nearest_interval(monkeypatch):
+    monkeypatch.setenv("CDA_API_KEY", "test-key")
+    monkeypatch.setenv("CDA_OFFICE", "SWT")
+    monkeypatch.setenv("CDA_HOST", "https://example.test")
+
+    csv2_main = importlib.import_module("cwmscli.commands.csv2cwms.__main__")
+    tz = csv2_main.safe_zoneinfo("UTC")
+
+    file_data = {
+        "header": ["Time", "Headwater"],
+        "data": {
+            int(datetime(2025, 3, 25, 12, 7, tzinfo=tz).timestamp()): [
+                "2025-03-25 12:07",
+                "10.0",
+            ],
+            int(datetime(2025, 3, 25, 12, 52, tzinfo=tz).timestamp()): [
+                "2025-03-25 12:52",
+                "20.0",
+            ],
+        },
+        "source_timezone": tz,
+    }
+    config = {
+        "interval": 900,
+        "round_to_nearest": True,
+        "input_files": {
+            "BROK": {
+                "timeseries": {
+                    "BROK.Elev.Inst.1Hour.0.Rev-SCADA-cda": {
+                        "columns": "Headwater",
+                        "units": "ft",
+                        "precision": 2,
+                    }
+                }
+            }
+        },
+    }
+
+    result = csv2_main.load_timeseries(file_data, "BROK", config)
+
+    assert result[0]["values"] == [
+        [int(datetime(2025, 3, 25, 12, 0, tzinfo=tz).timestamp()) * 1000, 10.0, 3],
+        [int(datetime(2025, 3, 25, 13, 0, tzinfo=tz).timestamp()) * 1000, 20.0, 3],
+    ]
