@@ -21,7 +21,7 @@ DEFAULT_OIDC_BASE_URL = (
 DEFAULT_REDIRECT_HOST = "127.0.0.1"
 DEFAULT_REDIRECT_PORT = 5000
 DEFAULT_SCOPE = "openid profile"
-DEFAULT_TIMEOUT_SECONDS = 180
+DEFAULT_TIMEOUT_SECONDS = 30
 PROVIDER_IDP_HINTS = {
     "federation-eams": "federation-eams",
     "login.gov": "login.gov",
@@ -29,6 +29,14 @@ PROVIDER_IDP_HINTS = {
 
 
 class AuthError(Exception):
+    pass
+
+
+class LoginTimeoutError(AuthError):
+    pass
+
+
+class CallbackBindError(AuthError):
     pass
 
 
@@ -201,18 +209,25 @@ def _request_token(
 
 
 def _receive_callback(config: OIDCLoginConfig) -> Dict[str, str]:
-    with _SingleRequestServer(
-        (config.redirect_host, config.redirect_port), _CallbackHandler
-    ) as server:
-        server.timeout = 1
-        deadline = time.monotonic() + config.timeout_seconds
-        while server.callback_params is None:
-            server.handle_request()
-            if time.monotonic() >= deadline:
-                raise AuthError(
-                    f"Timed out waiting for the login callback on {config.redirect_uri}"
-                )
-        return server.callback_params
+    try:
+        with _SingleRequestServer(
+            (config.redirect_host, config.redirect_port), _CallbackHandler
+        ) as server:
+            server.timeout = 1
+            deadline = time.monotonic() + config.timeout_seconds
+            while server.callback_params is None:
+                server.handle_request()
+                if time.monotonic() >= deadline:
+                    raise LoginTimeoutError(
+                        f"Timed out waiting for the login callback on {config.redirect_uri}"
+                    )
+            return server.callback_params
+    except OSError as e:
+        raise CallbackBindError(
+            f"Could not listen on {config.redirect_uri}. "
+            "Try a different callback port with --redirect-port, for example "
+            "`cwms-cli login --redirect-port 5555`."
+        ) from e
 
 
 def login_with_browser(

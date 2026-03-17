@@ -76,7 +76,7 @@ from cwmscli.utils.version import get_cwms_cli_version
 )
 @click.option(
     "--timeout",
-    default=180,
+    default=30,
     type=int,
     show_default=True,
     help="Seconds to wait for the local login callback.",
@@ -103,6 +103,8 @@ def login_cmd(
 ):
     from cwmscli.utils.auth import (
         AuthError,
+        CallbackBindError,
+        LoginTimeoutError,
         OIDCLoginConfig,
         default_token_file,
         login_with_browser,
@@ -110,6 +112,7 @@ def login_cmd(
         save_login,
         token_expiry_text,
     )
+    from cwmscli.utils.colors import err
 
     provider = provider.lower()
     token_file = token_file or default_token_file(provider)
@@ -150,6 +153,12 @@ def login_cmd(
             token = result["token"]
 
         save_login(token_file=token_file, config=config, token=token)
+    except LoginTimeoutError as e:
+        click.echo(err(f"ALERT: {e}"), err=True)
+        raise click.exceptions.Exit(1) from e
+    except CallbackBindError as e:
+        click.echo(err(f"ALERT: {e}"), err=True)
+        raise click.exceptions.Exit(1) from e
     except AuthError as e:
         raise click.ClickException(str(e)) from e
     except OSError as e:
