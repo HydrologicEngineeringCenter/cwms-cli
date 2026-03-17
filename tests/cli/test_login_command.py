@@ -4,13 +4,13 @@ from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
 from cwmscli.utils.auth import (
-    CallbackBindError,
     DEFAULT_CLIENT_ID,
     DEFAULT_OIDC_BASE_URL,
     DEFAULT_REDIRECT_HOST,
     DEFAULT_REDIRECT_PORT,
     DEFAULT_SCOPE,
     DEFAULT_TIMEOUT_SECONDS,
+    CallbackBindError,
 )
 
 
@@ -72,7 +72,10 @@ def test_login_defaults_can_start_and_prompt(monkeypatch):
     assert "Visit this URL to authenticate:" in result.output
     assert "https://example.test/auth" in result.output
     assert "You have successfully authenticated against CWBI." in result.output
-    assert "Your refresh session is good until October 22, 2040 at 8:18 PM CDT." in result.output
+    assert (
+        "Your refresh session is good until October 22, 2040 at 8:18 PM CDT."
+        in result.output
+    )
     assert "Saved login session to /tmp/federation-eams.json" not in result.output
     assert "Refresh token is available for future reuse." not in result.output
 
@@ -140,7 +143,10 @@ def test_login_debug_output_includes_saved_session_details(monkeypatch):
 
     assert result.exit_code == 0
     assert "You have successfully authenticated against CWBI." in result.output
-    assert "Your refresh session is good until October 22, 2040 at 8:18 PM CDT." in result.output
+    assert (
+        "Your refresh session is good until October 22, 2040 at 8:18 PM CDT."
+        in result.output
+    )
     assert "Saved login session to" in result.output
     assert "federation-eams.json" in result.output
     assert "Access token expires at 2009-02-13T23:31:30+00:00" in result.output

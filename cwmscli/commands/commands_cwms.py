@@ -109,8 +109,8 @@ def login_cmd(
         OIDCLoginConfig,
         default_token_file,
         login_with_browser,
-        refresh_token_expiry_text,
         refresh_saved_login,
+        refresh_token_expiry_text,
         save_login,
         token_expiry_text,
     )
@@ -119,7 +119,9 @@ def login_cmd(
     provider = provider.lower()
     token_file = token_file or default_token_file(provider)
     verify = str(ca_bundle) if ca_bundle else None
-    action = "refreshed your saved sign-in for" if refresh_only else "authenticated against"
+    action = (
+        "refreshed your saved sign-in for" if refresh_only else "authenticated against"
+    )
 
     try:
         if refresh_only:

@@ -80,7 +80,9 @@ def test_receive_callback_reports_port_already_in_use(monkeypatch):
         _receive_callback(config)
 
     assert "port is already in use" in str(excinfo.value)
-    assert "Another `cwms-cli login` instance may still be running" in str(excinfo.value)
+    assert "Another `cwms-cli login` instance may still be running" in str(
+        excinfo.value
+    )
 
 
 def test_receive_callback_serves_branded_html_page():
