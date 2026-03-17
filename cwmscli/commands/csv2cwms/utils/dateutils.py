@@ -1,7 +1,7 @@
 import logging
 from collections import Counter
 from datetime import datetime, timezone
-from typing import List
+from typing import List, Sequence
 
 try:
     from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -38,7 +38,17 @@ def safe_zoneinfo(key: str):
         return timezone.utc
 
 
-def parse_date(date, tz_str="UTC", date_format: str = "") -> datetime:
+def _normalize_date_formats(date_format: str | Sequence[str] | None) -> list[str]:
+    if not date_format:
+        return []
+    if isinstance(date_format, str):
+        if "," in date_format:
+            return [fmt.strip() for fmt in date_format.split(",") if fmt.strip()]
+        return [date_format]
+    return [fmt for fmt in date_format if fmt]
+
+
+def parse_date(date, tz_str="UTC", date_format: str | Sequence[str] | None = None) -> datetime:
     """Handle all date types seen in hydropower files
     NOTE: TimeZone naive - assumes all timestamps are in the same timezone
     Args:
@@ -47,27 +57,23 @@ def parse_date(date, tz_str="UTC", date_format: str = "") -> datetime:
     if isinstance(date, int):
         return datetime.fromtimestamp(date, tz=safe_zoneinfo(tz_str))
 
-    if isinstance(date_format, str):
-        # Handle comma-separated list of formats
-        if date_format.find(",") >= 0:
-            date_format = [fmt.strip() for fmt in date_format.split(",") if fmt.strip()]
-        date_format = [date_format]
+    date_formats = _normalize_date_formats(date_format)
 
     # Include the user-specified date format first, if provided
-    for idx, fmt in enumerate(date_format + DATE_STRINGS):
+    for idx, fmt in enumerate(date_formats + DATE_STRINGS):
         try:
             if not fmt:
                 continue
             dt_naive = datetime.strptime(date, fmt)
             if idx > 0:
                 # Only log if using a fallback format
-                if not date_format:
+                if not date_formats:
                     logger.warning(
                         f"Using fallback date format '{fmt}' for date '{date}'. No user-specified format was provided."
                     )
                 else:
                     logger.warning(
-                        f"Using fallback date format '{fmt}' for date '{date}'. The user-specified format is '{date_format}'."
+                        f"Using fallback date format '{fmt}' for date '{date}'. The user-specified format is '{date_formats}'."
                     )
             return dt_naive.replace(tzinfo=safe_zoneinfo(tz_str))
         except ValueError:
