@@ -19,9 +19,8 @@ sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
 try:
     # Relative imports for modules
     from . import __author__, __license__, __version__
+    from cwmscli.utils.colors import c
     from .utils import (
-        colorize,
-        colorize_count,
         determine_interval,
         eval_expression,
         load_csv,
@@ -33,9 +32,8 @@ try:
     )
 except ImportError:
     from __init__ import __author__, __license__, __version__
+    from cwmscli.utils.colors import c
     from utils import (
-        colorize,
-        colorize_count,
         determine_interval,
         eval_expression,
         load_csv,
@@ -124,11 +122,13 @@ def load_timeseries(file_data, file_key, config):
         ts_obj = {"name": name, "units": units, "values": values}
         valid = sum(1 for _, v, _ in values if v is not None)
         total = len(values)
+        percent = valid / total if total else 0
+        count_color = "red" if valid == 0 else "green" if percent >= 0.95 else "yellow"
         logger.info(
-            f"Built timeseries {colorize(name, 'blue')} with {colorize_count(valid, total)} valid points."
+            f"Built timeseries {c(name, 'blue')} with {c(f'{valid}/{total}', count_color)} valid points."
         )
         logger.debug(
-            f"Timeseries {name} data range: {colorize(datetime.fromtimestamp(start_epoch), 'blue')} to {colorize(datetime.fromtimestamp(end_epoch), 'blue')}"
+            f"Timeseries {name} data range: {c(str(datetime.fromtimestamp(start_epoch)), 'blue')} to {c(str(datetime.fromtimestamp(end_epoch)), 'blue')}"
         )
         file_ts.append(ts_obj)
 
@@ -219,7 +219,7 @@ def main(*args, **kwargs):
         if not DATA_FILE:
             logger.warning(
                 # TODO: List URL to example in doc site once available
-                f"No data file specified for input-keys '{file_name}' in {config_path}. {colorize(f'Skipping {file_name}', 'red')}. Please provide a valid CSV file path by ensuring the 'data_path' key is set in the config."
+                f"No data file specified for input-keys '{file_name}' in {config_path}. {c(f'Skipping {file_name}', 'red')}. Please provide a valid CSV file path by ensuring the 'data_path' key is set in the config."
             )
             continue
         csv_data = parse_file(
