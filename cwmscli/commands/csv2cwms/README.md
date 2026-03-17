@@ -32,7 +32,6 @@ api_key_loc are required
 -lb, --lookback INTEGER Lookback period in HOURS [default: 120]
 -v, --verbose Verbose logging
 -c, --config PATH Path to JSON config file [required]
--df, --data-file TEXT Override CSV file (else use config)
 --log TEXT Path to the log file.
 -dp, --data-path DIRECTORY Directory where csv files are stored [default:
 .]
@@ -42,6 +41,16 @@ api_key_loc are required
 --ignore-ssl-errors Ignore TLS errors (testing only)
 --version Show the version and exit.
 --help Show this message and exit.
+
+## API Inputs
+
+`csv2cwms` uses the standard `cwms-cli` API options rather than separate module-specific connection settings.
+
+You can provide these either as CLI options or through the shared environment variables:
+
+- `--api-key` or `CDA_API_KEY`
+- `--api-root` or `CDA_API_ROOT`
+- `--office` or `OFFICE`
 
 ## Features
 
