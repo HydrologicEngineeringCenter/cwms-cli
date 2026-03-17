@@ -87,7 +87,7 @@ from cwmscli.utils.version import get_cwms_cli_version
     default=None,
     help="CA bundle to use for TLS verification.",
 )
-@requires(reqs.authlib, reqs.requests)
+@requires(reqs.requests)
 def login_cmd(
     provider: str,
     client_id: str,

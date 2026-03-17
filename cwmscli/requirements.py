@@ -22,11 +22,3 @@ dataretrieval = {
     "desc": "Loading hydrologic data from USGS",
     "link": "https://github.com/DOI-USGS/dataretrieval-python",
 }
-
-authlib = {
-    "module": "authlib",
-    "package": "authlib",
-    "version": "1.6.0",
-    "desc": "OAuth 2.0 and OpenID Connect client support for PKCE login and token refresh",
-    "link": "https://docs.authlib.org/",
-}

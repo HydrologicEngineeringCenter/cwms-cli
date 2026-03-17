@@ -1,11 +1,14 @@
 import datetime as dt
+import hashlib
 import http.server
 import json
 import os
+import secrets
 import socketserver
 import time
 import urllib.parse
 import webbrowser
+from base64 import urlsafe_b64encode
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -136,6 +139,67 @@ def _verify_setting(verify: Optional[str]) -> Any:
     return True
 
 
+def _generate_token(length: int) -> str:
+    alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
+def _create_s256_code_challenge(code_verifier: str) -> str:
+    digest = hashlib.sha256(code_verifier.encode("ascii")).digest()
+    return urlsafe_b64encode(digest).rstrip(b"=").decode("ascii")
+
+
+def _token_expiry_timestamp(expires_in: Any) -> Optional[float]:
+    try:
+        seconds = int(expires_in)
+    except (TypeError, ValueError):
+        return None
+    return time.time() + seconds
+
+
+def _normalize_token_payload(token: Dict[str, Any]) -> Dict[str, Any]:
+    normalized = dict(token)
+    if "expires_at" not in normalized:
+        expires_at = _token_expiry_timestamp(normalized.get("expires_in"))
+        if expires_at is not None:
+            normalized["expires_at"] = expires_at
+    return normalized
+
+
+def _request_token(
+    url: str,
+    data: Dict[str, Any],
+    verify: Optional[str] = None,
+) -> Dict[str, Any]:
+    import requests
+
+    response = requests.post(
+        url,
+        data=data,
+        verify=_verify_setting(verify),
+        timeout=30,
+    )
+    try:
+        payload = response.json()
+    except ValueError as e:
+        raise AuthError(
+            f"Token endpoint returned non-JSON response with status {response.status_code}"
+        ) from e
+    if response.ok:
+        return _normalize_token_payload(payload)
+
+    if isinstance(payload, dict):
+        error = payload.get("error")
+        description = payload.get("error_description")
+    else:
+        error = None
+        description = None
+    details = error or f"HTTP {response.status_code}"
+    if description:
+        details = f"{details}: {description}"
+    raise AuthError(f"Token request failed: {details}")
+
+
 def _receive_callback(config: OIDCLoginConfig) -> Dict[str, str]:
     with _SingleRequestServer(
         (config.redirect_host, config.redirect_port), _CallbackHandler
@@ -156,20 +220,22 @@ def login_with_browser(
     launch_browser: bool = True,
     authorization_url_callback: Optional[Callable[[str], None]] = None,
 ) -> Dict[str, Any]:
-    from authlib.common.security import generate_token
-    from authlib.integrations.requests_client import OAuth2Session
-
-    client = OAuth2Session(
-        client_id=config.client_id,
-        scope=config.scope,
-        redirect_uri=config.redirect_uri,
-    )
-    code_verifier = generate_token(48)
-    authorization_url, state = client.create_authorization_url(
-        config.authorization_endpoint,
-        code_verifier=code_verifier,
-        kc_idp_hint=config.provider_hint,
-        response_type="code",
+    code_verifier = _generate_token(48)
+    code_challenge = _create_s256_code_challenge(code_verifier)
+    state = _generate_token(30)
+    authorization_params = {
+        "response_type": "code",
+        "client_id": config.client_id,
+        "redirect_uri": config.redirect_uri,
+        "scope": config.scope,
+        "state": state,
+        "code_challenge_method": "S256",
+        "code_challenge": code_challenge,
+        "kc_idp_hint": config.provider_hint,
+    }
+    authorization_url = (
+        f"{config.authorization_endpoint}?"
+        f"{urllib.parse.urlencode(authorization_params)}"
     )
     if authorization_url_callback is not None:
         authorization_url_callback(authorization_url)
@@ -189,20 +255,16 @@ def login_with_browser(
     if "code" not in callback_params:
         raise AuthError("OIDC callback did not include an authorization code")
 
-    callback_url = (
-        f"{config.redirect_uri}?{urllib.parse.urlencode(callback_params, doseq=False)}"
-    )
-    token_client = OAuth2Session(
-        client_id=config.client_id,
-        scope=config.scope,
-        redirect_uri=config.redirect_uri,
-        state=state,
-    )
-    token_client.verify = _verify_setting(config.verify)
-    token = token_client.fetch_token(
+    token = _request_token(
         config.token_endpoint,
-        authorization_response=callback_url,
-        code_verifier=code_verifier,
+        data={
+            "grant_type": "authorization_code",
+            "client_id": config.client_id,
+            "code": callback_params["code"],
+            "redirect_uri": config.redirect_uri,
+            "code_verifier": code_verifier,
+        },
+        verify=config.verify,
     )
     return {
         "authorization_url": authorization_url,
@@ -215,24 +277,21 @@ def refresh_saved_login(
     token_file: Path,
     verify: Optional[str] = None,
 ) -> Dict[str, Any]:
-    from authlib.integrations.requests_client import OAuth2Session
-
     saved = load_saved_login(token_file)
     token = saved.get("token", {})
     refresh_token = token.get("refresh_token")
     if not refresh_token:
         raise AuthError(f"No refresh token is stored in {token_file}")
 
-    client = OAuth2Session(
-        client_id=saved["client_id"],
-        token=token,
-        scope=saved.get("scope"),
-        redirect_uri=saved.get("redirect_uri"),
-    )
-    client.verify = _verify_setting(verify)
-    refreshed = client.refresh_token(
+    refreshed = _request_token(
         f"{saved['oidc_base_url']}/token",
-        refresh_token=refresh_token,
+        data={
+            "grant_type": "refresh_token",
+            "client_id": saved["client_id"],
+            "refresh_token": refresh_token,
+            "scope": saved.get("scope"),
+        },
+        verify=verify,
     )
     if "refresh_token" not in refreshed:
         refreshed["refresh_token"] = refresh_token
