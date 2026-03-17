@@ -1,4 +1,5 @@
 import os
+import tempfile
 
 import pytest
 
@@ -19,13 +20,20 @@ def test_load_csv_nonexistent():
         load_csv(path)
 
 
-def test_load_csv_malformed_row(tmp_path):
-    malformed = tmp_path / "bad.csv"
-    malformed.write_text("Time,Value\n2025-01-01 00:00\n2025-01-01 00:15,42,Extra")
-    result = load_csv(str(malformed))
-    assert len(result) == 3
-    assert result[1] == ["2025-01-01 00:00"]
-    assert result[2] == ["2025-01-01 00:15", "42", "Extra"]
+def test_load_csv_malformed_row():
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".csv", delete=False, encoding="utf-8"
+    ) as malformed:
+        malformed.write("Time,Value\n2025-01-01 00:00\n2025-01-01 00:15,42,Extra")
+        malformed_path = malformed.name
+
+    try:
+        result = load_csv(malformed_path)
+        assert len(result) == 3
+        assert result[1] == ["2025-01-01 00:00"]
+        assert result[2] == ["2025-01-01 00:15", "42", "Extra"]
+    finally:
+        os.remove(malformed_path)
 
 
 def test_read_config_valid():
@@ -36,8 +44,15 @@ def test_read_config_valid():
     assert "BROK" in config["input_files"]
 
 
-def test_read_config_invalid_json(tmp_path):
-    bad_json = tmp_path / "bad.json"
-    bad_json.write_text("{invalid_json: true,}")
-    with pytest.raises(Exception):
-        read_config(str(bad_json))
+def test_read_config_invalid_json():
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".json", delete=False, encoding="utf-8"
+    ) as bad_json:
+        bad_json.write("{invalid_json: true,}")
+        bad_json_path = bad_json.name
+
+    try:
+        with pytest.raises(Exception):
+            read_config(bad_json_path)
+    finally:
+        os.remove(bad_json_path)
