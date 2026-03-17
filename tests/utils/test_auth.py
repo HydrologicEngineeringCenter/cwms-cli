@@ -59,7 +59,7 @@ def test_login_with_browser_includes_pkce_parameters(monkeypatch):
         "grant_type": "authorization_code",
         "client_id": "cwms",
         "code": "auth-code",
-        "redirect_uri": "http://127.0.0.1:5000",
+        "redirect_uri": "http://127.0.0.1:5555",
         "code_verifier": "verifier-token",
     }
 
