@@ -1,4 +1,6 @@
 import urllib.parse
+from http.client import HTTPConnection
+from threading import Thread
 
 import pytest
 
@@ -79,3 +81,30 @@ def test_receive_callback_reports_port_already_in_use(monkeypatch):
 
     assert "port is already in use" in str(excinfo.value)
     assert "Another `cwms-cli login` instance may still be running" in str(excinfo.value)
+
+
+def test_receive_callback_serves_branded_html_page():
+    config = OIDCLoginConfig(redirect_port=5567, timeout_seconds=5)
+    captured = {}
+
+    def receive_callback():
+        captured["params"] = _receive_callback(config)
+
+    thread = Thread(target=receive_callback, daemon=True)
+    thread.start()
+
+    connection = HTTPConnection(config.redirect_host, config.redirect_port, timeout=5)
+    connection.request("GET", "/?state=example-state&code=example-code")
+    response = connection.getresponse()
+    body = response.read().decode("utf-8")
+    connection.close()
+    thread.join(timeout=5)
+
+    assert response.status == 200
+    assert response.getheader("Content-Type") == "text/html; charset=utf-8"
+    assert "U.S. Army Corps of Engineers" in body
+    assert "Login complete." in body
+    assert "Return to the terminal" in body
+    assert "Close this tab" in body
+    assert "#c1121f" in body
+    assert captured["params"] == {"state": "example-state", "code": "example-code"}
