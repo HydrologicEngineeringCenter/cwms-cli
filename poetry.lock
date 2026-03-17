@@ -77,7 +77,7 @@ uvloop = ["uvloop (>=0.15.2)"]
 name = "certifi"
 version = "2026.1.4"
 description = "Python package for providing Mozilla's CA Bundle."
-optional = true
+optional = false
 python-versions = ">=3.7"
 groups = ["main"]
 files = [
@@ -115,7 +115,7 @@ files = [
 name = "charset-normalizer"
 version = "3.4.4"
 description = "The Real First Universal Charset Detector. Open, modern and actively maintained alternative to Chardet."
-optional = true
+optional = false
 python-versions = ">=3.7"
 groups = ["main"]
 files = [
@@ -416,7 +416,7 @@ license = ["ukkonen"]
 name = "idna"
 version = "3.11"
 description = "Internationalized Domain Names in Applications (IDNA)"
-optional = true
+optional = false
 python-versions = ">=3.8"
 groups = ["main"]
 files = [
@@ -1509,7 +1509,7 @@ files = [
 name = "requests"
 version = "2.32.5"
 description = "Python HTTP for Humans."
-optional = true
+optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
@@ -1761,7 +1761,7 @@ files = [
 name = "urllib3"
 version = "2.6.3"
 description = "HTTP library with thread-safe connection pooling, file post, and more."
-optional = true
+optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
@@ -1856,4 +1856,4 @@ ruyaml = ">=0.91.0"
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9"
-content-hash = "c7d30c72b4714c181feb8f097bc8e90d6e0df4407955ef9a2f5e0ed4dfb509e4"
+content-hash = "c428dac2c286c3939a9e16f28e90ade41f47a8165dbe58a6ac6983df124a008b"
