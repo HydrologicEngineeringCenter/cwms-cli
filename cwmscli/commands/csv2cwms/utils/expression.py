@@ -49,7 +49,6 @@ def eval_expression(expr, row, header_map):
             elif op == "*":
                 result *= val
             elif op == "/":
-                # Handle 
                 if val == 0:
                     return None
                 result /= val

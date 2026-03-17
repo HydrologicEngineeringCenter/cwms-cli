@@ -29,7 +29,13 @@ DATE_STRINGS = [
 ]
 INTERVAL_PARAMETER_RE = re.compile(
     r"^(?:"
-    + "|".join(sorted((re.escape(value) for value in ALL_INTERVAL_PARAMETERS), key=len, reverse=True))
+    + "|".join(
+        sorted(
+            (re.escape(value) for value in ALL_INTERVAL_PARAMETERS),
+            key=len,
+            reverse=True,
+        )
+    )
     + r")$",
     re.IGNORECASE,
 )
@@ -102,21 +108,30 @@ def round_datetime_to_interval(dt: datetime, interval_parameter: str) -> datetim
         anchor = dt.replace(hour=0, minute=0, second=0, microsecond=0)
         interval_seconds = count * UNIT_SECONDS[unit]
         elapsed = (dt - anchor).total_seconds()
-        rounded_seconds = math.floor((elapsed + interval_seconds / 2) / interval_seconds) * interval_seconds
+        rounded_seconds = (
+            math.floor((elapsed + interval_seconds / 2) / interval_seconds)
+            * interval_seconds
+        )
         return anchor + timedelta(seconds=rounded_seconds)
 
     if unit == "day":
         anchor = datetime(1970, 1, 1, tzinfo=dt.tzinfo)
         interval_days = count
         elapsed_days = (dt - anchor).total_seconds() / UNIT_SECONDS["day"]
-        rounded_days = math.floor((elapsed_days + interval_days / 2) / interval_days) * interval_days
+        rounded_days = (
+            math.floor((elapsed_days + interval_days / 2) / interval_days)
+            * interval_days
+        )
         return anchor + timedelta(days=rounded_days)
 
     if unit == "week":
         anchor = datetime(1970, 1, 5, tzinfo=dt.tzinfo)
         interval_days = count * 7
         elapsed_days = (dt - anchor).total_seconds() / UNIT_SECONDS["day"]
-        rounded_days = math.floor((elapsed_days + interval_days / 2) / interval_days) * interval_days
+        rounded_days = (
+            math.floor((elapsed_days + interval_days / 2) / interval_days)
+            * interval_days
+        )
         return anchor + timedelta(days=rounded_days)
 
     if unit == "month":
@@ -144,7 +159,9 @@ def _normalize_date_formats(date_format: str | Sequence[str] | None) -> list[str
     return [fmt for fmt in date_format if fmt]
 
 
-def parse_date(date, tz_str="UTC", date_format: str | Sequence[str] | None = None) -> datetime:
+def parse_date(
+    date, tz_str="UTC", date_format: str | Sequence[str] | None = None
+) -> datetime:
     """Handle all date types seen in hydropower files
     NOTE: TimeZone naive - assumes all timestamps are in the same timezone
     Args:
