@@ -24,10 +24,12 @@ try:
         determine_interval,
         eval_expression,
         expression_columns,
+        interval_parameter_to_seconds,
         load_csv,
         logger,
         parse_date,
         read_config,
+        round_datetime_to_interval,
         safe_zoneinfo,
         setup_logger,
     )
@@ -38,10 +40,12 @@ except ImportError:
         determine_interval,
         eval_expression,
         expression_columns,
+        interval_parameter_to_seconds,
         load_csv,
         logger,
         parse_date,
         read_config,
+        round_datetime_to_interval,
         safe_zoneinfo,
         setup_logger,
     )
@@ -62,6 +66,7 @@ def parse_file(file_path, begin_time, date_format, timezone="GMT"):
     header = csv_data[0]
     data = csv_data[1:]
     ts_data = {}
+    source_timezone = safe_zoneinfo(timezone)
     logger.debug(f"Begin time: {begin_time}")
     for row in data:
         # Skip empty rows or rows without a timestamp
@@ -70,12 +75,13 @@ def parse_file(file_path, begin_time, date_format, timezone="GMT"):
         row_datetime = parse_date(row[0], tz_str=timezone, date_format=date_format)
         # Guarantee only one entry per timestamp
         ts_data[int(row_datetime.timestamp())] = row
-    return {"header": header, "data": ts_data}
+    return {"header": header, "data": ts_data, "source_timezone": source_timezone}
 
 
 def load_timeseries(file_data, file_key, config):
     header = file_data.get("header", [])
     data = file_data.get("data", {})
+    source_timezone = file_data.get("source_timezone", safe_zoneinfo("UTC"))
 
     if not header or not data:
         raise ValueError(
@@ -84,6 +90,10 @@ def load_timeseries(file_data, file_key, config):
 
     ts_config = config["input_files"][file_key]["timeseries"]
     file_ts = []
+    file_config = config["input_files"][file_key]
+    round_to_nearest = file_config.get(
+        "round_to_nearest", config.get("round_to_nearest", False)
+    )
 
     # Interval in seconds
     interval = config.get("interval")
@@ -133,10 +143,42 @@ def load_timeseries(file_data, file_key, config):
         expr = meta["columns"]
         units = meta.get("units", "")
         precision = meta.get("precision", 2)
+        ts_data = data
+        ts_interval = interval
+
+        if round_to_nearest:
+            interval_parameter = name.split(".")[3] if len(name.split(".")) > 3 else ""
+            if not interval_parameter:
+                raise ValueError(
+                    f"Unable to determine interval from timeseries {c(name, 'blue')} for round_to_nearest."
+                )
+            try:
+                ts_interval = interval_parameter_to_seconds(interval_parameter)
+            except ValueError as err:
+                raise ValueError(
+                    f"Unable to determine rounding interval from timeseries {c(name, 'blue')}: {c(str(err), 'red')}"
+                ) from err
+
+            rounded_data = {}
+            for raw_epoch, raw_row in data.items():
+                rounded_epoch = int(
+                    round_datetime_to_interval(
+                        datetime.fromtimestamp(raw_epoch, tz=source_timezone),
+                        interval_parameter,
+                    ).timestamp()
+                )
+                rounded_data[rounded_epoch] = raw_row
+            ts_data = rounded_data
+            logger.info(
+                f"Rounding timestamps for {c(name, 'blue')} to nearest {c(interval_parameter, 'cyan')}."
+            )
+
         values = []
-        epoch = start_epoch
-        while epoch <= end_epoch:
-            row = data.get(epoch)
+        ts_start_epoch = min(ts_data.keys())
+        ts_end_epoch = max(ts_data.keys())
+        epoch = ts_start_epoch
+        while epoch <= ts_end_epoch:
+            row = ts_data.get(epoch)
             if row:
                 value = eval_expression(expr, row, header_map)
                 value = round(value, precision) if value is not None else None
@@ -149,7 +191,7 @@ def load_timeseries(file_data, file_key, config):
             )
             values.append([epoch * 1000, value, quality])
             # Convert seconds to minutes
-            epoch += interval
+            epoch += ts_interval
 
         ts_obj = {"name": name, "units": units, "values": values}
         valid = sum(1 for _, v, _ in values if v is not None)
@@ -160,7 +202,7 @@ def load_timeseries(file_data, file_key, config):
             f"Built timeseries {c(name, 'blue')} with {c(f'{valid}/{total}', count_color)} valid points."
         )
         logger.debug(
-            f"Timeseries {name} data range: {c(str(datetime.fromtimestamp(start_epoch)), 'blue')} to {c(str(datetime.fromtimestamp(end_epoch)), 'blue')}"
+            f"Timeseries {name} data range: {c(str(datetime.fromtimestamp(ts_start_epoch)), 'blue')} to {c(str(datetime.fromtimestamp(ts_end_epoch)), 'blue')}"
         )
         file_ts.append(ts_obj)
 
