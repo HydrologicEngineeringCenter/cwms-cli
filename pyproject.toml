@@ -8,6 +8,9 @@ version = "0.3.2"
 packages = [
     { include = "cwmscli" },
 ]
+include = [
+    "cwmscli/utils/*.html",
+]
 description = "Command line utilities for Corps Water Management Systems (CWMS) python scripts. This is a collection of shared scripts across the enterprise Water Management Enterprise System (WMES) teams."
 readme = "README.md"
 license = "LICENSE"
