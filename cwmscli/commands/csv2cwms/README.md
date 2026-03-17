@@ -46,6 +46,7 @@ api_key_loc are required
 - Allow for specifying one or more date formats that might be seen per input csv file
 - Allow mathematical operations across multiple columns and storing into one timeseries
 - Store one column of data with a user-specified precision and units to a timeseries identifier
+- Allow choosing how duplicate values are handled with `use_if_multiple` (`first`, `last`, `average`, or `error`)
 - Dry runs to test what data might look like prior to database storage
 - Verbose logging via the -v flag
 - Colored terminal output for user readability
