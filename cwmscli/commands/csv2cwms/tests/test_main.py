@@ -1,4 +1,6 @@
 import importlib
+import os
+import tempfile
 from datetime import datetime
 
 import pytest
@@ -306,3 +308,61 @@ def test_load_timeseries_errors_on_multiple_values_when_configured(monkeypatch):
         csv2_main.load_timeseries(file_data, "BROK", config)
 
     assert "Multiple values found for timeseries" in str(excinfo.value)
+
+
+def test_parse_file_uses_date_col_when_configured(monkeypatch):
+    monkeypatch.setenv("CDA_API_KEY", "test-key")
+    monkeypatch.setenv("CDA_OFFICE", "SWT")
+    monkeypatch.setenv("CDA_HOST", "https://example.test")
+
+    csv2_main = importlib.import_module("cwmscli.commands.csv2cwms.__main__")
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".csv", delete=False, encoding="utf-8"
+    ) as handle:
+        handle.write("Headwater,ObservedAt,Tailwater\n")
+        handle.write("10.0,2025-03-25 12:07,8.0\n")
+        file_path = handle.name
+
+    try:
+        result = csv2_main.parse_file(
+            file_path,
+            None,
+            "%Y-%m-%d %H:%M",
+            "UTC",
+            {"date_col": "ObservedAt"},
+        )
+    finally:
+        os.remove(file_path)
+
+    expected_epoch = int(
+        datetime(2025, 3, 25, 12, 7, tzinfo=csv2_main.safe_zoneinfo("UTC")).timestamp()
+    )
+    assert result["header"] == ["Headwater", "ObservedAt", "Tailwater"]
+    assert result["data"][expected_epoch] == [["10.0", "2025-03-25 12:07", "8.0"]]
+
+
+def test_parse_file_suggests_date_col_when_first_column_is_not_a_date(monkeypatch):
+    monkeypatch.setenv("CDA_API_KEY", "test-key")
+    monkeypatch.setenv("CDA_OFFICE", "SWT")
+    monkeypatch.setenv("CDA_HOST", "https://example.test")
+
+    csv2_main = importlib.import_module("cwmscli.commands.csv2cwms.__main__")
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".csv", delete=False, encoding="utf-8"
+    ) as handle:
+        handle.write("Headwater,ObservedAt\n")
+        handle.write("not-a-date,2025-03-25 12:07\n")
+        file_path = handle.name
+
+    try:
+        with pytest.raises(ValueError) as excinfo:
+            csv2_main.parse_file(file_path, None, "%Y-%m-%d %H:%M", "UTC")
+    finally:
+        os.remove(file_path)
+
+    message = str(excinfo.value)
+    assert "Unable to parse a timestamp from the first CSV column" in message
+    assert "date_col" in message
+    assert "Headwater" in message

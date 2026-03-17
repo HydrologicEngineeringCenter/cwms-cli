@@ -44,6 +44,7 @@ api_key_loc are required
 ## Features
 
 - Allow for specifying one or more date formats that might be seen per input csv file
+- Allow specifying an optional `date_col` when the timestamp is not the first CSV column
 - Allow mathematical operations across multiple columns and storing into one timeseries
 - Store one column of data with a user-specified precision and units to a timeseries identifier
 - Allow choosing how duplicate values are handled with `use_if_multiple` (`first`, `last`, `average`, or `error`)
@@ -68,3 +69,33 @@ If multiple CSV rows collapse into the same timestamp, `use_if_multiple` control
 - `average`: average the numeric values
 
 This matters most when `round_to_nearest` is enabled, because multiple raw timestamps can land in the same rounded interval bucket.
+
+## Timestamp Column
+
+By default, `csv2cwms` assumes the timestamp is in the first CSV column.
+
+If your CSV places the timestamp in a different column, set `date_col` in the input file config to the CSV header name for that timestamp column.
+
+Example:
+
+```json
+{
+  "input_files": {
+    "BROK": {
+      "data_path": "path/to/file.csv",
+      "date_col": "ObservedAt",
+      "date_format": "%Y-%m-%d %H:%M",
+      "timeseries": {
+        "BROK.Elev.Inst.15Minutes.0.Rev-SCADA-cda": {
+          "columns": "Headwater",
+          "units": "ft",
+          "precision": 2
+        }
+      }
+    }
+  }
+}
+```
+Where `ObservedAt` is the literal text in the first row header of the CSV file column. 
+
+If the first column is not a parseable date and `date_col` is not set, you will get an error.
