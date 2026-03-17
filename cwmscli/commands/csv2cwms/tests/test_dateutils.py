@@ -30,9 +30,7 @@ def test_parse_date_uses_single_user_format():
     tz = safe_zoneinfo("UTC")
     expected = datetime(2025, 3, 25, 14, 30, tzinfo=tz)
     assert (
-        parse_date(
-            "2025/03/25 14:30", date_format="%Y/%m/%d %H:%M", tz_str="UTC"
-        )
+        parse_date("2025/03/25 14:30", date_format="%Y/%m/%d %H:%M", tz_str="UTC")
         == expected
     )
 
