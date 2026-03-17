@@ -65,6 +65,16 @@ if [API_KEY, OFFICE, HOST].count(None) > 0:
 VALID_USE_IF_MULTIPLE = {"first", "last", "average", "error"}
 
 
+def _round_epoch_to_interval_seconds(epoch, interval_seconds, timezone):
+    dt = datetime.fromtimestamp(epoch, tz=timezone)
+    anchor = dt.replace(hour=0, minute=0, second=0, microsecond=0)
+    elapsed = (dt - anchor).total_seconds()
+    rounded_seconds = (
+        (elapsed + interval_seconds / 2) // interval_seconds
+    ) * interval_seconds
+    return int((anchor + timedelta(seconds=rounded_seconds)).timestamp())
+
+
 def _normalize_epoch_rows(data):
     normalized = {}
     for epoch, rows in data.items():
@@ -158,11 +168,6 @@ def load_timeseries(file_data, file_key, config):
 
     # Interval in seconds
     interval = config.get("interval")
-    if not interval:
-        interval = determine_interval(data, 10)
-        logger.warning(
-            f"Interval not found in configuration. Determined interval: {interval} seconds."
-        )
     start_epoch = min(data.keys())
     end_epoch = max(data.keys())
 
@@ -217,30 +222,52 @@ def load_timeseries(file_data, file_key, config):
         ts_interval = interval
 
         if round_to_nearest:
-            interval_parameter = name.split(".")[3] if len(name.split(".")) > 3 else ""
-            if not interval_parameter:
-                raise ValueError(
-                    f"Unable to determine interval from timeseries {c(name, 'blue')} for round_to_nearest."
-                )
-            try:
-                ts_interval = interval_parameter_to_seconds(interval_parameter)
-            except ValueError as err:
-                raise ValueError(
-                    f"Unable to determine rounding interval from timeseries {c(name, 'blue')}: {c(str(err), 'red')}"
-                ) from err
-
             rounded_data = {}
-            for raw_epoch, raw_rows in data.items():
-                rounded_epoch = int(
-                    round_datetime_to_interval(
-                        datetime.fromtimestamp(raw_epoch, tz=source_timezone),
-                        interval_parameter,
-                    ).timestamp()
+            if interval:
+                ts_interval = interval
+                for raw_epoch, raw_rows in data.items():
+                    rounded_epoch = _round_epoch_to_interval_seconds(
+                        raw_epoch, ts_interval, source_timezone
+                    )
+                    rounded_data.setdefault(rounded_epoch, []).extend(raw_rows)
+                logger.info(
+                    f"Rounding timestamps for {c(name, 'blue')} to configured interval {c(str(ts_interval), 'cyan')} seconds."
                 )
-                rounded_data.setdefault(rounded_epoch, []).extend(raw_rows)
+            else:
+                interval_parameter = (
+                    name.split(".")[3] if len(name.split(".")) > 3 else ""
+                )
+                if not interval_parameter:
+                    raise ValueError(
+                        f"Unable to determine interval from timeseries {c(name, 'blue')} for round_to_nearest."
+                    )
+                try:
+                    ts_interval = interval_parameter_to_seconds(interval_parameter)
+                except ValueError as err:
+                    raise ValueError(
+                        f"Unable to determine rounding interval from timeseries {c(name, 'blue')}: {c(str(err), 'red')}"
+                    ) from err
+
+                for raw_epoch, raw_rows in data.items():
+                    rounded_epoch = int(
+                        round_datetime_to_interval(
+                            datetime.fromtimestamp(raw_epoch, tz=source_timezone),
+                            interval_parameter,
+                        ).timestamp()
+                    )
+                    rounded_data.setdefault(rounded_epoch, []).extend(raw_rows)
+                logger.info(
+                    f"Rounding timestamps for {c(name, 'blue')} to nearest {c(interval_parameter, 'cyan')}."
+                )
+                logger.info(
+                    f"No configured interval found for {c(name, 'blue')}; defaulting round_to_nearest to the timeseries interval."
+                )
+
             ts_data = rounded_data
-            logger.info(
-                f"Rounding timestamps for {c(name, 'blue')} to nearest {c(interval_parameter, 'cyan')}."
+        elif not ts_interval:
+            ts_interval = determine_interval(data, 10)
+            logger.warning(
+                f"Interval not found in configuration. Determined interval: {ts_interval} seconds."
             )
 
         values = []
