@@ -9,7 +9,7 @@ A collection of scripts to create, read, update, list, and delete data through C
 ```sh
 pip install cwms-cli
 ```
-Note: If you are on Windows OS, you may just need to use the command `pip`
+Note: You may need to run `python -m pip install cwms-cli` if PIP is not in your path.
 
 
 ### Update
