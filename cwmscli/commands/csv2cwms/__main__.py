@@ -218,7 +218,7 @@ def main(*args, **kwargs):
     # Setup the logger if a path is provided
     setup_logger(kwargs.get("log"), verbose=kwargs.get("verbose"))
     logger.info(f"Begin time: {begin_time}")
-    logger.debug(f"Timezone: {tz}")
+    logger.info(f"Timezone: {c(str(tz), 'cyan')}")
     # Override environment variables if provided in CLI
     if kwargs.get("coop"):
         HOST = os.getenv("CDA_COOP_HOST")
