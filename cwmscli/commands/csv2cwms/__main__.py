@@ -52,16 +52,6 @@ except ImportError:
 
     from cwmscli.utils.colors import c
 
-# Load environment variables
-API_KEY = os.getenv("CDA_API_KEY")
-OFFICE = os.getenv("CDA_OFFICE", "SWT")
-HOST = os.getenv("CDA_HOST")
-
-if [API_KEY, OFFICE, HOST].count(None) > 0:
-    raise ValueError(
-        "Environment variables CDA_API_KEY, CDA_OFFICE, and CDA_HOST must be set."
-    )
-
 VALID_USE_IF_MULTIPLE = {"first", "last", "average", "error"}
 
 
