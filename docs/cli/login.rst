@@ -6,6 +6,9 @@ session for reuse. The command already has working defaults for the provider,
 client ID, OIDC base URL, scope, callback host, callback port, timeout, and the
 provider-specific token file path under ``~/.config/cwms-cli/auth/``.
 
+By default, the callback listener starts at port ``5555`` and automatically
+tries up to three subsequent ports if earlier ones are already in use.
+
 If a browser cannot be opened automatically, the command prints the
 authorization URL so the user can continue manually.
 
@@ -30,7 +33,7 @@ Examples
 
 - Change the local callback listener host and port:
 
-  ``cwms-cli login --redirect-host 127.0.0.1 --redirect-port 5555``
+  ``cwms-cli login --redirect-host 127.0.0.1 --redirect-port 6000``
 
 - Override the client ID, OIDC base URL, and scopes:
 

@@ -10,7 +10,7 @@ import urllib.parse
 import webbrowser
 from base64 import urlsafe_b64encode
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Dict, Optional
 
@@ -19,9 +19,10 @@ DEFAULT_OIDC_BASE_URL = (
     "https://identity-test.cwbi.us/auth/realms/cwbi/protocol/openid-connect"
 )
 DEFAULT_REDIRECT_HOST = "127.0.0.1"
-DEFAULT_REDIRECT_PORT = 5000
+DEFAULT_REDIRECT_PORT = 5555
 DEFAULT_SCOPE = "openid profile"
 DEFAULT_TIMEOUT_SECONDS = 30
+PORT_SEARCH_ATTEMPTS = 4
 PROVIDER_IDP_HINTS = {
     "federation-eams": "federation-eams",
     "login.gov": "login.gov",
@@ -155,6 +156,34 @@ def _is_address_in_use_error(error: OSError) -> bool:
     return "address already in use" in str(error).lower()
 
 
+def _select_callback_config(config: OIDCLoginConfig) -> OIDCLoginConfig:
+    last_error: Optional[OSError] = None
+    for offset in range(PORT_SEARCH_ATTEMPTS):
+        candidate = replace(config, redirect_port=config.redirect_port + offset)
+        try:
+            with _SingleRequestServer(
+                (candidate.redirect_host, candidate.redirect_port), _CallbackHandler
+            ):
+                return candidate
+        except OSError as e:
+            if not _is_address_in_use_error(e):
+                raise CallbackBindError(
+                    f"Could not listen on {candidate.redirect_uri}. "
+                    "Try a different callback port with --redirect-port, for example "
+                    "`cwms-cli login --redirect-port 5555`."
+                ) from e
+            last_error = e
+
+    final_port = config.redirect_port + PORT_SEARCH_ATTEMPTS - 1
+    raise CallbackBindError(
+        f"Could not listen on http://{config.redirect_host}:{config.redirect_port} "
+        f"through http://{config.redirect_host}:{final_port} because those ports are already in use. "
+        "Another `cwms-cli login` instance may still be running. Stop it before continuing, "
+        "or try a different callback port with --redirect-port, for example "
+        f"`cwms-cli login --redirect-port {final_port + 1}`."
+    ) from last_error
+
+
 def _generate_token(length: int) -> str:
     alphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
     return "".join(secrets.choice(alphabet) for _ in range(length))
@@ -250,6 +279,7 @@ def login_with_browser(
     launch_browser: bool = True,
     authorization_url_callback: Optional[Callable[[str], None]] = None,
 ) -> Dict[str, Any]:
+    config = _select_callback_config(config)
     code_verifier = _generate_token(48)
     code_challenge = _create_s256_code_challenge(code_verifier)
     state = _generate_token(30)
@@ -299,6 +329,7 @@ def login_with_browser(
     return {
         "authorization_url": authorization_url,
         "browser_opened": launch_browser,
+        "config": config,
         "token": token,
     }
 

@@ -50,7 +50,7 @@ from cwmscli.utils.version import get_cwms_cli_version
 )
 @click.option(
     "--redirect-port",
-    default=5000,
+    default=5555,
     type=int,
     show_default=True,
     help="Local port for the login callback listener.",
@@ -147,6 +147,7 @@ def login_cmd(
                 launch_browser=not no_browser,
                 authorization_url_callback=show_auth_url if no_browser else None,
             )
+            config = result.get("config", config)
             if (not auth_url_shown) and (not result["browser_opened"]):
                 click.echo("Visit this URL to authenticate:")
                 click.echo(result["authorization_url"])
