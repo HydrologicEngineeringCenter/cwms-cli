@@ -1,3 +1,4 @@
+import logging
 import subprocess
 import sys
 import textwrap
@@ -108,15 +109,17 @@ def login_cmd(
         OIDCLoginConfig,
         default_token_file,
         login_with_browser,
+        refresh_token_expiry_text,
         refresh_saved_login,
         save_login,
         token_expiry_text,
     )
-    from cwmscli.utils.colors import err
+    from cwmscli.utils.colors import c, err
 
     provider = provider.lower()
     token_file = token_file or default_token_file(provider)
     verify = str(ca_bundle) if ca_bundle else None
+    action = "refreshed your saved sign-in for" if refresh_only else "authenticated against"
 
     try:
         if refresh_only:
@@ -165,12 +168,22 @@ def login_cmd(
     except OSError as e:
         raise click.ClickException(f"Login setup failed: {e}") from e
 
-    click.echo(f"Saved login session to {token_file}")
+    click.echo(f"You have successfully {action} CWBI.")
+    refresh_expiry = refresh_token_expiry_text(token)
+    if refresh_expiry:
+        click.echo(
+            c(
+                f"Your refresh session is good until {refresh_expiry}.",
+                "blue",
+                bright=True,
+            )
+        )
+    logging.debug("Saved login session to %s", token_file)
     expiry = token_expiry_text(token)
     if expiry:
-        click.echo(f"Access token expires at {expiry}")
+        logging.debug("Access token expires at %s", expiry)
     if token.get("refresh_token"):
-        click.echo("Refresh token is available for future reuse.")
+        logging.debug("A refresh token is available for future reuse.")
 
 
 @click.command(

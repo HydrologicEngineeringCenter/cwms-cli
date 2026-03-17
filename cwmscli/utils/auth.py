@@ -120,6 +120,23 @@ def token_expiry_text(token: Dict[str, Any]) -> Optional[str]:
     return expiry.isoformat()
 
 
+def _local_timestamp_text(expires_at: Any) -> Optional[str]:
+    try:
+        expiry = dt.datetime.fromtimestamp(float(expires_at), tz=dt.timezone.utc)
+    except (TypeError, ValueError, OSError):
+        return None
+    local_expiry = expiry.astimezone()
+    hour = local_expiry.hour % 12 or 12
+    return (
+        f"{local_expiry:%B} {local_expiry.day}, {local_expiry.year} "
+        f"at {hour}:{local_expiry:%M %p} {local_expiry:%Z}"
+    )
+
+
+def refresh_token_expiry_text(token: Dict[str, Any]) -> Optional[str]:
+    return _local_timestamp_text(token.get("refresh_expires_at"))
+
+
 def load_saved_login(token_file: Path) -> Dict[str, Any]:
     try:
         with token_file.open("r", encoding="utf-8") as f:
@@ -215,6 +232,12 @@ def _normalize_token_payload(token: Dict[str, Any]) -> Dict[str, Any]:
         expires_at = _token_expiry_timestamp(normalized.get("expires_in"))
         if expires_at is not None:
             normalized["expires_at"] = expires_at
+    if "refresh_expires_at" not in normalized:
+        refresh_expires_at = _token_expiry_timestamp(
+            normalized.get("refresh_expires_in")
+        )
+        if refresh_expires_at is not None:
+            normalized["refresh_expires_at"] = refresh_expires_at
     return normalized
 
 
