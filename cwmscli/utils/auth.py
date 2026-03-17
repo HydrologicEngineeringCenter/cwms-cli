@@ -77,6 +77,11 @@ class _SingleRequestServer(socketserver.TCPServer):
         self.callback_params: Optional[Dict[str, str]] = None
 
 
+def _callback_success_page() -> bytes:
+    template_path = Path(__file__).with_name("callback_success.html")
+    return template_path.read_bytes()
+
+
 class _CallbackHandler(http.server.BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         parsed_path = urllib.parse.urlparse(self.path)
@@ -85,9 +90,11 @@ class _CallbackHandler(http.server.BaseHTTPRequestHandler):
         self.server.callback_params = flattened  # type: ignore[attr-defined]
 
         self.send_response(200, "OK")
-        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        body = _callback_success_page()
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
         self.end_headers()
-        self.wfile.write(b"Authentication complete. You can close this window.")
+        self.wfile.write(body)
 
     def log_message(self, format: str, *args: Any) -> None:
         return
