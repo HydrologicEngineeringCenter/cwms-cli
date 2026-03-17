@@ -50,3 +50,21 @@ api_key_loc are required
 - Dry runs to test what data might look like prior to database storage
 - Verbose logging via the -v flag
 - Colored terminal output for user readability
+
+## Rounding And Duplicate Handling
+
+When `round_to_nearest` is not enabled (not specified/False), CSV timestamps are used as they appear in the file. The tool does not force timestamps onto the interval implied by the CWMS timeseries name in that mode.
+
+When `round_to_nearest` is enabled (in the config and set to True), interval precedence is:
+
+- Use the configured `interval` value first, if present. This value is in seconds.
+- If `interval` is not configured, fall back to the interval parsed from the timeseries name such as `1Hour` or `15Minutes`.
+
+If multiple CSV rows collapse into the same timestamp, `use_if_multiple` controls which value is kept:
+
+- `error`: [DEFAULT] raise an error instead of choosing
+- `first`: keep the first value encountered
+- `last`: keep the last value encountered
+- `average`: average the numeric values
+
+This matters most when `round_to_nearest` is enabled, because multiple raw timestamps can land in the same rounded interval bucket.
