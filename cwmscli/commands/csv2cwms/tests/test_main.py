@@ -366,3 +366,36 @@ def test_parse_file_suggests_date_col_when_first_column_is_not_a_date(monkeypatc
     assert "Unable to parse a timestamp from the first CSV column" in message
     assert "date_col" in message
     assert "Headwater" in message
+
+
+def test_parse_file_ignores_hash_rows(monkeypatch):
+    monkeypatch.setenv("CDA_API_KEY", "test-key")
+    monkeypatch.setenv("CDA_OFFICE", "SWT")
+    monkeypatch.setenv("CDA_HOST", "https://example.test")
+
+    csv2_main = importlib.import_module("cwmscli.commands.csv2cwms.__main__")
+
+    with tempfile.NamedTemporaryFile(
+        mode="w", suffix=".csv", delete=False, encoding="utf-8"
+    ) as handle:
+        handle.write("# comment header line\n")
+        handle.write("Time,Headwater\n")
+        handle.write("# 2025-03-25 12:00,999.0\n")
+        handle.write("2025-03-25 12:07,10.0\n")
+        file_path = handle.name
+
+    try:
+        result = csv2_main.parse_file(
+            file_path,
+            None,
+            "%Y-%m-%d %H:%M",
+            "UTC",
+        )
+    finally:
+        os.remove(file_path)
+
+    expected_epoch = int(
+        datetime(2025, 3, 25, 12, 7, tzinfo=csv2_main.safe_zoneinfo("UTC")).timestamp()
+    )
+    assert result["header"] == ["Time", "Headwater"]
+    assert result["data"][expected_epoch] == [["2025-03-25 12:07", "10.0"]]
