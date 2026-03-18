@@ -44,6 +44,7 @@ def test_load_timeseries_missing_column_aborts(monkeypatch):
     assert "Headwater+MissingColumn" in message
     assert "MissingColumn" in message
     assert "Available CSV columns: Time, Headwater, Tailwater" in message
+    assert "csv2cwms_complete_config.html" in message
 
 
 def test_load_timeseries_rounds_to_nearest_interval(monkeypatch):
@@ -366,6 +367,7 @@ def test_parse_file_suggests_date_col_when_first_column_is_not_a_date(monkeypatc
     assert "Unable to parse a timestamp from the first CSV column" in message
     assert "date_col" in message
     assert "Headwater" in message
+    assert "csv2cwms_complete_config.html" in message
 
 
 def test_parse_file_ignores_hash_rows(monkeypatch):
@@ -399,3 +401,92 @@ def test_parse_file_ignores_hash_rows(monkeypatch):
     )
     assert result["header"] == ["Time", "Headwater"]
     assert result["data"][expected_epoch] == [["2025-03-25 12:07", "10.0"]]
+
+
+def test_config_check_rejects_invalid_top_level_keys(monkeypatch):
+    monkeypatch.setenv("CDA_API_KEY", "test-key")
+    monkeypatch.setenv("CDA_OFFICE", "SWT")
+    monkeypatch.setenv("CDA_HOST", "https://example.test")
+
+    csv2_main = importlib.import_module("cwmscli.commands.csv2cwms.__main__")
+    config = {
+        "interval": 900,
+        "bogus": True,
+        "input_files": {
+            "BROK": {
+                "timeseries": {
+                    "BROK.Elev.Inst.15Minutes.0.Rev-SCADA-cda": {
+                        "columns": "Headwater",
+                    }
+                }
+            }
+        },
+    }
+
+    with pytest.raises(ValueError) as excinfo:
+        csv2_main.config_check(config)
+
+    message = str(excinfo.value)
+    assert "Invalid configuration key(s)" in message
+    assert "bogus" in message
+    assert "csv2cwms_complete_config.html" in message
+
+
+def test_config_check_rejects_invalid_file_level_keys(monkeypatch):
+    monkeypatch.setenv("CDA_API_KEY", "test-key")
+    monkeypatch.setenv("CDA_OFFICE", "SWT")
+    monkeypatch.setenv("CDA_HOST", "https://example.test")
+
+    csv2_main = importlib.import_module("cwmscli.commands.csv2cwms.__main__")
+    config = {
+        "interval": 900,
+        "input_files": {
+            "BROK": {
+                "timeseries": {
+                    "BROK.Elev.Inst.15Minutes.0.Rev-SCADA-cda": {
+                        "columns": "Headwater",
+                    }
+                },
+                "unexpected_file_key": "x",
+            }
+        },
+    }
+
+    with pytest.raises(ValueError) as excinfo:
+        csv2_main.config_check(config)
+
+    message = str(excinfo.value)
+    assert "Invalid configuration key(s)" in message
+    assert "unexpected_file_key" in message
+    assert "BROK" in message
+    assert "csv2cwms_complete_config.html" in message
+
+
+def test_config_check_rejects_invalid_timeseries_keys(monkeypatch):
+    monkeypatch.setenv("CDA_API_KEY", "test-key")
+    monkeypatch.setenv("CDA_OFFICE", "SWT")
+    monkeypatch.setenv("CDA_HOST", "https://example.test")
+
+    csv2_main = importlib.import_module("cwmscli.commands.csv2cwms.__main__")
+    config = {
+        "interval": 900,
+        "input_files": {
+            "BROK": {
+                "timeseries": {
+                    "BROK.Elev.Inst.15Minutes.0.Rev-SCADA-cda": {
+                        "columns": "Headwater",
+                        "bad_ts_key": True,
+                    }
+                }
+            }
+        },
+    }
+
+    with pytest.raises(ValueError) as excinfo:
+        csv2_main.config_check(config)
+
+    message = str(excinfo.value)
+    assert "Invalid configuration key(s)" in message
+    assert "bad_ts_key" in message
+    assert "BROK.Elev.Inst.15Minutes.0.Rev-SCADA-cda" in message
+    assert "csv2cwms_complete_config.html" in message
