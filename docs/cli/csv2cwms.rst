@@ -1,15 +1,15 @@
 csv2cwms
 ========
 
-Use ``cwms-cli csv2cwms`` to load CSV time series data into `CWMS Data API (CDA) <https://cwms-data.usace.army.mil/cwms-data>`_ with a user defined JSON
-configuration file.
+Use ``cwms-cli csv2cwms`` to load CSV time series data into
+`CWMS Data API (CDA) <https://cwms-data.usace.army.mil/cwms-data>`_ with a
+user-defined JSON configuration file.
 
 This page is the dedicated documentation entry for the command. For a complete
 config example, see :doc:`Complete config example <csv2cwms_complete_config>`.
 
-  - For the JSON config reference, global defaults, and option table, start there.
-
-  - For installation and first-run setup, see :doc:`Installation and Setup <setup>`.
+- For the JSON config reference, global defaults, and option table, start there.
+- For installation and first-run setup, see :doc:`Installation and Setup <setup>`.
 
 Overview
 --------
@@ -22,7 +22,7 @@ Overview
 - optional timestamp rounding with ``round_to_nearest``
 - optional timestamp-column selection with ``date_col``
 
-Setup and run
+Setup and Run
 -------------
 
 For installation, dependency setup, shared API arguments, the canonical config
@@ -31,7 +31,7 @@ example, and a real working sample run, see :doc:`Installation and Setup <setup>
 For the JSON config structure itself, see
 :doc:`Complete config example <csv2cwms_complete_config>`.
 
-Common issues
+Common Issues
 -------------
 
 If you are having trouble running ``csv2cwms``:
@@ -45,7 +45,7 @@ If you are having trouble running ``csv2cwms``:
 - Verify the source CSV timestamps are in the timezone you are passing with
   ``--timezone``.
 
-Important config behavior
+Important Config Behavior
 -------------------------
 
 - By default, the timestamp is assumed to be in the first CSV column.
@@ -61,7 +61,7 @@ Important config behavior
 - If multiple rows land in the same rounded timestamp, ``use_if_multiple``
   controls whether the first, last, average, or an error is used. Error is the default behavior.
 
-Timezone handling
+Timezone Handling
 -----------------
 
 The ``--timezone`` option defaults to ``GMT``.

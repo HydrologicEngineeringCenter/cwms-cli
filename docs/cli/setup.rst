@@ -14,9 +14,11 @@ Install the base CLI package:
    pip install cwms-cli
 
 Some commands require additional libraries that are not installed with the base
-package. You will be alerted to missing dependencies if you try to run a command that requires an optional library that is not installed. See the next section for more on this.
+package. You will be alerted to missing dependencies if you try to run a
+command that requires an optional library that is not installed. See the next
+section for more on this.
 
-Install cwms-python for CWMS-backed commands
+Install cwms-python for CWMS-Backed Commands
 --------------------------------------------
 
 Commands that talk to CWMS, including ``csv2cwms``, require
@@ -29,7 +31,7 @@ Commands that talk to CWMS, including ``csv2cwms``, require
 If you plan to use USGS-related commands, additional packages may also be
 required depending on the subcommand.
 
-How missing dependencies are reported
+How Missing Dependencies Are Reported
 -------------------------------------
 
 ``cwms-cli`` subcommands use dependency checks to detect whether optional
@@ -45,24 +47,24 @@ For example, a command may tell you to run something like:
 This means you do not have to guess which extra library is needed for a given
 subcommand. The command will tell you.
 
-Shared API inputs
+Shared API Inputs
 -----------------
 
 Most CWMS-backed commands use the same CDA connection inputs:
 
-   - ``--office`` or ``OFFICE``
-   - ``--api-root`` or ``CDA_API_ROOT``
-   - ``--api-key`` or ``CDA_API_KEY``
+- ``--office`` or ``OFFICE``
+- ``--api-root`` or ``CDA_API_ROOT``
+- ``--api-key`` or ``CDA_API_KEY``
 
 See :doc:`Common API Arguments <api_arguments>` for environment setup examples.
 
-csv2cwms config references
+csv2cwms Config References
 --------------------------
 
 For ``csv2cwms``, start from one of these:
 
-   - :doc:`Complete config example <csv2cwms_complete_config>`
-   - :doc:`csv2cwms <csv2cwms>`
+- :doc:`Complete config example <csv2cwms_complete_config>`
+- :doc:`csv2cwms <csv2cwms>`
 
 The complete config page documents the JSON structure, global defaults, and
 supported per-file and per-timeseries keys.
@@ -70,7 +72,7 @@ supported per-file and per-timeseries keys.
 If your source CSV contains commented lines, ``csv2cwms`` skips rows whose
 first non-whitespace character is ``#`` automatically.
 
-Real working example
+Real Working Example
 --------------------
 
 The repository includes sample ``csv2cwms`` test data that can be used as a
@@ -86,7 +88,7 @@ Sample CSV input
 Sample config
 ~~~~~~~~~~~~~
 
-*Notice not ever column is used in this example!*
+*Notice that not every column is used in this example.*
 
 .. literalinclude:: ../../cwmscli/commands/csv2cwms/tests/data/sample_config.json
    :language: json
@@ -113,6 +115,6 @@ look correct before you point the command at a production config.
 See also
 --------
 
-   - :doc:`csv2cwms <csv2cwms>`
-   - :doc:`Common API Arguments <api_arguments>`
-   - :doc:`Complete config example <csv2cwms_complete_config>`
+- :doc:`csv2cwms <csv2cwms>`
+- :doc:`Common API Arguments <api_arguments>`
+- :doc:`Complete config example <csv2cwms_complete_config>`

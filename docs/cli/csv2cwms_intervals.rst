@@ -5,12 +5,9 @@ When ``csv2cwms`` needs to parse the interval from a CWMS time series
 identifier, it expects the interval part of the TSID to match one of the
 supported interval identifiers below.
 
-These values were directly pulled from the CWMS Data API database schema 
-here: `<https://github.com/HydrologicEngineeringCenter/cwms-database>`_
-
-
-These values come from the source list in
-``cwmscli/utils/intervals.py``.
+These values come from the source list in ``cwmscli/utils/intervals.py`` and
+align with the CWMS database interval identifiers documented in the
+`cwms-database repository <https://github.com/HydrologicEngineeringCenter/cwms-database>`_.
 
 Regular intervals
 -----------------
