@@ -52,6 +52,37 @@ Notes
 - Commands may still expose additional non-API options such as config files,
   timezone selection, or dry-run behavior.
 
+Global logging and debug options
+--------------------------------
+
+Use the top-level ``cwms-cli --log-level`` option to control CLI log verbosity.
+
+Valid values are:
+
+- ``DEBUG``
+- ``INFO``
+- ``WARNING``
+- ``ERROR``
+- ``CRITICAL``
+
+Example:
+
+.. code-block:: bash
+
+   cwms-cli --log-level DEBUG csv2cwms \
+     --office SWT \
+     --api-root https://cwms-data.usace.army.mil/cwms-data \
+     --config cwmscli/commands/csv2cwms/tests/data/sample_config.json \
+     --dry-run
+
+If you were looking for a ``--debug-level`` flag, use ``--log-level DEBUG``
+instead.
+
+For certain exception paths, ``cwms-cli`` also checks ``CWMS_CLI_DEBUG``. When
+that environment variable is set to ``1``, ``true``, ``yes``, or ``on``, the
+CLI keeps the normal exception behavior instead of suppressing some friendly
+error handling paths.
+
 See also
 --------
 

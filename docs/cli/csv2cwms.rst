@@ -31,6 +31,20 @@ example, and a real working sample run, see :doc:`Installation and Setup <setup>
 For the JSON config structure itself, see
 :doc:`Complete config example <csv2cwms_complete_config>`.
 
+Common issues
+-------------
+
+If you are having trouble running ``csv2cwms``:
+
+- Use the top-level ``cwms-cli --log-level`` option to increase logging detail.
+  See :doc:`Common API Arguments <api_arguments>`.
+- Confirm the shared CDA API inputs are set correctly. See
+  :doc:`Common API Arguments <api_arguments>`.
+- Confirm the JSON config matches the current ``input_files`` / ``data_path``
+  structure. See :doc:`Complete config example <csv2cwms_complete_config>`.
+- Verify the source CSV timestamps are in the timezone you are passing with
+  ``--timezone``.
+
 Important config behavior
 -------------------------
 
@@ -76,36 +90,6 @@ This is the behavior currently visible in debug output when the command logs the
 generated time series points. In other words, if debug logging shows a line like
 ``[TSID] 2025-03-25 12:00:00 -> 20.0 (quality: 3)``, that trailing integer is
 the quality code that will be written for that point.
-
-CWMS quality bit layout reference
----------------------------------
-
-The diagram below is included as a reference for the broader CWMS quality-code
-bit layout.
-
-.. code-block:: text
-
-   Little Endian i.e. 31....0
-
-     3                   2                   1
-   31                                                            0
-   P - - - - - T T T T T T T T T T T M M M M C C C D R R V V V V S
-   |           <---------+---------> <--+--> <-+-> | <+> <--+--> |
-   |                     |              |      |   |  |     |    +------ Screened T/F
-   |                     |              |      |   |  |     |
-   |                     |              |      |   |  |     +--------- Validity Flags
-   |                     |              |      |   |  |
-   |                     |              |      |   |  +------------- Value Range Integer
-   |                     |              |      |   |
-   |                     |              |      |   +-------------- Different T/F
-   |                     |              |      |
-   |                     |              |      +---------------- Replacement Cause Integer
-   |                     |              |
-   |                     |              +--------------------- Replacement Method Integer
-   |                     |
-   |                     +---------------------------------- Test Failed Flags
-   |
-   +------------------------------------------------------ Protected T/F
 
 Canonical Example
 -----------------
