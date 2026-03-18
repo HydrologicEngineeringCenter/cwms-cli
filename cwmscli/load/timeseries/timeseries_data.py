@@ -31,9 +31,10 @@ def _load_timeseries_data(
     cwms.init_session(api_root=source_cda, api_key=None)
     # User has a ts_id
     if ts_id and not ts_group:
-        ts_data = cwms.get_timeseries(
-            ts_id=ts_id,
+        ts_data = cwms.get_multi_timeseries_df(
+            ts_ids=[ts_id],
             office_id=source_office,
+            melted=True,
             begin=begin,
             end=end,
         )
@@ -43,9 +44,35 @@ def _load_timeseries_data(
                 click.echo("Dry run enabled. No changes will be made.")
                 logging.debug(f"Would store {ts_data} for {ts_id}({source_office})")
             else:
+                if ts_data.empty:
+                    click.echo(
+                        f"No data returned for timeseries ({ts_id}) in office {source_office}."
+                    )
+                    return
+                ts_data = ts_data.dropna(subset=["value"]).copy()
+                if ts_data.empty:
+                    click.echo(
+                        f"No non-null values returned for timeseries ({ts_id}) in office {source_office}."
+                    )
+                    return
+                version_date = None
+                if (
+                    "version_date" in ts_data.columns
+                    and not ts_data["version_date"].isna().all()
+                ):
+                    version_date = pd.to_datetime(ts_data["version_date"].iloc[0])
+                # Convert the TS Values to a format CDA expects
+                # had to pull parts out for conversion
+                ts_payload = cwms.timeseries_df_to_json(
+                    data=ts_data,
+                    ts_id=ts_data["ts_id"].iloc[0],
+                    units=ts_data["units"].iloc[0],
+                    office_id=source_office,
+                    version_date=version_date,
+                )
                 cwms.init_session(api_root=target_cda, api_key=target_api_key)
                 cwms.store_timeseries(
-                    data=ts_data.json,
+                    data=ts_payload,
                     store_rule="REPLACE_ALL",
                     override_protection=False,
                 )
