@@ -21,6 +21,7 @@ def load_csv(file_path):
             f"File not found: {file_path}. Be sure to set the path correctly in the configuration file under data_path."
         )
     with open(file_path, "r") as f:
-        reader = csv.reader(f)
+        rows = (line for line in f if not line.lstrip().startswith("#"))
+        reader = csv.reader(rows)
         data = list(reader)
     return data
