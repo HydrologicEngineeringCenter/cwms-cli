@@ -2,6 +2,7 @@
    :maxdepth: 2
 
    cli
+   cli/setup
    cli/api_arguments
    cli/csv2cwms
    cli/csv2cwms_complete_config

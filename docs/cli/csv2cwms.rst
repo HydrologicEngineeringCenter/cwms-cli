@@ -1,23 +1,35 @@
 csv2cwms
 ========
 
-Use ``cwms-cli csv2cwms`` to load CSV time series data into `CWMS Data API (CDA) <https://cwms-data.usace.army.mil/cwms-data>`_ from a JSON
+Use ``cwms-cli csv2cwms`` to load CSV time series data into `CWMS Data API (CDA) <https://cwms-data.usace.army.mil/cwms-data>`_ with a user defined JSON
 configuration file.
 
 This page is the dedicated documentation entry for the command. For a complete
 config example, see :doc:`Complete config example <csv2cwms_complete_config>`.
-For the JSON config reference, global defaults, and option table, start there.
+
+  - For the JSON config reference, global defaults, and option table, start there.
+
+  - For installation and first-run setup, see :doc:`Installation and Setup <setup>`.
 
 Overview
 --------
 
 ``csv2cwms`` supports:
 
-- mapping one or more CSV columns into CWMS time series
-- optional expressions across CSV value columns (i.e. column4+column5 into TSID)
-- configurable duplicate handling with ``use_if_multiple``
-- optional timestamp rounding with ``round_to_nearest``
-- optional timestamp-column selection with ``date_col``
+  - mapping one or more CSV columns into CWMS time series
+  - optional expressions across CSV value columns (i.e. column4+column5 into TSID)
+  - configurable duplicate handling with ``use_if_multiple``
+  - optional timestamp rounding with ``round_to_nearest``
+  - optional timestamp-column selection with ``date_col``
+
+Setup and run
+-------------
+
+For installation, dependency setup, shared API arguments, the canonical config
+example, and a real working sample run, see :doc:`Installation and Setup <setup>`.
+
+For the JSON config structure itself, see
+:doc:`Complete config example <csv2cwms_complete_config>`.
 
 Important config behavior
 -------------------------
@@ -114,4 +126,6 @@ See also
 --------
 
 - :doc:`CLI reference <../cli>`
+- :doc:`Installation and Setup <setup>`
+- :doc:`Common API Arguments <api_arguments>`
 - :doc:`Supported interval identifiers <csv2cwms_intervals>`
