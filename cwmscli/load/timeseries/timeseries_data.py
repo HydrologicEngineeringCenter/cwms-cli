@@ -14,7 +14,7 @@ def _load_timeseries_data(
     target_api_key: Optional[str],
     verbose: int,
     dry_run: bool,
-    ts_id: Optional[str] = None,
+    ts_ids: Optional[list[str]] = None,
     ts_group: Optional[str] = None,
     ts_group_category_id: Optional[str] = None,
     ts_group_category_office_id: Optional[str] = None,
@@ -29,10 +29,10 @@ def _load_timeseries_data(
             f"to target CDA '{target_cda}'."
         )
     cwms.init_session(api_root=source_cda, api_key=None)
-    # User has a ts_id
-    if ts_id and not ts_group:
+    # User has one or more ts_ids
+    if ts_ids and not ts_group:
         ts_data = cwms.get_multi_timeseries_df(
-            ts_ids=[ts_id],
+            ts_ids=ts_ids,
             office_id=source_office,
             melted=True,
             begin=begin,
@@ -42,42 +42,31 @@ def _load_timeseries_data(
         try:
             if dry_run:
                 click.echo("Dry run enabled. No changes will be made.")
-                logging.debug(f"Would store {ts_data} for {ts_id}({source_office})")
+                logging.debug(f"Would store {ts_data} for {ts_ids}({source_office})")
             else:
                 if ts_data.empty:
                     click.echo(
-                        f"No data returned for timeseries ({ts_id}) in office {source_office}."
+                        f"No data returned for timeseries ({', '.join(ts_ids)}) in office {source_office}."
                     )
                     return
                 ts_data = ts_data.dropna(subset=["value"]).copy()
                 if ts_data.empty:
                     click.echo(
-                        f"No non-null values returned for timeseries ({ts_id}) in office {source_office}."
+                        f"No non-null values returned for timeseries ({', '.join(ts_ids)}) in office {source_office}."
                     )
                     return
-                version_date = None
-                if (
-                    "version_date" in ts_data.columns
-                    and not ts_data["version_date"].isna().all()
-                ):
-                    version_date = pd.to_datetime(ts_data["version_date"].iloc[0])
-                # Convert the TS Values to a format CDA expects
-                # had to pull parts out for conversion
-                ts_payload = cwms.timeseries_df_to_json(
-                    data=ts_data,
-                    ts_id=ts_data["ts_id"].iloc[0],
-                    units=ts_data["units"].iloc[0],
-                    office_id=source_office,
-                    version_date=version_date,
-                )
                 cwms.init_session(api_root=target_cda, api_key=target_api_key)
-                cwms.store_timeseries(
-                    data=ts_payload,
+                cwms.store_multi_timeseries_df(
+                    data=ts_data,
+                    office_id=source_office,
                     store_rule="REPLACE_ALL",
                     override_protection=False,
                 )
         except Exception as e:
-            click.echo(f"Error storing timeseries ({ts_id}) data: {e}", err=True)
+            click.echo(
+                f"Error storing timeseries ({', '.join(ts_ids)}) data: {e}",
+                err=True,
+            )
     # User did not have a ts_id but has a ts_group
     if ts_group:
         ts_ids = cwms.get_timeseries_group(

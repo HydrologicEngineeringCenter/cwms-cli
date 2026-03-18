@@ -66,7 +66,7 @@ def load_timeseries_ids_all(
     "ts_id",
     default=None,
     type=str,
-    help="ID of the timeseries to copy (e.g. 'LocID.*').",
+    help="Timeseries ID to copy, or a comma-delimited list of IDs.",
 )
 @click.option(
     "--ts-group",
@@ -119,6 +119,13 @@ def load_timeseries_data(
     begin: Optional[datetime] = None,
     end: Optional[datetime] = None,
 ):
+    ts_ids = None
+    if ts_id:
+        ts_ids = [item.strip() for item in ts_id.split(",") if item.strip()]
+        if not ts_ids:
+            raise click.UsageError(
+                "--ts-id must contain at least one non-empty timeseries ID."
+            )
     if (ts_id is None) == (ts_group is None):
         raise click.UsageError("Exactly one of --ts-id or --ts-group must be provided.")
     if ts_group and not ts_group_category_id:
@@ -138,7 +145,7 @@ def load_timeseries_data(
         target_api_key=target_api_key,
         verbose=verbose,
         dry_run=dry_run,
-        ts_id=ts_id,
+        ts_ids=ts_ids,
         ts_group=ts_group,
         ts_group_category_id=ts_group_category_id,
         ts_group_category_office_id=ts_group_category_office_id,
