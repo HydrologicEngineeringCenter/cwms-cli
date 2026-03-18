@@ -33,8 +33,6 @@ api_key_loc are required
 -v, --verbose Verbose logging
 -c, --config PATH Path to JSON config file [required]
 --log TEXT Path to the log file.
--dp, --data-path DIRECTORY Directory where csv files are stored [default:
-.]
 --dry-run Log only (no HTTP calls)
 --begin TEXT YYYY-MM-DDTHH:MM (local to --tz)
 -tz, --timezone TEXT [default: GMT]
