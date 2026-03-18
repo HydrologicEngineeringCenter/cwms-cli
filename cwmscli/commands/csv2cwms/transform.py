@@ -3,6 +3,12 @@ from datetime import datetime, timedelta
 from cwmscli.utils.colors import c
 
 from .config import resolve_use_if_multiple
+from .doclinks import (
+    COMPLETE_CONFIG_DOC_URL,
+    INTERVALS_DOC_URL,
+    SETUP_DOC_URL,
+    with_doc_links,
+)
 from .utils import (
     determine_interval,
     eval_expression,
@@ -48,9 +54,12 @@ def select_value(
 
     if strategy == "error" and len(raw_values) > 1:
         raise ValueError(
-            f"Multiple values found for timeseries {c(name, 'blue')} at "
-            f"{c(str(datetime.fromtimestamp(epoch, tz=timezone)), 'cyan')}. "
-            "Set use_if_multiple to first, last, or average."
+            with_doc_links(
+                f"Multiple values found for timeseries {c(name, 'blue')} at "
+                f"{c(str(datetime.fromtimestamp(epoch, tz=timezone)), 'cyan')}. "
+                "Set use_if_multiple to first, last, or average.",
+                COMPLETE_CONFIG_DOC_URL,
+            )
         )
 
     if strategy == "first":
@@ -75,7 +84,11 @@ def load_timeseries(file_data, file_key, config, logger):
 
     if not header or not data:
         raise ValueError(
-            "No data found in the CSV file for the range selected. Please ensure you set the timezone of the CSV file with --tz America/Chicago or similar."
+            with_doc_links(
+                "No data found in the CSV file for the range selected. Please ensure you set the timezone of the CSV file with --tz America/Chicago or similar.",
+                SETUP_DOC_URL,
+                COMPLETE_CONFIG_DOC_URL,
+            )
         )
 
     ts_config = config["input_files"][file_key]["timeseries"]
@@ -127,12 +140,15 @@ def load_timeseries(file_data, file_key, config, logger):
             )
 
         raise ValueError(
-            "Configured CSV columns were not found in the input file. "
-            f"Skipping {c(file_key, 'red')}.\n"
-            + "\n".join(details)
-            + "\n"
-            + "Available CSV columns: "
-            + c(", ".join(available_columns), "cyan")
+            with_doc_links(
+                "Configured CSV columns were not found in the input file. "
+                f"Skipping {c(file_key, 'red')}.\n"
+                + "\n".join(details)
+                + "\n"
+                + "Available CSV columns: "
+                + c(", ".join(available_columns), "cyan"),
+                COMPLETE_CONFIG_DOC_URL,
+            )
         )
 
     for name, meta in ts_config.items():
@@ -160,13 +176,20 @@ def load_timeseries(file_data, file_key, config, logger):
                 )
                 if not interval_parameter:
                     raise ValueError(
-                        f"Unable to determine interval from timeseries {c(name, 'blue')} for round_to_nearest."
+                        with_doc_links(
+                            f"Unable to determine interval from timeseries {c(name, 'blue')} for round_to_nearest.",
+                            INTERVALS_DOC_URL,
+                            COMPLETE_CONFIG_DOC_URL,
+                        )
                     )
                 try:
                     ts_interval = interval_parameter_to_seconds(interval_parameter)
                 except ValueError as err:
                     raise ValueError(
-                        f"Unable to determine rounding interval from timeseries {c(name, 'blue')}: {c(str(err), 'red')}"
+                        with_doc_links(
+                            f"Unable to determine rounding interval from timeseries {c(name, 'blue')}: {c(str(err), 'red')}",
+                            INTERVALS_DOC_URL,
+                        )
                     ) from err
 
                 for raw_epoch, raw_rows in data.items():

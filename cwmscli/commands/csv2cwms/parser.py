@@ -1,5 +1,6 @@
 from cwmscli.utils.colors import c
 
+from .doclinks import COMPLETE_CONFIG_DOC_URL, with_doc_links
 from .utils import load_csv, parse_date, safe_zoneinfo
 
 
@@ -13,10 +14,13 @@ def resolve_date_column(header, file_config):
     date_col_index = normalized_header.get(date_col_name.lower())
     if date_col_index is None:
         raise ValueError(
-            "Configured date_col "
-            f"{c(date_col_name, 'yellow')} was not found in the input file. "
-            "Available CSV columns: "
-            f"{c(', '.join(header), 'cyan')}"
+            with_doc_links(
+                "Configured date_col "
+                f"{c(date_col_name, 'yellow')} was not found in the input file. "
+                "Available CSV columns: "
+                f"{c(', '.join(header), 'cyan')}",
+                COMPLETE_CONFIG_DOC_URL,
+            )
         )
     return date_col_index, header[date_col_index]
 
@@ -39,7 +43,10 @@ def parse_file(
             continue
         if date_col_index >= len(row):
             raise ValueError(
-                f"Configured date_col {c(date_col_label, 'yellow')} is missing from a CSV row in {c(file_path, 'red')}."
+                with_doc_links(
+                    f"Configured date_col {c(date_col_label, 'yellow')} is missing from a CSV row in {c(file_path, 'red')}.",
+                    COMPLETE_CONFIG_DOC_URL,
+                )
             )
         try:
             row_datetime = parse_date(
@@ -48,14 +55,20 @@ def parse_file(
         except ValueError as err:
             if date_col_index == 0:
                 raise ValueError(
-                    "Unable to parse a timestamp from the first CSV column "
-                    f"{c(date_col_label, 'yellow')} with value {c(str(row[0]), 'red')} in {c(file_path, 'red')}. "
-                    "If the timestamp is in a different column, set "
-                    f"{c('date_col', 'cyan')} in the input file config to that column name."
+                    with_doc_links(
+                        "Unable to parse a timestamp from the first CSV column "
+                        f"{c(date_col_label, 'yellow')} with value {c(str(row[0]), 'red')} in {c(file_path, 'red')}. "
+                        "If the timestamp is in a different column, set "
+                        f"{c('date_col', 'cyan')} in the input file config to that column name.",
+                        COMPLETE_CONFIG_DOC_URL,
+                    )
                 ) from err
             raise ValueError(
-                f"Unable to parse a timestamp from configured date_col {c(date_col_label, 'yellow')} "
-                f"with value {c(str(row[date_col_index]), 'red')} in {c(file_path, 'red')}."
+                with_doc_links(
+                    f"Unable to parse a timestamp from configured date_col {c(date_col_label, 'yellow')} "
+                    f"with value {c(str(row[date_col_index]), 'red')} in {c(file_path, 'red')}.",
+                    COMPLETE_CONFIG_DOC_URL,
+                )
             ) from err
         ts_data.setdefault(int(row_datetime.timestamp()), []).append(row)
     return {"header": header, "data": ts_data, "source_timezone": source_timezone}
