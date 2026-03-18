@@ -67,6 +67,9 @@ For ``csv2cwms``, start from one of these:
 The complete config page documents the JSON structure, global defaults, and
 supported per-file and per-timeseries keys.
 
+If your source CSV contains commented lines, ``csv2cwms`` skips rows whose
+first non-whitespace character is ``#`` automatically.
+
 Real working example
 --------------------
 

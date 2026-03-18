@@ -109,6 +109,12 @@ Where `ObservedAt` is the literal text in the first row header of the CSV file c
 
 If the first column is not a parseable date and `date_col` is not set, you will get an error.
 
+## Comment Rows
+
+CSV rows whose first non-whitespace character is `#` are ignored automatically.
+
+This is useful when upstream systems prepend metadata lines or when comment rows are left in the CSV for operator notes.
+
 ## Timezone
 
 The `--timezone` option defaults to `GMT`.

@@ -141,12 +141,12 @@ def _select_value(name, epoch, rows, expr, header_map, precision, strategy, time
 
 
 def parse_file(file_path, begin_time, date_format, timezone="GMT", file_config=None):
+    file_config = file_config or {}
     csv_data = load_csv(file_path)
     header = csv_data[0]
     data = csv_data[1:]
     ts_data = {}
     source_timezone = safe_zoneinfo(timezone)
-    file_config = file_config or {}
     date_col_index, date_col_label = _resolve_date_column(header, file_config)
     logger.debug(f"Begin time: {begin_time}")
     for row in data:

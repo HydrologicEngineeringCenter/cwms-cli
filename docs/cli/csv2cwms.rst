@@ -16,11 +16,11 @@ Overview
 
 ``csv2cwms`` supports:
 
-  - mapping one or more CSV columns into CWMS time series
-  - optional expressions across CSV value columns (i.e. column4+column5 into TSID)
-  - configurable duplicate handling with ``use_if_multiple``
-  - optional timestamp rounding with ``round_to_nearest``
-  - optional timestamp-column selection with ``date_col``
+- mapping one or more CSV columns into CWMS time series
+- optional expressions across CSV value columns (i.e. column4+column5 into TSID)
+- configurable duplicate handling with ``use_if_multiple``
+- optional timestamp rounding with ``round_to_nearest``
+- optional timestamp-column selection with ``date_col``
 
 Setup and run
 -------------
@@ -36,6 +36,7 @@ Important config behavior
 
 - By default, the timestamp is assumed to be in the first CSV column.
 - Set ``date_col`` to the CSV header name when the timestamp is in a different column.
+- CSV rows whose first non-whitespace character is ``#`` are ignored automatically.
 - The default timezone is ``GMT``.
 - If ``round_to_nearest`` is enabled, config file ``interval`` takes precedence.
 - If ``interval`` is not configured, rounding falls back to the interval parsed
