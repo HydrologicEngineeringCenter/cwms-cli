@@ -1,9 +1,16 @@
 import sys
 import types
 
+import pandas as pd
 import pytest
 
-from cwmscli.commands.blob import _blob_id_for_path, _list_matching_files, upload_cmd
+from cwmscli.commands.blob import (
+    _blob_id_for_path,
+    _list_matching_files,
+    _save_blob_content,
+    download_cmd,
+    upload_cmd,
+)
 
 
 def test_list_matching_files_filters_by_regex(tmp_path):
@@ -74,3 +81,60 @@ def test_upload_cmd_continues_on_error_for_directory(tmp_path, monkeypatch):
 
     assert exc.value.code == 1
     assert calls == ["A", "B"]
+
+
+def test_save_blob_content_writes_raw_text(tmp_path):
+    dest = tmp_path / "blob.txt"
+
+    written = _save_blob_content("plain text payload", str(dest), "text/plain")
+
+    assert written == str(dest)
+    assert dest.read_text(encoding="utf-8") == "plain text payload"
+
+
+def test_download_cmd_uses_media_type_to_write_text(tmp_path, monkeypatch):
+    dest = tmp_path / "downloaded"
+
+    class FakeBlobListing:
+        df = pd.DataFrame(
+            [{"id": "TEST_TXT", "media-type-id": "text/plain", "description": "x"}]
+        )
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root):
+            return None
+
+        @staticmethod
+        def get_blob(office_id, blob_id):
+            assert office_id == "SWT"
+            assert blob_id == "TEST_TXT"
+            return "retrieved text"
+
+        @staticmethod
+        def get_blobs(office_id, blob_id_like):
+            assert office_id == "SWT"
+            assert blob_id_like == "TEST_TXT"
+            return FakeBlobListing()
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+
+    class FakeHTTPError(Exception):
+        pass
+
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=FakeHTTPError)
+    )
+
+    download_cmd(
+        blob_id="test_txt",
+        dest=str(dest),
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="x",
+        dry_run=False,
+    )
+
+    saved = tmp_path / "downloaded.txt"
+    assert saved.exists()
+    assert saved.read_text(encoding="utf-8") == "retrieved text"
