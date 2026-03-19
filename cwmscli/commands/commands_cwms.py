@@ -233,6 +233,11 @@ def blob_upload(**kwargs):
     default=None,
     help="Destination file path. Defaults to blob-id.",
 )
+@click.option(
+    "--anonymous",
+    is_flag=True,
+    help="Do not send credentials for this read request, even if they are configured.",
+)
 @click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
 @requires(reqs.cwms)
@@ -323,6 +328,11 @@ def update_cmd(**kwargs):
     "--to-csv",
     type=click.Path(dir_okay=False, writable=True, path_type=str),
     help="If set, write results to this CSV file.",
+)
+@click.option(
+    "--anonymous",
+    is_flag=True,
+    help="Do not send credentials for this read request, even if they are configured.",
 )
 @common_api_options
 @requires(reqs.cwms)

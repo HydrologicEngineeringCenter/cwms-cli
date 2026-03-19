@@ -9,7 +9,7 @@ import sys
 from collections import defaultdict
 from typing import Optional, Sequence, Tuple
 
-from cwmscli.utils import colors, get_api_key
+from cwmscli.utils import colors, get_api_key, log_scoped_read_hint
 from cwmscli.utils.deps import requires
 
 # used to rebuild data URL for images
@@ -123,6 +123,12 @@ def _blob_media_type(cwms_module, office: str, blob_id: str) -> Optional[str]:
 
 def _join_api_url(api_root: str, path: str) -> str:
     return f"{api_root.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _resolve_optional_api_key(api_key: Optional[str], anonymous: bool) -> Optional[str]:
+    if anonymous or not api_key:
+        return None
+    return get_api_key(api_key, None)
 
 
 def store_blob(**kwargs):
@@ -533,7 +539,13 @@ def upload_cmd(
 
 
 def download_cmd(
-    blob_id: str, dest: str, office: str, api_root: str, api_key: str, dry_run: bool
+    blob_id: str,
+    dest: str,
+    office: str,
+    api_root: str,
+    api_key: str,
+    dry_run: bool,
+    anonymous: bool = False,
 ):
     import cwms
     import requests
@@ -543,7 +555,8 @@ def download_cmd(
             f"DRY RUN: would GET {api_root} blob with blob-id={blob_id} office={office}."
         )
         return
-    cwms.init_session(api_root=api_root)
+    resolved_api_key = _resolve_optional_api_key(api_key, anonymous)
+    cwms.init_session(api_root=api_root, api_key=resolved_api_key)
     bid = blob_id.upper()
     logging.debug(f"Office={office} BlobID={bid}")
 
@@ -559,9 +572,23 @@ def download_cmd(
     except requests.HTTPError as e:
         detail = getattr(e.response, "text", "") or str(e)
         logging.error(f"Failed to download (HTTP): {detail}")
+        log_scoped_read_hint(
+            api_key=resolved_api_key,
+            anonymous=anonymous,
+            office=office,
+            action="download",
+            resource="blob content",
+        )
         sys.exit(1)
     except Exception as e:
         logging.error(f"Failed to download: {e}")
+        log_scoped_read_hint(
+            api_key=resolved_api_key,
+            anonymous=anonymous,
+            office=office,
+            action="download",
+            resource="blob content",
+        )
         sys.exit(1)
 
 
@@ -636,19 +663,31 @@ def list_cmd(
     office: str,
     api_root: str,
     api_key: str,
+    anonymous: bool = False,
 ):
     import cwms
     import pandas as pd
 
-    cwms.init_session(api_root=api_root)
-    df = list_blobs(
-        office=office,
-        blob_id_like=blob_id_like,
-        columns=columns,
-        sort_by=sort_by,
-        ascending=not desc,
-        limit=limit,
-    )
+    resolved_api_key = _resolve_optional_api_key(api_key, anonymous)
+    cwms.init_session(api_root=api_root, api_key=resolved_api_key)
+    try:
+        df = list_blobs(
+            office=office,
+            blob_id_like=blob_id_like,
+            columns=columns,
+            sort_by=sort_by,
+            ascending=not desc,
+            limit=limit,
+        )
+    except Exception:
+        log_scoped_read_hint(
+            api_key=resolved_api_key,
+            anonymous=anonymous,
+            office=office,
+            action="list",
+            resource="blob content",
+        )
+        raise
     if to_csv:
         df.to_csv(to_csv, index=False)
         logging.info(f"Wrote {len(df)} rows to {to_csv}")

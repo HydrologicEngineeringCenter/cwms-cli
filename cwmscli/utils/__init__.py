@@ -2,6 +2,8 @@ import logging as py_logging
 
 import click
 
+from cwmscli.utils import colors
+
 
 def to_uppercase(ctx, param, value):
     if value is None:
@@ -83,6 +85,27 @@ def get_api_key(api_key: str, api_key_loc: str) -> str:
         raise Exception(
             "must add a value to either --api-key(-k) or --api-key-loc(-kl)"
         )
+
+
+def log_scoped_read_hint(
+    *,
+    api_key: str | None,
+    anonymous: bool,
+    office: str,
+    action: str,
+    resource: str = "content",
+) -> None:
+    if anonymous or not api_key:
+        return
+    py_logging.warning(
+        colors.c(
+            f"Access scope hint: a key was sent for this {action} request in office {office}. "
+            f"If you need to view {resource} outside that key's access scope, retry with "
+            "--anonymous or remove the configured API key.",
+            "yellow",
+            bright=True,
+        )
+    )
 
 
 def common_api_options(f):
