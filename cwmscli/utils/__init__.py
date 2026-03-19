@@ -1,4 +1,5 @@
 import logging as py_logging
+from typing import Optional
 
 import click
 
@@ -90,7 +91,7 @@ def get_api_key(api_key: str, api_key_loc: str) -> str:
 
 def log_scoped_read_hint(
     *,
-    api_key: str | None,
+    api_key: Optional[str],
     anonymous: bool,
     office: str,
     action: str,
