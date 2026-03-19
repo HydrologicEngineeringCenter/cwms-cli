@@ -6,6 +6,7 @@ import pytest
 
 from cwmscli.commands.blob import (
     _blob_id_for_path,
+    _find_blob_id_collisions,
     _list_matching_files,
     _save_blob_content,
     download_cmd,
@@ -81,6 +82,72 @@ def test_upload_cmd_continues_on_error_for_directory(tmp_path, monkeypatch):
 
     assert exc.value.code == 1
     assert calls == ["A", "B"]
+
+
+def test_find_blob_id_collisions_detects_same_stem_and_path_collisions():
+    matches = [
+        ("C:/tmp/a.txt", "a.txt"),
+        ("C:/tmp/a.json", "a.json"),
+        ("C:/tmp/dir/a.txt", "dir/a.txt"),
+        ("C:/tmp/dir_a.txt", "dir_a.txt"),
+    ]
+
+    collisions = _find_blob_id_collisions(
+        matches, input_dir="C:/tmp", blob_id_prefix=""
+    )
+
+    assert collisions == {
+        "A": ["a.txt", "a.json"],
+        "DIR_A": ["dir/a.txt", "dir_a.txt"],
+    }
+
+
+def test_upload_cmd_aborts_before_upload_when_generated_ids_collide(
+    tmp_path, monkeypatch
+):
+    (tmp_path / "a.txt").write_text("a")
+    (tmp_path / "a.json").write_text("{}")
+
+    calls = []
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key):
+            calls.append(("init_session", api_root, api_key))
+            return None
+
+        @staticmethod
+        def store_blobs(blob, fail_if_exists):
+            calls.append(("store_blobs", blob["id"]))
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+
+    class FakeHTTPError(Exception):
+        pass
+
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=FakeHTTPError)
+    )
+
+    with pytest.raises(SystemExit) as exc:
+        upload_cmd(
+            input_file=None,
+            input_dir=str(tmp_path),
+            file_regex=r".*",
+            recursive=False,
+            blob_id=None,
+            blob_id_prefix="",
+            description=None,
+            media_type=None,
+            overwrite=False,
+            dry_run=False,
+            office="SWT",
+            api_root="https://example.test/",
+            api_key="x",
+        )
+
+    assert exc.value.code == 2
+    assert calls == [("init_session", "https://example.test/", "x")]
 
 
 def test_save_blob_content_writes_raw_text(tmp_path):

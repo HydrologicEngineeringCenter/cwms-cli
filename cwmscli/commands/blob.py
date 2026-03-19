@@ -6,6 +6,7 @@ import mimetypes
 import os
 import re
 import sys
+from collections import defaultdict
 from typing import Optional, Sequence, Tuple
 
 from cwmscli.utils import colors, get_api_key
@@ -354,6 +355,24 @@ def _blob_id_for_path(input_dir: str, rel_path: str, blob_id_prefix: str) -> str
     return f"{blob_id_prefix}{rel_no_ext}".upper()
 
 
+def _find_blob_id_collisions(
+    matches: list[Tuple[str, str]], input_dir: str, blob_id_prefix: str
+) -> dict[str, list[str]]:
+    collisions: dict[str, list[str]] = defaultdict(list)
+    for _, rel_path in matches:
+        blob_id = _blob_id_for_path(
+            input_dir=input_dir,
+            rel_path=rel_path,
+            blob_id_prefix=blob_id_prefix,
+        )
+        collisions[blob_id].append(rel_path)
+    return {
+        blob_id: rel_paths
+        for blob_id, rel_paths in collisions.items()
+        if len(rel_paths) > 1
+    }
+
+
 def upload_cmd(
     input_file: Optional[str],
     input_dir: Optional[str],
@@ -397,6 +416,18 @@ def upload_cmd(
                 f"No files in {input_dir!r} matched --file-regex {file_regex!r}."
             )
             sys.exit(1)
+        collisions = _find_blob_id_collisions(matches, input_dir, blob_id_prefix)
+        if collisions:
+            for blob_id, rel_paths in collisions.items():
+                logging.error(
+                    "Generated blob ID collision for %s from files: %s",
+                    blob_id,
+                    ", ".join(rel_paths),
+                )
+            logging.error(
+                "Bulk upload aborted. Adjust file names or use --blob-id-prefix to avoid duplicate generated blob IDs."
+            )
+            sys.exit(2)
         uploads = [
             (
                 full_path,
