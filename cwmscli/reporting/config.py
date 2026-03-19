@@ -6,11 +6,13 @@ import click
 
 from cwmscli.reporting.models import (
     ColumnSpec,
+    DatasetSpec,
     EngineSpec,
     HeaderCellSpec,
     ProjectSpec,
     ReportSpec,
     TableHeaderSpec,
+    TemplateSpec,
 )
 
 
@@ -49,6 +51,8 @@ class Config:
     office: str
     cda_api_root: Optional[str] = None
     engine: EngineSpec = field(default_factory=EngineSpec)
+    dataset: DatasetSpec = field(default_factory=DatasetSpec)
+    template: TemplateSpec = field(default_factory=TemplateSpec)
     report: ReportSpec | Dict[str, Any] | None = None
     projects: List[ProjectSpec] = field(default_factory=list)
     columns: List[ColumnSpec] = field(default_factory=list)
@@ -92,6 +96,28 @@ class Config:
             )
         else:
             raise click.BadParameter("Invalid engine configuration.")
+
+        dataset_block = raw.get("dataset") or {}
+        if isinstance(dataset_block, str):
+            dataset = DatasetSpec(kind=dataset_block)
+        elif isinstance(dataset_block, dict):
+            dataset = DatasetSpec(
+                kind=dataset_block.get("kind") or "table",
+                options={k: v for k, v in dataset_block.items() if k != "kind"},
+            )
+        else:
+            raise click.BadParameter("Invalid dataset configuration.")
+
+        template_block = raw.get("template") or {}
+        if isinstance(template_block, str):
+            template = TemplateSpec(kind=template_block)
+        elif isinstance(template_block, dict):
+            template = TemplateSpec(
+                kind=template_block.get("kind") or "default",
+                options={k: v for k, v in template_block.items() if k != "kind"},
+            )
+        else:
+            raise click.BadParameter("Invalid template configuration.")
 
         report_block = raw.get("report") or {}
         report = ReportSpec(
@@ -157,6 +183,8 @@ class Config:
             office=office,
             cda_api_root=raw.get("cda_api_root") or os.getenv("CDA_API_ROOT"),
             engine=engine,
+            dataset=dataset,
+            template=template,
             report=report,
             projects=projects,
             columns=cols,

@@ -1,6 +1,7 @@
 import math
 import traceback
-from datetime import datetime, timezone
+from calendar import monthrange
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import click
@@ -26,9 +27,8 @@ def _fetch_multi_df(
     begin: Optional[datetime],
     end: Optional[datetime],
 ):
-    import pandas as pd
-
     import cwms
+    import pandas as pd
 
     df = cwms.get_multi_timeseries_df(
         ts_ids=tsids,
@@ -93,6 +93,373 @@ def _format_value(
         return f"{xf:.{precision}f}"
     except Exception:
         return f"{x}"
+
+
+def _safe_sum(values: List[float | None]) -> float | None:
+    nums = [float(v) for v in values if v is not None]
+    if not nums:
+        return None
+    return sum(nums)
+
+
+def _safe_mean(values: List[float | None]) -> float | None:
+    nums = [float(v) for v in values if v is not None]
+    if not nums:
+        return None
+    return sum(nums) / len(nums)
+
+
+def _as_project_location(project_id: str, office: str) -> Dict[str, Any]:
+    import cwms
+
+    try:
+        loc = cwms.get_location(office_id=office, location_id=project_id)
+        loc_json = getattr(loc, "json", None) or loc
+        if isinstance(loc_json, dict):
+            return {**loc_json}
+    except Exception:
+        pass
+    return {"name": project_id, "public-name": project_id}
+
+
+def _resolve_anchor(
+    anchor: str,
+    anchors: Dict[str, datetime],
+) -> datetime:
+    if anchor not in anchors:
+        raise click.BadParameter(f"Unknown monthly dataset anchor '{anchor}'.")
+    return anchors[anchor]
+
+
+def _extract_series_points(
+    tsid: str,
+    office: str,
+    unit: str,
+    begin: datetime,
+    end: datetime,
+    tz_name: str,
+    hour: Optional[int] = None,
+) -> List[Dict[str, Any]]:
+    from zoneinfo import ZoneInfo
+
+    import pandas as pd
+
+    df = _fetch_multi_df([tsid], office, unit, begin, end)
+    if df is None or df.empty:
+        return []
+
+    name_col = (
+        "ts_id" if "ts_id" in df.columns else ("name" if "name" in df.columns else None)
+    )
+    time_col = (
+        "date-time"
+        if "date-time" in df.columns
+        else ("date_time" if "date_time" in df.columns else None)
+    )
+    if not time_col:
+        return []
+
+    if name_col:
+        df = df[df[name_col].astype(str) == tsid]
+    df = df.dropna(subset=[time_col])
+    if df.empty:
+        return []
+
+    df[time_col] = pd.to_datetime(df[time_col], utc=True, errors="coerce")
+    df = df.dropna(subset=[time_col]).sort_values(time_col)
+    tzinfo = ZoneInfo(tz_name)
+    df["_local_time"] = df[time_col].dt.tz_convert(tzinfo)
+    if hour is not None:
+        df = df[df["_local_time"].dt.hour == hour]
+
+    out: List[Dict[str, Any]] = []
+    for _, row in df.iterrows():
+        dt_value = row["_local_time"]
+        out.append(
+            {
+                "datetime": (
+                    dt_value.to_pydatetime()
+                    if hasattr(dt_value, "to_pydatetime")
+                    else dt_value
+                ),
+                "value": row.get("value"),
+            }
+        )
+    return out
+
+
+def _series_value_by_day(
+    points: List[Dict[str, Any]],
+    tz_name: str,
+    day_offset: int = 0,
+) -> Dict[date, float | None]:
+    from zoneinfo import ZoneInfo
+
+    tzinfo = ZoneInfo(tz_name)
+    out: Dict[date, float | None] = {}
+    for point in points:
+        dt_value = point["datetime"]
+        if dt_value.tzinfo is None:
+            dt_local = dt_value.replace(tzinfo=timezone.utc).astimezone(tzinfo)
+        else:
+            dt_local = dt_value.astimezone(tzinfo)
+        out[dt_local.date() + timedelta(days=day_offset)] = point["value"]
+    return out
+
+
+def build_monthly_project_report(config: Config) -> Dict[str, Any]:
+    dataset = config.dataset.options or {}
+    project = str(dataset.get("project") or "").strip()
+    if not project:
+        raise click.BadParameter(
+            "dataset.project is required for monthly_project reports."
+        )
+
+    month_expr = str(dataset.get("month") or "").strip()
+    if not month_expr:
+        raise click.BadParameter(
+            "dataset.month is required for monthly_project reports."
+        )
+
+    office = str(dataset.get("office") or config.office)
+    tz_name = str(dataset.get("timezone") or config.time_zone or "America/Chicago")
+    report_hour = int(dataset.get("report_hour", 8))
+    rainfall_hour = int(dataset.get("rainfall_hour", 7))
+    level_hour = int(dataset.get("level_hour", 1))
+    water_supply_projects = {
+        str(x).upper() for x in (dataset.get("water_supply_projects") or [])
+    }
+
+    try:
+        year_s, month_s = month_expr.split("-", 1)
+        year = int(year_s)
+        month = int(month_s)
+    except Exception as err:
+        raise click.BadParameter("dataset.month must be in YYYY-MM format.") from err
+
+    from zoneinfo import ZoneInfo
+
+    tzinfo = ZoneInfo(tz_name)
+    _, last_day = monthrange(year, month)
+    month_start_report = datetime(year, month, 1, report_hour, 0, 0, tzinfo=tzinfo)
+    month_start_midnight = datetime(year, month, 1, 0, 0, 0, tzinfo=tzinfo)
+    month_start_7am = datetime(year, month, 1, rainfall_hour, 0, 0, tzinfo=tzinfo)
+    month_start_1am = datetime(year, month, 1, level_hour, 0, 0, tzinfo=tzinfo)
+    month_end_report = datetime(year, month, last_day, report_hour, 0, 0, tzinfo=tzinfo)
+    month_end_midnight_plus_one = datetime(
+        year, month, last_day, 0, 0, 0, tzinfo=tzinfo
+    ) + timedelta(days=1)
+    month_end_report_plus_one = month_end_report + timedelta(days=1)
+    month_start_report_yesterday = month_start_report - timedelta(days=1)
+    month_level_end = month_start_1am + timedelta(days=1)
+
+    anchors = {
+        "month_start_report": month_start_report,
+        "month_start_midnight": month_start_midnight,
+        "month_start_rainfall": month_start_7am,
+        "month_start_level": month_start_1am,
+        "month_end_report": month_end_report,
+        "month_end_midnight_plus_one": month_end_midnight_plus_one,
+        "month_end_report_plus_one": month_end_report_plus_one,
+        "month_start_report_yesterday": month_start_report_yesterday,
+        "month_level_end": month_level_end,
+    }
+
+    series_cfg = dict(dataset.get("series") or {})
+    levels_cfg = dict(dataset.get("levels") or {})
+
+    if not series_cfg:
+        raise click.BadParameter(
+            "dataset.series is required for monthly_project reports."
+        )
+
+    resolved_series: Dict[str, Dict[str, Any]] = {}
+    by_day: Dict[str, Dict[date, float | None]] = {}
+    scalar_values: Dict[str, Any] = {}
+
+    for key, spec in series_cfg.items():
+        spec = dict(spec or {})
+        tsid = _expand_template(spec.get("tsid"), project=project)
+        if not tsid:
+            raise click.BadParameter(f"dataset.series.{key}.tsid is required.")
+        unit = str(spec.get("unit") or config.default_unit)
+        precision = spec.get("precision")
+        missing = spec.get("missing") or config.missing
+        undefined = spec.get("undefined") or config.undefined
+        office_id = str(spec.get("office") or office)
+        hour = spec.get("hour")
+        day_offset = int(spec.get("day_offset") or 0)
+        begin = _resolve_anchor(str(spec.get("begin_anchor")), anchors)
+        end = _resolve_anchor(str(spec.get("end_anchor")), anchors)
+        points = _extract_series_points(
+            tsid=tsid,
+            office=office_id,
+            unit=unit,
+            begin=begin,
+            end=end,
+            tz_name=tz_name,
+            hour=int(hour) if hour is not None else None,
+        )
+        resolved_series[key] = {
+            "tsid": tsid,
+            "unit": unit,
+            "precision": precision,
+            "missing": missing,
+            "undefined": undefined,
+            "day_offset": day_offset,
+            "points": points,
+        }
+        if spec.get("mode") == "daily":
+            by_day[key] = _series_value_by_day(points, tz_name, day_offset=day_offset)
+        elif spec.get("mode") == "summary":
+            last_point = points[-1] if points else None
+            scalar_values[key] = {
+                "value": last_point["value"] if last_point else None,
+                "datetime": last_point["datetime"] if last_point else None,
+            }
+
+    level_values: Dict[str, float | None] = {}
+    for key, spec in levels_cfg.items():
+        spec = dict(spec or {})
+        level_id = _expand_template(spec.get("level"), project=project)
+        if not level_id:
+            raise click.BadParameter(f"dataset.levels.{key}.level is required.")
+        unit = str(spec.get("unit") or config.default_unit)
+        office_id = str(spec.get("office") or office)
+        vals = _fetch_levels_dict(
+            [level_id],
+            begin=month_start_1am,
+            end=month_level_end,
+            office=office_id,
+            unit=unit,
+        )
+        level_values[key] = vals.get(level_id)
+
+    location = _as_project_location(project, office)
+    lake_name = str(
+        location.get("public-name")
+        or location.get("name")
+        or dataset.get("project_name")
+        or project
+    )
+
+    daily_dates = [date(year, month, day) for day in range(1, last_day + 1)]
+    daily_rows: List[Dict[str, Any]] = []
+    for current_day in daily_dates:
+        row = {
+            "day": current_day.day,
+            "morning_elev": by_day.get("morning_elev", {}).get(current_day),
+            "midnight_elev": by_day.get("midnight_elev", {}).get(current_day),
+            "storage_total": by_day.get("storage_total", {}).get(current_day),
+            "release_power": by_day.get("release_power", {}).get(current_day),
+            "release_total": by_day.get("release_total", {}).get(current_day),
+            "evaporation": by_day.get("evaporation", {}).get(current_day),
+            "inflow": by_day.get("inflow", {}).get(current_day),
+            "rain_dam": by_day.get("rain_dam", {}).get(current_day),
+            "rain_basin": by_day.get("rain_basin", {}).get(current_day),
+        }
+        daily_rows.append(row)
+
+    prior_month_date = date(year, month, 1) - timedelta(days=1)
+    prior_month = {
+        "midnight_elev": by_day.get("midnight_elev", {}).get(prior_month_date),
+        "storage_total": by_day.get("storage_total", {}).get(prior_month_date),
+    }
+
+    summary = {
+        "total_power_release": _safe_sum([row["release_power"] for row in daily_rows]),
+        "total_total_release": _safe_sum([row["release_total"] for row in daily_rows]),
+        "total_evaporation": _safe_sum([row["evaporation"] for row in daily_rows]),
+        "total_inflow": _safe_sum([row["inflow"] for row in daily_rows]),
+        "total_rain_dam": _safe_sum([row["rain_dam"] for row in daily_rows]),
+        "total_rain_basin": _safe_sum([row["rain_basin"] for row in daily_rows]),
+        "average_elevation": _safe_mean([row["midnight_elev"] for row in daily_rows]),
+        "average_power_release": _safe_mean(
+            [row["release_power"] for row in daily_rows]
+        ),
+        "average_total_release": _safe_mean(
+            [row["release_total"] for row in daily_rows]
+        ),
+        "average_inflow": _safe_mean([row["inflow"] for row in daily_rows]),
+    }
+    summary["inflow_volume"] = (
+        summary["total_inflow"] * 1.9835
+        if summary["total_inflow"] is not None
+        else None
+    )
+
+    extrema_cfg = dict(dataset.get("extrema") or {})
+    max_elev = scalar_values.get("max_elev", {})
+    min_elev = scalar_values.get("min_elev", {})
+    max_stor = scalar_values.get("max_storage", {})
+    min_stor = scalar_values.get("min_storage", {})
+
+    elev_source_key = extrema_cfg.get("elevation_source")
+    if elev_source_key and elev_source_key in resolved_series:
+        points = resolved_series[elev_source_key]["points"]
+        valid_points = [p for p in points if p.get("value") is not None]
+        if valid_points:
+            max_point = max(valid_points, key=lambda p: float(p["value"]))
+            min_point = min(valid_points, key=lambda p: float(p["value"]))
+            max_elev = max_point
+            min_elev = min_point
+
+    storage_source_key = extrema_cfg.get("storage_source")
+    if storage_source_key and storage_source_key in resolved_series:
+        points = resolved_series[storage_source_key]["points"]
+        valid_points = [p for p in points if p.get("value") is not None]
+        if valid_points:
+            max_point = max(valid_points, key=lambda p: float(p["value"]))
+            min_point = min(valid_points, key=lambda p: float(p["value"]))
+            max_stor = max_point
+            min_stor = min_point
+
+    water_supply = None
+    if project.upper() in water_supply_projects and "water_supply" in by_day:
+        water_supply_total = _safe_sum(list(by_day["water_supply"].values()))
+        water_supply = {
+            "volume": (
+                water_supply_total * 1.9835 if water_supply_total is not None else None
+            )
+        }
+
+    return {
+        "dataset_kind": "monthly_project",
+        "base_end": month_end_report.astimezone(timezone.utc),
+        "project": project,
+        "office": office,
+        "location": location,
+        "lake_name": lake_name,
+        "month_label": month_start_report.strftime("%b %Y").upper(),
+        "period": {
+            "year": year,
+            "month": month,
+            "last_day": last_day,
+            "timezone": tz_name,
+        },
+        "daily_rows": daily_rows,
+        "prior_month": prior_month,
+        "summary": summary,
+        "extremes": {
+            "max_elev": max_elev.get("value"),
+            "max_elev_day": (
+                max_elev.get("datetime").astimezone(tzinfo).day
+                if max_elev.get("datetime") is not None
+                else None
+            ),
+            "min_elev": min_elev.get("value"),
+            "min_elev_day": (
+                min_elev.get("datetime").astimezone(tzinfo).day
+                if min_elev.get("datetime") is not None
+                else None
+            ),
+            "max_storage": max_stor.get("value"),
+            "min_storage": min_stor.get("value"),
+        },
+        "levels": level_values,
+        "water_supply": water_supply,
+        "series": resolved_series,
+    }
 
 
 def build_report_table(

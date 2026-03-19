@@ -61,3 +61,15 @@ class EngineSpec:
     template: Optional[str] = None
     template_dir: Optional[str] = None
     options: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class DatasetSpec:
+    kind: str = "table"
+    options: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class TemplateSpec:
+    kind: str = "default"
+    options: Dict[str, Any] = field(default_factory=dict)

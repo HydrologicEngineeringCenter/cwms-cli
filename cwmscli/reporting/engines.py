@@ -65,6 +65,156 @@ def _align_text(value: str, width: int, align: str) -> str:
     return value.ljust(width)
 
 
+def _format_numeric(
+    value: Any,
+    width: int,
+    precision: int = 0,
+    missing: str = "--",
+) -> str:
+    if value is None:
+        return str(missing).rjust(width)
+    try:
+        return f"{float(value):>{width}.{precision}f}"
+    except Exception:
+        return str(value).rjust(width)
+
+
+def _format_intish(value: Any, width: int, missing: str = "--") -> str:
+    if value is None:
+        return str(missing).rjust(width)
+    try:
+        return f"{round(float(value)):>{width}.0f}"
+    except Exception:
+        return str(value).rjust(width)
+
+
+def _resolve_value(
+    path: str,
+    context: Dict[str, Any],
+    row: Optional[Dict[str, Any]] = None,
+) -> Any:
+    if path in {"", "."}:
+        return row if row is not None else context
+
+    def _walk(value: Any, parts: list[str]) -> Any:
+        cur = value
+        for part in parts:
+            if cur is None:
+                return None
+            if isinstance(cur, dict):
+                cur = cur.get(part)
+            else:
+                cur = getattr(cur, part, None)
+        return cur
+
+    parts = path.split(".")
+    if row is not None:
+        row_value = _walk(row, parts)
+        if row_value is not None:
+            return row_value
+    return _walk(context, parts)
+
+
+def _render_part(
+    part: Dict[str, Any],
+    context: Dict[str, Any],
+    row: Optional[Dict[str, Any]] = None,
+) -> str:
+    if "text" in part:
+        value = str(part.get("text", ""))
+    else:
+        value = _resolve_value(str(part.get("path", "")), context, row=row)
+        width = int(part.get("width") or 0)
+        align = str(part.get("align") or "right")
+        missing = str(part.get("missing", "--"))
+        as_type = str(part.get("format") or "string")
+        precision = int(part.get("precision") or 0)
+
+        if as_type == "int":
+            value = _format_intish(value, width or 1, missing=missing)
+            return value
+        if as_type == "float":
+            value = _format_numeric(
+                value, width or 1, precision=precision, missing=missing
+            )
+            return value
+        value = "" if value is None else str(value)
+        if width:
+            return _align_text(value, width, align)
+    return value
+
+
+def _render_text_layout(
+    config: Config,
+    context: Dict[str, Any],
+) -> RenderResult:
+    sections = list(config.template.options.get("sections") or [])
+    if not sections:
+        raise click.ClickException(
+            "template.sections is required for template.kind=text_layout"
+        )
+
+    lines: list[str] = []
+    for section in sections:
+        section = dict(section or {})
+        stype = str(section.get("type") or "")
+        if stype == "blank":
+            count = int(section.get("count") or 1)
+            lines.extend("" for _ in range(count))
+            continue
+        if stype == "literal":
+            lines.append(str(section.get("text", "")))
+            continue
+        if stype == "centered":
+            width = int(section.get("width") or 65)
+            for item in section.get("values") or []:
+                if isinstance(item, dict):
+                    text = _render_part(item, context)
+                else:
+                    text = str(item)
+                lines.append(text.center(width).rstrip())
+            continue
+        if stype == "fields":
+            parts = [dict(p or {}) for p in (section.get("parts") or [])]
+            lines.append(
+                "".join(_render_part(part, context) for part in parts).rstrip()
+            )
+            continue
+        if stype == "repeat":
+            source = _resolve_value(str(section.get("source", "")), context)
+            if not isinstance(source, list):
+                continue
+            parts = [dict(p or {}) for p in (section.get("parts") or [])]
+            blank_every = int(section.get("blank_every") or 0)
+            for idx, item in enumerate(source, start=1):
+                lines.append(
+                    "".join(
+                        _render_part(part, context, row=item) for part in parts
+                    ).rstrip()
+                )
+                if blank_every and idx % blank_every == 0 and idx != len(source):
+                    lines.append("")
+            continue
+
+    footer_lines = list(config.report.footer_lines or [])
+    if footer_lines:
+        lines.extend(str(line) for line in footer_lines)
+    return RenderResult(
+        content="\n".join(lines).rstrip() + "\n", default_extension=".txt"
+    )
+
+
+def _render_monthly_project_text(
+    config: Config,
+    context: Dict[str, Any],
+    *,
+    template_dir: Optional[str],
+    template_name: Optional[str],
+) -> RenderResult:
+    del template_dir, template_name
+    return _render_text_layout(config, context)
+
+
 def _render_text(
     config: Config,
     context: Dict[str, Any],
@@ -73,6 +223,14 @@ def _render_text(
     template_name: Optional[str],
 ) -> RenderResult:
     del template_dir, template_name
+
+    if config.template.kind == "text_layout":
+        return _render_monthly_project_text(
+            config,
+            context,
+            template_dir=None,
+            template_name=None,
+        )
 
     columns = context["columns"]
     rows = context["rows"]
