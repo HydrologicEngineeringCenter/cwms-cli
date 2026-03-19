@@ -10,6 +10,7 @@ from cwmscli.commands.blob import (
     _list_matching_files,
     _save_blob_content,
     download_cmd,
+    list_cmd,
     upload_cmd,
 )
 
@@ -205,3 +206,157 @@ def test_download_cmd_uses_media_type_to_write_text(tmp_path, monkeypatch):
     saved = tmp_path / "downloaded.txt"
     assert saved.exists()
     assert saved.read_text(encoding="utf-8") == "retrieved text"
+
+
+def test_download_cmd_initializes_session_with_api_key(tmp_path, monkeypatch):
+    dest = tmp_path / "downloaded"
+    calls = []
+
+    class FakeBlobListing:
+        df = pd.DataFrame(
+            [{"id": "TEST_TXT", "media-type-id": "text/plain", "description": "x"}]
+        )
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key):
+            calls.append(("init_session", api_root, api_key))
+            return None
+
+        @staticmethod
+        def get_blob(office_id, blob_id):
+            return "retrieved text"
+
+        @staticmethod
+        def get_blobs(office_id, blob_id_like):
+            return FakeBlobListing()
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+
+    class FakeHTTPError(Exception):
+        pass
+
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=FakeHTTPError)
+    )
+
+    download_cmd(
+        blob_id="test_txt",
+        dest=str(dest),
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="apikey 123",
+        dry_run=False,
+    )
+
+    assert calls == [("init_session", "https://example.test/", "apikey 123")]
+
+
+def test_list_cmd_initializes_session_with_api_key(monkeypatch):
+    calls = []
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key):
+            calls.append(("init_session", api_root, api_key))
+            return None
+
+        @staticmethod
+        def get_blobs(office_id, blob_id_like):
+            return pd.DataFrame(
+                [{"id": "TEST_TXT", "media-type-id": "text/plain", "description": "x"}]
+            )
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+
+    list_cmd(
+        blob_id_like="TEST_.*",
+        columns=[],
+        sort_by=[],
+        desc=False,
+        limit=None,
+        to_csv=None,
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="apikey 123",
+    )
+
+    assert calls == [("init_session", "https://example.test/", "apikey 123")]
+
+
+def test_download_cmd_anonymous_skips_api_key(tmp_path, monkeypatch):
+    dest = tmp_path / "downloaded"
+    calls = []
+
+    class FakeBlobListing:
+        df = pd.DataFrame(
+            [{"id": "TEST_TXT", "media-type-id": "text/plain", "description": "x"}]
+        )
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key):
+            calls.append(("init_session", api_root, api_key))
+            return None
+
+        @staticmethod
+        def get_blob(office_id, blob_id):
+            return "retrieved text"
+
+        @staticmethod
+        def get_blobs(office_id, blob_id_like):
+            return FakeBlobListing()
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+
+    class FakeHTTPError(Exception):
+        pass
+
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=FakeHTTPError)
+    )
+
+    download_cmd(
+        blob_id="test_txt",
+        dest=str(dest),
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="apikey 123",
+        dry_run=False,
+        anonymous=True,
+    )
+
+    assert calls == [("init_session", "https://example.test/", None)]
+
+
+def test_list_cmd_anonymous_skips_api_key(monkeypatch):
+    calls = []
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key):
+            calls.append(("init_session", api_root, api_key))
+            return None
+
+        @staticmethod
+        def get_blobs(office_id, blob_id_like):
+            return pd.DataFrame(
+                [{"id": "TEST_TXT", "media-type-id": "text/plain", "description": "x"}]
+            )
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+
+    list_cmd(
+        blob_id_like="TEST_.*",
+        columns=[],
+        sort_by=[],
+        desc=False,
+        limit=None,
+        to_csv=None,
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="apikey 123",
+        anonymous=True,
+    )
+
+    assert calls == [("init_session", "https://example.test/", None)]
