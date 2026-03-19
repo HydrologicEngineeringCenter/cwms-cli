@@ -208,7 +208,7 @@ def blob_group():
     help="Override media type (guessed from file if omitted).",
 )
 @click.option(
-    "--overwrite",
+    "--overwrite/--no-overwrite",
     default=False,
     show_default=True,
     help="If true, replace existing blob.",
