@@ -170,7 +170,7 @@ def test_download_cmd_uses_media_type_to_write_text(tmp_path, monkeypatch):
 
     class FakeCwms:
         @staticmethod
-        def init_session(api_root):
+        def init_session(api_root, api_key=None):
             return None
 
         @staticmethod
