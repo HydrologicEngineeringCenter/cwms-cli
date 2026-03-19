@@ -10,11 +10,13 @@ from collections import defaultdict
 from typing import Optional, Sequence, Tuple
 
 from cwmscli.utils import colors, get_api_key, log_scoped_read_hint
+from cwmscli.utils.click_help import DOCS_BASE_URL
 from cwmscli.utils.deps import requires
 
 # used to rebuild data URL for images
 DATA_URL_RE = re.compile(r"^data:(?P<mime>[^;]+);base64,(?P<data>.+)$", re.I | re.S)
 BASE64_TEXT_RE = re.compile(r"^[A-Za-z0-9+/]+={0,2}$")
+BLOB_DOCS_URL = f"{DOCS_BASE_URL}/cli/blob.html"
 
 
 @requires(
@@ -431,7 +433,8 @@ def upload_cmd(
                     ", ".join(rel_paths),
                 )
             logging.error(
-                "Bulk upload aborted. Adjust file names or use --blob-id-prefix to avoid duplicate generated blob IDs."
+                "Bulk upload aborted. Adjust file names or use --blob-id-prefix to avoid duplicate generated blob IDs. Docs: %s#blob-bulk-collisions",
+                BLOB_DOCS_URL,
             )
             sys.exit(2)
         uploads = [

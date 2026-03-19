@@ -3,6 +3,7 @@ import logging as py_logging
 import click
 
 from cwmscli.utils import colors
+from cwmscli.utils.click_help import DOCS_BASE_URL
 
 
 def to_uppercase(ctx, param, value):
@@ -101,7 +102,7 @@ def log_scoped_read_hint(
         colors.c(
             f"Access scope hint: a key was sent for this {action} request in office {office}. "
             f"If you need to view {resource} outside that key's access scope, retry with "
-            "--anonymous or remove the configured API key.",
+            f"--anonymous or remove the configured API key. Docs: {DOCS_BASE_URL}/cli/blob.html#blob-auth-scope",
             "yellow",
             bright=True,
         )
