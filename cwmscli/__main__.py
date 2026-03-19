@@ -7,7 +7,7 @@ import click
 
 from cwmscli.commands import commands_cwms
 from cwmscli.load import __main__ as load
-from cwmscli.reporting import reporting_cli
+from cwmscli.reporting import report_cli
 from cwmscli.usgs import usgs_group
 from cwmscli.utils.click_help import add_version_to_help_tree
 from cwmscli.utils.logging import LoggingConfig, setup_logging
@@ -55,7 +55,7 @@ cli.add_command(commands_cwms.shefcritimport)
 cli.add_command(commands_cwms.csv2cwms_cmd)
 cli.add_command(commands_cwms.update_cli_cmd)
 cli.add_command(commands_cwms.blob_group)
-cli.add_command(reporting_cli)
+cli.add_command(report_cli)
 cli.add_command(load.load_group)
 add_version_to_help_tree(cli)
 

@@ -6,6 +6,7 @@ import click
 
 from cwmscli.reporting.models import (
     ColumnSpec,
+    EngineSpec,
     HeaderCellSpec,
     ProjectSpec,
     ReportSpec,
@@ -47,6 +48,7 @@ def _parse_header_spec(raw: Optional[Dict[str, Any]]) -> Optional["TableHeaderSp
 class Config:
     office: str
     cda_api_root: Optional[str] = None
+    engine: EngineSpec = field(default_factory=EngineSpec)
     report: ReportSpec | Dict[str, Any] | None = None
     projects: List[ProjectSpec] = field(default_factory=list)
     columns: List[ColumnSpec] = field(default_factory=list)
@@ -73,12 +75,32 @@ class Config:
             or "SWT"
         )
 
+        engine_block = raw.get("engine") or {}
+        if isinstance(engine_block, str):
+            engine = EngineSpec(name=engine_block)
+        elif isinstance(engine_block, dict):
+            default_engine_name = (
+                "jinja2"
+                if engine_block.get("template") or engine_block.get("template_dir")
+                else "text"
+            )
+            engine = EngineSpec(
+                name=engine_block.get("name") or default_engine_name,
+                template=engine_block.get("template"),
+                template_dir=engine_block.get("template_dir"),
+                options=dict(engine_block.get("options") or {}),
+            )
+        else:
+            raise click.BadParameter("Invalid engine configuration.")
+
         report_block = raw.get("report") or {}
         report = ReportSpec(
             district=report_block.get("district", office),
             name=report_block.get("name", "Daily Report"),
             logo_left=report_block.get("logo_left"),
             logo_right=report_block.get("logo_right"),
+            title_lines=list(report_block.get("title_lines") or []),
+            footer_lines=list(report_block.get("footer_lines") or []),
         )
 
         cols: List[ColumnSpec] = []
@@ -96,6 +118,10 @@ class Config:
                     href=c.get("href"),
                     missing=c.get("missing"),
                     undefined=c.get("undefined"),
+                    begin=c.get("begin"),
+                    end=c.get("end"),
+                    align=c.get("align"),
+                    width=int(c["width"]) if c.get("width") is not None else None,
                 )
             )
 
@@ -130,6 +156,7 @@ class Config:
         return Config(
             office=office,
             cda_api_root=raw.get("cda_api_root") or os.getenv("CDA_API_ROOT"),
+            engine=engine,
             report=report,
             projects=projects,
             columns=cols,

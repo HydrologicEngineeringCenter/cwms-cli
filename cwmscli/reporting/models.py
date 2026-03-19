@@ -1,5 +1,5 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any, Dict, List, Optional
 
 
 @dataclass
@@ -15,6 +15,8 @@ class ReportSpec:
     name: str
     logo_left: Optional[str] = None
     logo_right: Optional[str] = None
+    title_lines: List[str] = field(default_factory=list)
+    footer_lines: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -49,3 +51,13 @@ class ColumnSpec:
     undefined: Optional[str] = None
     begin: Optional[str] = None
     end: Optional[str] = None
+    align: Optional[str] = None
+    width: Optional[int] = None
+
+
+@dataclass
+class EngineSpec:
+    name: str = "text"
+    template: Optional[str] = None
+    template_dir: Optional[str] = None
+    options: Dict[str, Any] = field(default_factory=dict)
