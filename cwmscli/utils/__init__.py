@@ -1,4 +1,23 @@
+import logging as py_logging
+
 import click
+
+
+def to_uppercase(ctx, param, value):
+    if value is None:
+        return None
+    return value.upper()
+
+
+def _set_log_level(ctx, param, value):
+    if value is None:
+        return
+    level = getattr(py_logging, value.upper(), None)
+    if level is None:
+        raise click.BadParameter(f"Invalid log level: {value}")
+    py_logging.getLogger().setLevel(level)
+    return value
+
 
 office_option = click.option(
     "-o",
@@ -6,11 +25,12 @@ office_option = click.option(
     required=True,
     envvar="OFFICE",
     type=str,
+    callback=to_uppercase,
     help="Office to grab data for",
 )
 api_root_option = click.option(
     "-a",
-    "--api_root",
+    "--api-root",
     required=True,
     envvar="CDA_API_ROOT",
     type=str,
@@ -26,18 +46,30 @@ api_coop_root_option = click.option(
 
 api_key_option = click.option(
     "-k",
-    "--api_key",
+    "--api-key",
     default=None,
     type=str,
     envvar="CDA_API_KEY",
-    help="api key for CDA. Can be user defined or place in env variable CDA_API_KEY. one of api_key or api_key_loc are required",
+    help="api key for CDA. Can be user defined or place in env variable CDA_API_KEY. one of api-key or api-key-loc are required",
 )
 api_key_loc_option = click.option(
     "-kl",
-    "--api_key_loc",
+    "--api-key-loc",
     default=None,
     type=str,
-    help="file storing Api Key. One of api_key or api_key_loc are required",
+    help="file storing Api Key. One of api-key or api-key-loc are required",
+)
+log_level_option = click.option(
+    "--log-level",
+    type=click.Choice(
+        ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"], case_sensitive=False
+    ),
+    default="INFO",
+    envvar="LOG_LEVEL",
+    callback=_set_log_level,
+    expose_value=False,  # Callback will set the log level of all methods
+    is_eager=True,  # Run before other commands (to cover any logging statements)
+    help="Set logging verbosity (overrides default INFO).",
 )
 
 
@@ -49,11 +81,12 @@ def get_api_key(api_key: str, api_key_loc: str) -> str:
             return f.readline().strip()
     else:
         raise Exception(
-            "must add a value to either --api_key(-k) or --api_key_loc(-kl)"
+            "must add a value to either --api-key(-k) or --api-key-loc(-kl)"
         )
 
 
 def common_api_options(f):
+    f = log_level_option(f)
     f = office_option(f)
     f = api_root_option(f)
     f = api_key_option(f)

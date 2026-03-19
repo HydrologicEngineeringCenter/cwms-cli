@@ -1,10 +1,15 @@
+import subprocess
+import sys
+import textwrap
+
 import click
 
 from cwmscli import requirements as reqs
 from cwmscli.callbacks import csv_to_list
 from cwmscli.commands import csv2cwms
-from cwmscli.utils import api_key_loc_option, common_api_options
+from cwmscli.utils import api_key_loc_option, common_api_options, to_uppercase
 from cwmscli.utils.deps import requires
+from cwmscli.utils.version import get_cwms_cli_version
 
 
 @click.command(
@@ -23,6 +28,7 @@ from cwmscli.utils.deps import requires
 @requires(reqs.cwms)
 def shefcritimport(filename, office, api_root, api_key, api_key_loc):
     from cwmscli.commands.shef_critfile_import import import_shef_critfile
+    from cwmscli.utils import get_api_key
 
     api_key = get_api_key(api_key, api_key_loc)
     import_shef_critfile(
@@ -87,6 +93,48 @@ def csv2cwms_cmd(**kwargs):
     csv2_main(**kwargs)
 
 
+@click.command("update", help="Update cwms-cli to the latest version using pip.")
+@click.option(
+    "--pre",
+    is_flag=True,
+    default=False,
+    help="Include pre-release versions during update.",
+)
+@click.option(
+    "-y",
+    "--yes",
+    is_flag=True,
+    default=False,
+    help="Skip confirmation prompt and run update immediately.",
+)
+def update_cli_cmd(pre: bool, yes: bool) -> None:
+    current_version = get_cwms_cli_version()
+    click.echo(f"Current cwms-cli version: {current_version}")
+
+    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "cwms-cli"]
+    if pre:
+        cmd.append("--pre")
+
+    if not yes:
+        proceed = click.confirm("Proceed with updating cwms-cli via pip?", default=True)
+        if not proceed:
+            click.echo("Update canceled.")
+            return
+
+    click.echo(f"Running: {' '.join(cmd)}")
+    try:
+        result = subprocess.run(cmd, check=False)
+    except OSError as e:
+        raise click.ClickException(f"Unable to run pip update command: {e}") from e
+
+    if result.returncode != 0:
+        raise click.ClickException(
+            "cwms-cli update failed. Please review pip output above."
+        )
+
+    click.echo("Update complete. Run `cwms-cli --version` to verify.")
+
+
 # region Blob
 # ================================================================================
 #  BLOB
@@ -94,14 +142,16 @@ def csv2cwms_cmd(**kwargs):
 @click.group(
     "blob",
     help="Manage CWMS Blobs (upload, download, delete, update, list)",
-    epilog="""
-  * Store a PDF/image as a CWMS blob with optional description
-  * Download a blob by id to your local filesystem
-  * Update a blob's name/description
-  * Bulk list blobs for an office
-""",
+    epilog=textwrap.dedent(
+        """
+    Example Usage:\n
+    - Store a PDF/image as a CWMS blob with optional description\n
+    - Download a blob by id to your local filesystem\n
+    - Update a blob's name/description/mime-type\n
+    - Bulk list blobs for an office  
+"""
+    ),
 )
-@requires(reqs.cwms)
 def blob_group():
     pass
 
@@ -124,13 +174,14 @@ def blob_group():
     help="Override media type (guessed from file if omitted).",
 )
 @click.option(
-    "--overwrite/--no-overwrite",
+    "--overwrite",
     default=False,
     show_default=True,
     help="If true, replace existing blob.",
 )
 @click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
+@requires(reqs.cwms)
 def blob_upload(**kwargs):
     from cwmscli.commands.blob import upload_cmd
 
@@ -148,7 +199,9 @@ def blob_upload(**kwargs):
     default=None,
     help="Destination file path. Defaults to blob-id.",
 )
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
+@requires(reqs.cwms)
 def blob_download(**kwargs):
     from cwmscli.commands.blob import download_cmd
 
@@ -158,9 +211,11 @@ def blob_download(**kwargs):
 # ================================================================================
 #       Delete
 # ================================================================================
-@blob_group.command("delete", help="[Not implemented] Delete a blob by ID")
+@blob_group.command("delete", help="Delete a blob by ID")
 @click.option("--blob-id", required=True, type=str, help="Blob ID to delete.")
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
+@requires(reqs.cwms)
 def delete_cmd(**kwargs):
     from cwmscli.commands.blob import delete_cmd
 
@@ -170,15 +225,33 @@ def delete_cmd(**kwargs):
 # ================================================================================
 #       Update
 # ================================================================================
-@blob_group.command("update", help="[Not implemented] Update/patch a blob by ID")
+@blob_group.command("update", help="Update/patch a blob by ID")
 @click.option("--blob-id", required=True, type=str, help="Blob ID to update.")
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@click.option(
+    "--description",
+    default=None,
+    help="New description JSON or text.",
+)
+@click.option(
+    "--media-type",
+    default=None,
+    help="New media type (guessed from file if omitted).",
+)
 @click.option(
     "--input-file",
     required=False,
     type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
     help="Optional file content to upload with update.",
 )
+@click.option(
+    "--overwrite/--no-overwrite",
+    default=False,
+    show_default=True,
+    help="If true, replace existing blob.",
+)
 @common_api_options
+@requires(reqs.cwms)
 def update_cmd(**kwargs):
     from cwmscli.commands.blob import update_cmd
 
@@ -218,10 +291,8 @@ def update_cmd(**kwargs):
     help="If set, write results to this CSV file.",
 )
 @common_api_options
+@requires(reqs.cwms)
 def list_cmd(**kwargs):
     from cwmscli.commands.blob import list_cmd
 
     list_cmd(**kwargs)
-
-
-# endregion
