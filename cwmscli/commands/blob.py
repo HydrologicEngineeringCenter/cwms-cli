@@ -565,6 +565,7 @@ def update_cmd(
             f"DRY RUN: would PATCH {api_root} blob with blob-id={blob_id} office={office}"
         )
         return
+    cwms.init_session(api_root=api_root, api_key=api_key)
     file_data = None
     if input_file:
         try:
@@ -591,7 +592,6 @@ def update_cmd(
 
     if file_data:
         blob["value"] = base64.b64encode(file_data).decode("utf-8")
-    cwms.init_session(api_root=api_root, api_key=api_key)
     cwms.update_blob(blob, fail_if_not_exists=not overwrite)
 
 
