@@ -144,6 +144,33 @@ def _render_part(
     return value
 
 
+def _condition_matches(condition: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    path = str(condition.get("path") or "").strip()
+    if not path:
+        return True
+    value = _resolve_value(path, context)
+    if "equals" in condition:
+        return value == condition.get("equals")
+    if "not_equals" in condition:
+        return value != condition.get("not_equals")
+    if "in" in condition:
+        return value in (condition.get("in") or [])
+    if "not_in" in condition:
+        return value not in (condition.get("not_in") or [])
+    return bool(value)
+
+
+def _section_enabled(section: Dict[str, Any], context: Dict[str, Any]) -> bool:
+    when = section.get("when")
+    if when is None:
+        return True
+    if isinstance(when, str):
+        return bool(_resolve_value(when, context))
+    if isinstance(when, dict):
+        return _condition_matches(when, context)
+    return bool(when)
+
+
 def _render_text_layout(
     config: Config,
     context: Dict[str, Any],
@@ -157,6 +184,8 @@ def _render_text_layout(
     lines: list[str] = []
     for section in sections:
         section = dict(section or {})
+        if not _section_enabled(section, context):
+            continue
         stype = str(section.get("type") or "")
         if stype == "blank":
             count = int(section.get("count") or 1)

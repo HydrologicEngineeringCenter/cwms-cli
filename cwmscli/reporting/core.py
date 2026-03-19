@@ -109,17 +109,17 @@ def _safe_mean(values: List[float | None]) -> float | None:
     return sum(nums) / len(nums)
 
 
-def _as_project_location(project_id: str, office: str) -> Dict[str, Any]:
+def _as_location_metadata(location_id: str, office: str) -> Dict[str, Any]:
     import cwms
 
     try:
-        loc = cwms.get_location(office_id=office, location_id=project_id)
+        loc = cwms.get_location(office_id=office, location_id=location_id)
         loc_json = getattr(loc, "json", None) or loc
         if isinstance(loc_json, dict):
             return {**loc_json}
     except Exception:
         pass
-    return {"name": project_id, "public-name": project_id}
+    return {"name": location_id, "public-name": location_id}
 
 
 def _resolve_anchor(
@@ -207,18 +207,197 @@ def _series_value_by_day(
     return out
 
 
+def _context_get(path: str, values: Dict[str, Any]) -> Any:
+    cur: Any = values
+    for part in path.split("."):
+        if cur is None:
+            return None
+        if isinstance(cur, dict):
+            cur = cur.get(part)
+        else:
+            cur = getattr(cur, part, None)
+    return cur
+
+
+def _context_has_path(path: str, values: Dict[str, Any]) -> bool:
+    cur: Any = values
+    for part in path.split("."):
+        if cur is None:
+            return False
+        if isinstance(cur, dict):
+            if part not in cur:
+                return False
+            cur = cur.get(part)
+        else:
+            if not hasattr(cur, part):
+                return False
+            cur = getattr(cur, part)
+    return True
+
+
+def _location_features(dataset: Dict[str, Any], location_id: str) -> Dict[str, Any]:
+    features = dict(
+        dataset.get("location_features") or dataset.get("project_features") or {}
+    )
+    feature_sets = dict(dataset.get("feature_sets") or {})
+    for key, members in feature_sets.items():
+        project_ids = {str(x).upper() for x in (members or [])}
+        features[str(key)] = location_id.upper() in project_ids
+    water_supply_projects = {
+        str(x).upper() for x in (dataset.get("water_supply_projects") or [])
+    }
+    if "water_supply" not in features:
+        features["water_supply"] = location_id.upper() in water_supply_projects
+    for item in dataset.get("features") or []:
+        features[str(item).lower()] = True
+    return features
+
+
+def _series_numeric_values(source: Any) -> List[float]:
+    if not isinstance(source, dict):
+        return []
+    points = source.get("points")
+    if isinstance(points, list):
+        out: List[float] = []
+        for point in points:
+            value = point.get("value") if isinstance(point, dict) else None
+            if value is not None:
+                out.append(float(value))
+        return out
+    values = source.get("values")
+    if isinstance(values, dict):
+        return [float(v) for v in values.values() if v is not None]
+    return []
+
+
+def _row_numeric_values(source: Any) -> List[float]:
+    if not isinstance(source, list):
+        return []
+    out: List[float] = []
+    for value in source:
+        if value is not None:
+            out.append(float(value))
+    return out
+
+
+def _series_extreme_point(source: Any, op: str) -> Dict[str, Any] | None:
+    if not isinstance(source, dict):
+        return None
+    points = source.get("points")
+    if not isinstance(points, list):
+        return None
+    valid_points = [
+        p for p in points if isinstance(p, dict) and p.get("value") is not None
+    ]
+    if not valid_points:
+        return None
+    key_fn = lambda p: float(p["value"])
+    return (
+        max(valid_points, key=key_fn) if op == "max" else min(valid_points, key=key_fn)
+    )
+
+
+def _evaluate_derived(
+    derived_cfg: Dict[str, Any],
+    values: Dict[str, Any],
+    tzinfo,
+) -> Dict[str, Any]:
+    derived: Dict[str, Any] = {}
+    pending = dict(derived_cfg)
+    while pending:
+        progressed = False
+        for key in list(pending):
+            spec = dict(pending[key] or {})
+            op = str(spec.get("op") or "").strip().lower()
+            source_path = str(spec.get("source") or "").strip()
+            eval_values = {**values, "derived": derived}
+            source = _context_get(source_path, eval_values) if source_path else None
+            if source_path and not _context_has_path(source_path, eval_values):
+                continue
+
+            if op == "sum":
+                nums = _series_numeric_values(source)
+                if not nums:
+                    nums = _row_numeric_values(source)
+                derived[key] = sum(nums) if nums else None
+            elif op == "mean":
+                nums = _series_numeric_values(source)
+                if not nums:
+                    nums = _row_numeric_values(source)
+                derived[key] = (sum(nums) / len(nums)) if nums else None
+            elif op == "multiply":
+                factor = float(spec.get("factor") or 1)
+                if source is None:
+                    derived[key] = None
+                else:
+                    derived[key] = float(source) * factor
+            elif op == "extreme":
+                mode = str(spec.get("mode") or "max").lower()
+                derived[key] = _series_extreme_point(source, mode)
+            elif op == "field":
+                field_name = str(spec.get("field") or "").strip()
+                derived[key] = (
+                    source.get(field_name) if isinstance(source, dict) else None
+                )
+            elif op == "datetime_format":
+                fmt = str(spec.get("format") or "%d")
+                dt_value = source
+                if isinstance(source, dict):
+                    dt_value = source.get("datetime")
+                if dt_value is None:
+                    derived[key] = None
+                else:
+                    if getattr(dt_value, "tzinfo", None) is None:
+                        dt_value = dt_value.replace(tzinfo=timezone.utc).astimezone(
+                            tzinfo
+                        )
+                    else:
+                        dt_value = dt_value.astimezone(tzinfo)
+                    derived[key] = dt_value.strftime(fmt)
+            elif op == "literal":
+                derived[key] = spec.get("value")
+            else:
+                raise click.BadParameter(
+                    f"Unsupported dataset.derived operation '{op}'."
+                )
+
+            del pending[key]
+            progressed = True
+        if not progressed:
+            unresolved = ", ".join(sorted(pending))
+            raise click.BadParameter(
+                f"Could not resolve dataset.derived entries: {unresolved}"
+            )
+    return derived
+
+
 def build_monthly_project_report(config: Config) -> Dict[str, Any]:
     dataset = config.dataset.options or {}
-    project = str(dataset.get("project") or "").strip()
-    if not project:
+    locations = [
+        str(x).strip().upper()
+        for x in (dataset.get("locations") or dataset.get("projects") or [])
+        if str(x).strip()
+    ]
+    location_id = (
+        str(dataset.get("location") or dataset.get("project") or "").strip().upper()
+    )
+    if not location_id and len(locations) == 1:
+        location_id = locations[0]
+    if not location_id:
         raise click.BadParameter(
-            "dataset.project is required for monthly_project reports."
+            "dataset.location is required for monthly reports. "
+            "If the config declares multiple dataset.locations, pass --location."
+        )
+    if locations and location_id not in locations:
+        raise click.BadParameter(
+            f"Location '{location_id}' is not listed in dataset.locations."
         )
 
     month_expr = str(dataset.get("month") or "").strip()
     if not month_expr:
         raise click.BadParameter(
-            "dataset.month is required for monthly_project reports."
+            "dataset.month is required for monthly_project reports. "
+            "Pass it in config or with --month."
         )
 
     office = str(dataset.get("office") or config.office)
@@ -226,9 +405,7 @@ def build_monthly_project_report(config: Config) -> Dict[str, Any]:
     report_hour = int(dataset.get("report_hour", 8))
     rainfall_hour = int(dataset.get("rainfall_hour", 7))
     level_hour = int(dataset.get("level_hour", 1))
-    water_supply_projects = {
-        str(x).upper() for x in (dataset.get("water_supply_projects") or [])
-    }
+    location_features = _location_features(dataset, location_id)
 
     try:
         year_s, month_s = month_expr.split("-", 1)
@@ -279,7 +456,11 @@ def build_monthly_project_report(config: Config) -> Dict[str, Any]:
 
     for key, spec in series_cfg.items():
         spec = dict(spec or {})
-        tsid = _expand_template(spec.get("tsid"), project=project)
+        tsid = _expand_template(
+            spec.get("tsid"),
+            project=location_id,
+            location=location_id,
+        )
         if not tsid:
             raise click.BadParameter(f"dataset.series.{key}.tsid is required.")
         unit = str(spec.get("unit") or config.default_unit)
@@ -321,7 +502,11 @@ def build_monthly_project_report(config: Config) -> Dict[str, Any]:
     level_values: Dict[str, float | None] = {}
     for key, spec in levels_cfg.items():
         spec = dict(spec or {})
-        level_id = _expand_template(spec.get("level"), project=project)
+        level_id = _expand_template(
+            spec.get("level"),
+            project=location_id,
+            location=location_id,
+        )
         if not level_id:
             raise click.BadParameter(f"dataset.levels.{key}.level is required.")
         unit = str(spec.get("unit") or config.default_unit)
@@ -335,12 +520,13 @@ def build_monthly_project_report(config: Config) -> Dict[str, Any]:
         )
         level_values[key] = vals.get(level_id)
 
-    location = _as_project_location(project, office)
-    lake_name = str(
+    location = _as_location_metadata(location_id, office)
+    location_name = str(
         location.get("public-name")
         or location.get("name")
+        or dataset.get("location_name")
         or dataset.get("project_name")
-        or project
+        or location_id
     )
 
     daily_dates = [date(year, month, day) for day in range(1, last_day + 1)]
@@ -360,76 +546,71 @@ def build_monthly_project_report(config: Config) -> Dict[str, Any]:
         }
         daily_rows.append(row)
 
+    for key, values_by_day in by_day.items():
+        if key == "day":
+            continue
+        for row, current_day in zip(daily_rows, daily_dates):
+            row.setdefault(key, values_by_day.get(current_day))
+
+    row_series_context: Dict[str, List[float | None]] = {}
+    if daily_rows:
+        for key in daily_rows[0]:
+            if key == "day":
+                continue
+            row_series_context[key] = [row.get(key) for row in daily_rows]
+
     prior_month_date = date(year, month, 1) - timedelta(days=1)
     prior_month = {
         "midnight_elev": by_day.get("midnight_elev", {}).get(prior_month_date),
         "storage_total": by_day.get("storage_total", {}).get(prior_month_date),
     }
 
-    summary = {
-        "total_power_release": _safe_sum([row["release_power"] for row in daily_rows]),
-        "total_total_release": _safe_sum([row["release_total"] for row in daily_rows]),
-        "total_evaporation": _safe_sum([row["evaporation"] for row in daily_rows]),
-        "total_inflow": _safe_sum([row["inflow"] for row in daily_rows]),
-        "total_rain_dam": _safe_sum([row["rain_dam"] for row in daily_rows]),
-        "total_rain_basin": _safe_sum([row["rain_basin"] for row in daily_rows]),
-        "average_elevation": _safe_mean([row["midnight_elev"] for row in daily_rows]),
-        "average_power_release": _safe_mean(
-            [row["release_power"] for row in daily_rows]
-        ),
-        "average_total_release": _safe_mean(
-            [row["release_total"] for row in daily_rows]
-        ),
-        "average_inflow": _safe_mean([row["inflow"] for row in daily_rows]),
+    daily_series_context = {
+        key: {"values": value_map} for key, value_map in by_day.items()
     }
-    summary["inflow_volume"] = (
-        summary["total_inflow"] * 1.9835
-        if summary["total_inflow"] is not None
-        else None
+    derived_cfg = dict(dataset.get("derived") or {})
+    derived = _evaluate_derived(
+        derived_cfg,
+        {
+            "series": resolved_series,
+            "daily": daily_series_context,
+            "rows": row_series_context,
+            "levels": level_values,
+            "summary": scalar_values,
+        },
+        tzinfo=tzinfo,
     )
 
-    extrema_cfg = dict(dataset.get("extrema") or {})
-    max_elev = scalar_values.get("max_elev", {})
-    min_elev = scalar_values.get("min_elev", {})
-    max_stor = scalar_values.get("max_storage", {})
-    min_stor = scalar_values.get("min_storage", {})
+    summary = {
+        "total_power_release": derived.get("total_power_release"),
+        "total_total_release": derived.get("total_total_release"),
+        "total_evaporation": derived.get("total_evaporation"),
+        "total_inflow": derived.get("total_inflow"),
+        "total_rain_dam": derived.get("total_rain_dam"),
+        "total_rain_basin": derived.get("total_rain_basin"),
+        "average_elevation": derived.get("average_elevation"),
+        "average_power_release": derived.get("average_power_release"),
+        "average_total_release": derived.get("average_total_release"),
+        "average_inflow": derived.get("average_inflow"),
+        "inflow_volume": derived.get("inflow_volume"),
+    }
 
-    elev_source_key = extrema_cfg.get("elevation_source")
-    if elev_source_key and elev_source_key in resolved_series:
-        points = resolved_series[elev_source_key]["points"]
-        valid_points = [p for p in points if p.get("value") is not None]
-        if valid_points:
-            max_point = max(valid_points, key=lambda p: float(p["value"]))
-            min_point = min(valid_points, key=lambda p: float(p["value"]))
-            max_elev = max_point
-            min_elev = min_point
-
-    storage_source_key = extrema_cfg.get("storage_source")
-    if storage_source_key and storage_source_key in resolved_series:
-        points = resolved_series[storage_source_key]["points"]
-        valid_points = [p for p in points if p.get("value") is not None]
-        if valid_points:
-            max_point = max(valid_points, key=lambda p: float(p["value"]))
-            min_point = min(valid_points, key=lambda p: float(p["value"]))
-            max_stor = max_point
-            min_stor = min_point
-
-    water_supply = None
-    if project.upper() in water_supply_projects and "water_supply" in by_day:
-        water_supply_total = _safe_sum(list(by_day["water_supply"].values()))
-        water_supply = {
-            "volume": (
-                water_supply_total * 1.9835 if water_supply_total is not None else None
-            )
-        }
+    max_elev = derived.get("max_elev_point") or {}
+    min_elev = derived.get("min_elev_point") or {}
+    max_stor = derived.get("max_storage_point") or {}
+    min_stor = derived.get("min_storage_point") or {}
 
     return {
-        "dataset_kind": "monthly_project",
+        "dataset_kind": config.dataset.kind,
         "base_end": month_end_report.astimezone(timezone.utc),
-        "project": project,
+        "location_id": location_id,
+        "project": location_id,
         "office": office,
         "location": location,
-        "lake_name": lake_name,
+        "location_features": location_features,
+        "project_features": location_features,
+        "location_name": location_name,
+        "lake_name": location_name,
         "month_label": month_start_report.strftime("%b %Y").upper(),
         "period": {
             "year": year,
@@ -457,8 +638,8 @@ def build_monthly_project_report(config: Config) -> Dict[str, Any]:
             "min_storage": min_stor.get("value"),
         },
         "levels": level_values,
-        "water_supply": water_supply,
         "series": resolved_series,
+        "derived": derived,
     }
 
 

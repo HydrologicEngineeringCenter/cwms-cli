@@ -20,10 +20,39 @@ def report_cli() -> None:
     pass
 
 
-def _build_context(config_path: str):
-    cfg = Config.from_yaml(config_path)
+def _normalize_month_expr(month_expr: Optional[str]) -> Optional[str]:
+    if month_expr is None:
+        return None
+    value = str(month_expr).strip()
+    if not value:
+        return None
+    if len(value) == 7 and value[4] == "-":
+        year_s, month_s = value.split("-", 1)
+        return f"{int(year_s):04d}-{int(month_s):02d}"
+    if len(value) == 7 and value[2] == "/":
+        month_s, year_s = value.split("/", 1)
+        return f"{int(year_s):04d}-{int(month_s):02d}"
+    raise click.BadParameter("Month must be in YYYY-MM or MM/YYYY format.")
 
-    if cfg.dataset.kind == "monthly_project":
+
+def _build_context(
+    config_path: str,
+    *,
+    location: Optional[str] = None,
+    month: Optional[str] = None,
+):
+    cfg = Config.from_yaml(config_path)
+    dataset_options = dict(cfg.dataset.options or {})
+    if location:
+        location_id = str(location).strip().upper()
+        dataset_options["location"] = location_id
+        dataset_options["project"] = location_id
+    normalized_month = _normalize_month_expr(month)
+    if normalized_month:
+        dataset_options["month"] = normalized_month
+    cfg.dataset.options = dataset_options
+
+    if cfg.dataset.kind in {"monthly_project", "monthly_location"}:
         import cwms
 
         cwms.init_session(api_root=cfg.cda_api_root)
@@ -109,6 +138,19 @@ REPORTING_REQUIREMENTS = (
     help="Path to report YAML definition.",
 )
 @click.option(
+    "--location",
+    "--project",
+    "location_id",
+    default=None,
+    help="Override the report location id, for example KEYS or OOLO.",
+)
+@click.option(
+    "--month",
+    "month_expr",
+    default=None,
+    help="Override the report month. Accepts YYYY-MM or MM/YYYY.",
+)
+@click.option(
     "--engine",
     "engine_name",
     default=None,
@@ -138,9 +180,19 @@ REPORTING_REQUIREMENTS = (
 )
 @requires(*REPORTING_REQUIREMENTS)
 def generate_report_cli(
-    config_path, engine_name, template_dir, template_name, out_path
+    config_path,
+    location_id,
+    month_expr,
+    engine_name,
+    template_dir,
+    template_name,
+    out_path,
 ):
-    cfg, context = _build_context(config_path)
+    cfg, context = _build_context(
+        config_path,
+        location=location_id,
+        month=month_expr,
+    )
     result = render_report(
         cfg,
         context,
