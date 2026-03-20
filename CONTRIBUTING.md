@@ -24,6 +24,15 @@ To run tests you can run: `poetry run pytest`
 Confirm your packages installed in your environment with:
 `poetry show --tree`
 
+## Documentation Ownership
+
+Contributor expectation for `csv2cwms`:
+
+- When practical, user-facing config and parsing errors should link to the
+  relevant RTD page so users have a direct path to the correct documentation.
+- If you add, rename, or remove config keys, update both the RTD [docs](docs/cli/csv2cwms_complete_config.rst) and the
+  [related error guidance](cwmscli/commands/csv2cwms/doclinks.py).
+
 ## Formatting
 
 Formatting of code is done via black. You must ensure you have walked through the getting start to setup the `pre-commit` steps for black to match this repositories style practices.  

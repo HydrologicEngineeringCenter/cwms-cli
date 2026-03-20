@@ -1,5 +1,6 @@
 {
     "interval": null,
+    "use_if_multiple": "last",
     "input_files": {
         "BROK": {
             "data_path": "cwmscli/commands/csv2cwms/tests/data/sample_brok.csv",
