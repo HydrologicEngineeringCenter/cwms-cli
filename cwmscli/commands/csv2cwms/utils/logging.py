@@ -1,7 +1,7 @@
 import logging
 from logging.handlers import RotatingFileHandler
 
-from .terminal import colorize
+from cwmscli.utils.colors import c, dim
 
 logger = logging.getLogger("csv2cwms")
 
@@ -20,11 +20,11 @@ class ColorFormatter(logging.Formatter):
     def formatTime(self, record, datefmt=None):
         """Override to colorize asctime in gray."""
         timestr = super().formatTime(record, datefmt)
-        return colorize(timestr, "gray")
+        return dim(timestr)
 
     def format(self, record):
         level_color = self.LEVEL_COLORS.get(record.levelno, "reset")
-        record.levelname = colorize(record.levelname, level_color)
+        record.levelname = c(record.levelname, level_color)
         return super().format(record)
 
 

@@ -180,6 +180,7 @@ References:
 - Bash pattern matching (globs): https://www.gnu.org/software/bash/manual/bash.html#Pattern-Matching
 - Bash quoting rules: https://www.gnu.org/software/bash/manual/bash.html#Quoting
 
+
 .. click:: cwmscli.commands.commands_cwms:blob_group
    :prog: cwms-cli blob
    :nested: full

@@ -65,13 +65,6 @@ def shefcritimport(filename, office, api_root, api_key, api_key_loc):
     type=click.Path(exists=True),
     help="Path to JSON config file",
 )
-@click.option(
-    "-df",
-    "--data-file",
-    "data_file",
-    type=str,
-    help="Override CSV file (else use config)",
-)
 @click.option("--log", show_default=True, help="Path to the log file.")
 @click.option("--dry-run", is_flag=True, help="Log only (no HTTP calls)")
 @click.option("--begin", type=str, help="YYYY-MM-DDTHH:MM (local to --tz)")
