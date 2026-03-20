@@ -1,0 +1,90 @@
+office: "SWT"
+cda_api_root: "https://cwms-data.usace.army.mil/cwms-data/"
+time_zone: "America/Chicago"
+default_unit: "EN"
+missing: "----"
+undefined: "--NA--"
+
+engine:
+  name: "jinja2"
+  template: "report.html.j2"
+begin: "2026-02-15T07:55:00-06:00"
+end: "2026-02-15T08:05:00-06:00"
+
+report:
+  district: "Tulsa District SWT"
+  name: "Daily Morning Reservoir Report"
+  title_lines: ["Tulsa District SWT", "Daily Morning Reservoir Report"]
+
+projects:
+  - location_id: "KEYS"
+    href: "https://www.swt-wc.usace.army.mil/KEYS.lakepage.html"
+  - location_id: "OOLO"
+    href: "https://www.swt-wc.usace.army.mil/OOLO.lakepage.html"
+  - location_id: "SKIA"
+    href: "https://www.swt-wc.usace.army.mil/SKIA.lakepage.html"
+
+header:
+  project:
+    text: "Reservoir"
+    align: center
+  rows:
+    -   - text: "Pool"
+          colspan: 2
+        - text: "Storage"
+          colspan: 2
+        - text: "Flows"
+          colspan: 2
+        - text: "Rain"
+          colspan: 1
+    -   - text: "Elev"
+        - text: "Top Cons"
+        - text: "Total"
+        - text: "Flood"
+        - text: "Inflow"
+        - text: "Outflow"
+        - text: "24Hr"
+
+columns:
+  - title: "Elev"
+    key: "elev"
+    tsid: "{project}.Elev.Inst.1Hour.0.Ccp-Rev"
+    unit: "ft"
+    precision: 2
+    href: "https://water.usace.army.mil/office/{office}/ts?name={tsid}"
+
+  - title: "Top Cons"
+    key: "top_cons"
+    level: "{project}.Elev.Inst.0.Top of Conservation"
+    unit: "ft"
+    precision: 2
+
+  - title: "Total"
+    key: "storage"
+    tsid: "{project}.Stor.Inst.1Hour.0.Ccp-Rev"
+    unit: "ac-ft"
+    precision: 0
+
+  - title: "Flood"
+    key: "flood_storage"
+    tsid: "{project}.Stor-Flood Pool.Inst.1Hour.0.Ccp-Rev"
+    unit: "ac-ft"
+    precision: 0
+
+  - title: "Inflow"
+    key: "inflow"
+    tsid: "{project}.Flow-Res In.Ave.~1Day.1Day.Regi-Rev-Adjusted"
+    unit: "cfs"
+    precision: 0
+
+  - title: "Outflow"
+    key: "outflow"
+    tsid: "{project}.Flow-Res Out.Ave.~1Day.1Day.Rev-Regi-Flowgroup"
+    unit: "cfs"
+    precision: 0
+
+  - title: "24Hr"
+    key: "rain"
+    tsid: "{project}.Precip-Inc.Total.~1Day.1Day.Ccp-Rev"
+    unit: "in"
+    precision: 2

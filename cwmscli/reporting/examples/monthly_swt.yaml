@@ -1,0 +1,288 @@
+office: "SWT"
+cda_api_root: "https://cwms-data.usace.army.mil/cwms-data/"
+time_zone: "America/Chicago"
+
+engine:
+  name: "text"
+
+dataset:
+  kind: "monthly_location"
+  office: "SWT"
+  locations:
+    - "KEYS"
+    - "OOLO"
+    - "ARBU"
+    - "ARCA"
+    - "CHEN"
+    - "ELDR"
+    - "FCOB"
+    - "FOSS"
+    - "MCGE"
+    - "MERE"
+    - "PATM"
+    - "THUN"
+    - "TOMS"
+    - "WAUR"
+  month: "2026-02"
+  timezone: "America/Chicago"
+  report_hour: 8
+  rainfall_hour: 7
+  level_hour: 1
+  feature_sets:
+    water_supply:
+      - "ARBU"
+      - "ARCA"
+      - "CHEN"
+      - "ELDR"
+      - "FCOB"
+      - "FOSS"
+      - "MCGE"
+      - "MERE"
+      - "OOLO"
+      - "PATM"
+      - "THUN"
+      - "TOMS"
+      - "WAUR"
+  series:
+    morning_elev:
+      mode: "daily"
+      tsid: "{location}.Elev.Inst.1Hour.0.Ccp-Rev"
+      unit: "ft"
+      precision: 2
+      hour: 8
+      begin_anchor: "month_start_midnight"
+      end_anchor: "month_end_report"
+    midnight_elev:
+      mode: "daily"
+      tsid: "{location}.Elev.Inst.1Hour.0.Ccp-Rev"
+      unit: "ft"
+      precision: 2
+      hour: 0
+      day_offset: -1
+      begin_anchor: "month_start_midnight"
+      end_anchor: "month_end_midnight_plus_one"
+    storage_total:
+      mode: "daily"
+      tsid: "{location}.Stor.Inst.1Hour.0.Ccp-Rev"
+      unit: "ac-ft"
+      precision: 0
+      hour: 0
+      day_offset: -1
+      begin_anchor: "month_start_midnight"
+      end_anchor: "month_end_midnight_plus_one"
+    release_power:
+      mode: "daily"
+      tsid: "{location}.Flow-Power.Ave.~1Day.1Day.Rev-Regi-Flowgroup"
+      unit: "cfs"
+      precision: 0
+      hour: 0
+      day_offset: -1
+      begin_anchor: "month_start_report"
+      end_anchor: "month_end_report_plus_one"
+    release_total:
+      mode: "daily"
+      tsid: "{location}.Flow-Res Out.Ave.~1Day.1Day.Rev-Regi-Flowgroup"
+      unit: "cfs"
+      precision: 0
+      hour: 0
+      day_offset: -1
+      begin_anchor: "month_start_report"
+      end_anchor: "month_end_report_plus_one"
+    evaporation:
+      mode: "daily"
+      tsid: "{location}.Evap.Total.~1Day.1Day.Ccp-Rev"
+      unit: "in"
+      precision: 3
+      hour: 7
+      begin_anchor: "month_start_report_yesterday"
+      end_anchor: "month_end_report"
+    inflow:
+      mode: "daily"
+      tsid: "{location}.Flow-Res In.Ave.~1Day.1Day.Regi-Rev-Adjusted"
+      unit: "cfs"
+      precision: 0
+      hour: 0
+      day_offset: -1
+      begin_anchor: "month_start_report"
+      end_anchor: "month_end_report_plus_one"
+    rain_dam:
+      mode: "daily"
+      tsid: "{location}.Precip-Inc.Total.~1Day.1Day.Ccp-Rev"
+      unit: "in"
+      precision: 2
+      hour: 7
+      begin_anchor: "month_start_report_yesterday"
+      end_anchor: "month_end_report"
+    rain_basin:
+      mode: "daily"
+      tsid: "{location}.Precip-Mean Areal.Total.~1Day.1Day.Metvue-Computed"
+      unit: "in"
+      precision: 2
+      hour: 7
+      begin_anchor: "month_start_report_yesterday"
+      end_anchor: "month_end_report"
+    storage_all:
+      mode: "source"
+      tsid: "{location}.Stor.Inst.1Hour.0.Ccp-Rev"
+      unit: "ac-ft"
+      precision: 0
+      begin_anchor: "month_start_midnight"
+      end_anchor: "month_end_report_plus_one"
+    elev_all:
+      mode: "source"
+      tsid: "{location}.Elev.Inst.1Hour.0.Ccp-Rev"
+      unit: "ft"
+      precision: 2
+      begin_anchor: "month_start_midnight"
+      end_anchor: "month_end_report_plus_one"
+  derived:
+    total_power_release:
+      op: sum
+      source: rows.release_power
+    total_total_release:
+      op: sum
+      source: rows.release_total
+    total_evaporation:
+      op: sum
+      source: rows.evaporation
+    total_inflow:
+      op: sum
+      source: rows.inflow
+    total_rain_dam:
+      op: sum
+      source: rows.rain_dam
+    total_rain_basin:
+      op: sum
+      source: rows.rain_basin
+    average_elevation:
+      op: mean
+      source: rows.midnight_elev
+    average_power_release:
+      op: mean
+      source: rows.release_power
+    average_total_release:
+      op: mean
+      source: rows.release_total
+    average_inflow:
+      op: mean
+      source: rows.inflow
+    inflow_volume:
+      op: multiply
+      source: derived.total_inflow
+      factor: 1.9835
+    max_elev_point:
+      op: extreme
+      source: series.elev_all
+      mode: max
+    min_elev_point:
+      op: extreme
+      source: series.elev_all
+      mode: min
+    max_storage_point:
+      op: extreme
+      source: series.storage_all
+      mode: max
+    min_storage_point:
+      op: extreme
+      source: series.storage_all
+      mode: min
+  levels:
+    top_of_flood:
+      level: "{location}.Elev.Inst.0.Top of Flood"
+      unit: "ft"
+    top_of_conservation:
+      level: "{location}.Elev.Inst.0.Top of Conservation"
+      unit: "ft"
+    normal_rainfall:
+      level: "{location}.Precip-Mean Areal.Total.1Month.Normal"
+      unit: "in"
+
+report:
+  district: "Tulsa District SWT"
+  name: "Monthly Lake Report"
+  footer_lines: ["REPORT IS SUBJECT TO CHANGE AND/OR REVISION"]
+
+template:
+  kind: "text_layout"
+  sections:
+    - type: centered
+      width: 73
+      values:
+        - path: location_name
+        - text: "MONTHLY LAKE REPORT"
+        - path: month_label
+    - type: blank
+      count: 2
+    - type: literal
+      text: "DAY   0800 ELEV   2400 ELEV   STORAGE   POWER REL   TOTAL REL   INFLOW"
+    - type: repeat
+      source: daily_rows
+      blank_every: 7
+      parts:
+        - path: day
+          width: 2
+          format: int
+        - text: "   "
+        - path: morning_elev
+          width: 8
+          format: float
+          precision: 2
+        - text: "   "
+        - path: midnight_elev
+          width: 8
+          format: float
+          precision: 2
+        - text: "   "
+        - path: storage_total
+          width: 7
+          format: int
+        - text: "   "
+        - path: release_power
+          width: 9
+          format: int
+          missing: "0"
+        - text: "   "
+        - path: release_total
+          width: 9
+          format: int
+        - text: "   "
+        - path: inflow
+          width: 6
+          format: int
+    - type: blank
+      count: 1
+    - type: fields
+      parts:
+        - text: "TOTALS "
+        - path: summary.total_power_release
+          width: 8
+          format: int
+          missing: "0"
+        - text: "   "
+        - path: summary.total_total_release
+          width: 8
+          format: int
+        - text: "   "
+        - path: summary.total_inflow
+          width: 8
+          format: int
+    - type: fields
+      parts:
+        - text: "AVERAGES "
+        - path: summary.average_elevation
+          width: 7
+          format: float
+          precision: 2
+        - text: "   "
+        - path: summary.average_power_release
+          width: 8
+          format: int
+          missing: "0"
+        - text: "   "
+        - path: summary.average_total_release
+          width: 8
+          format: int
+        - text: "   "
+        - path: summary.average_inflow
+          width: 8
+          format: int
