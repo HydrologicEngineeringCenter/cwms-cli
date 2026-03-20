@@ -6,7 +6,11 @@ from typing import Optional
 import click
 
 from cwmscli.reporting.config import Config
-from cwmscli.reporting.core import build_monthly_project_report, build_report_table
+from cwmscli.reporting.core import (
+    build_monthly_project_report,
+    build_report_table,
+    build_yearly_location_report,
+)
 from cwmscli.reporting.engines import render_report
 from cwmscli.reporting.utils.date import parse_when
 from cwmscli.utils.deps import requires
@@ -57,6 +61,25 @@ def _build_context(
 
         cwms.init_session(api_root=cfg.cda_api_root)
         report_ctx = build_monthly_project_report(cfg)
+        base_date = report_ctx.get("base_end", datetime.now(timezone.utc)).astimezone(
+            timezone.utc
+        )
+        return cfg, {
+            "office": cfg.office,
+            "report": dataclasses_asdict(cfg.report),
+            "engine": dataclasses_asdict(cfg.engine),
+            "dataset": dataclasses_asdict(cfg.dataset),
+            "template": dataclasses_asdict(cfg.template),
+            "base_date": base_date,
+            "generated_at": datetime.now(timezone.utc),
+            **report_ctx,
+        }
+
+    if cfg.dataset.kind in {"yearly_project", "yearly_location"}:
+        import cwms
+
+        cwms.init_session(api_root=cfg.cda_api_root)
+        report_ctx = build_yearly_location_report(cfg)
         base_date = report_ctx.get("base_end", datetime.now(timezone.utc)).astimezone(
             timezone.utc
         )

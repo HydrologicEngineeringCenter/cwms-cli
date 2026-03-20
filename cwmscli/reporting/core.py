@@ -207,6 +207,63 @@ def _series_value_by_day(
     return out
 
 
+def _series_value_by_month(
+    points: List[Dict[str, Any]],
+    tz_name: str,
+) -> Dict[tuple[int, int], float | None]:
+    from zoneinfo import ZoneInfo
+
+    tzinfo = ZoneInfo(tz_name)
+    out: Dict[tuple[int, int], float | None] = {}
+    for point in points:
+        dt_value = point["datetime"]
+        if dt_value.tzinfo is None:
+            dt_local = dt_value.replace(tzinfo=timezone.utc).astimezone(tzinfo)
+        else:
+            dt_local = dt_value.astimezone(tzinfo)
+        out[(dt_local.year, dt_local.month)] = point["value"]
+    return out
+
+
+def _series_monthly_stats(
+    points: List[Dict[str, Any]],
+    tz_name: str,
+) -> Dict[tuple[int, int], Dict[str, float | None]]:
+    from zoneinfo import ZoneInfo
+
+    tzinfo = ZoneInfo(tz_name)
+    buckets: Dict[tuple[int, int], List[float]] = {}
+    last_values: Dict[tuple[int, int], float | None] = {}
+    for point in points:
+        raw_value = point.get("value")
+        if raw_value is None:
+            continue
+        value = float(raw_value)
+        if math.isnan(value) or math.isinf(value):
+            continue
+        dt_value = point["datetime"]
+        if dt_value.tzinfo is None:
+            dt_local = dt_value.replace(tzinfo=timezone.utc).astimezone(tzinfo)
+        else:
+            dt_local = dt_value.astimezone(tzinfo)
+        year_month = (dt_local.year, dt_local.month)
+        buckets.setdefault(year_month, []).append(value)
+        last_values[year_month] = value
+
+    out: Dict[tuple[int, int], Dict[str, float | None]] = {}
+    for year_month, values in buckets.items():
+        if not values:
+            out[year_month] = {"avg": None, "min": None, "max": None, "last": None}
+            continue
+        out[year_month] = {
+            "avg": sum(values) / len(values),
+            "min": min(values),
+            "max": max(values),
+            "last": last_values.get(year_month),
+        }
+    return out
+
+
 def _context_get(path: str, values: Dict[str, Any]) -> Any:
     cur: Any = values
     for part in path.split("."):
@@ -640,6 +697,152 @@ def build_monthly_project_report(config: Config) -> Dict[str, Any]:
         "levels": level_values,
         "series": resolved_series,
         "derived": derived,
+    }
+
+
+def build_yearly_location_report(config: Config) -> Dict[str, Any]:
+    dataset = config.dataset.options or {}
+    locations = [
+        str(x).strip().upper()
+        for x in (dataset.get("locations") or dataset.get("projects") or [])
+        if str(x).strip()
+    ]
+    location_id = (
+        str(dataset.get("location") or dataset.get("project") or "").strip().upper()
+    )
+    if not location_id and len(locations) == 1:
+        location_id = locations[0]
+    if not location_id:
+        raise click.BadParameter(
+            "dataset.location is required for yearly reports. "
+            "If the config declares multiple dataset.locations, pass --location."
+        )
+    if locations and location_id not in locations:
+        raise click.BadParameter(
+            f"Location '{location_id}' is not listed in dataset.locations."
+        )
+
+    year = int(dataset.get("year") or 0)
+    if not year:
+        raise click.BadParameter(
+            "dataset.year is required for yearly reports. Pass it in config."
+        )
+
+    office = str(dataset.get("office") or config.office)
+    tz_name = str(dataset.get("timezone") or config.time_zone or "America/Chicago")
+
+    from zoneinfo import ZoneInfo
+
+    tzinfo = ZoneInfo(tz_name)
+    year_start = datetime(year, 1, 1, 0, 0, 0, tzinfo=tzinfo)
+    year_end = datetime(year + 1, 1, 1, 0, 0, 0, tzinfo=tzinfo)
+
+    monthly_series_cfg = dict(dataset.get("monthly_series") or {})
+    hourly_series_cfg = dict(dataset.get("hourly_series") or {})
+    if not monthly_series_cfg and not hourly_series_cfg:
+        raise click.BadParameter(
+            "dataset.monthly_series or dataset.hourly_series is required for yearly reports."
+        )
+
+    monthly_values: Dict[str, Dict[tuple[int, int], float | None]] = {}
+    hourly_stats: Dict[str, Dict[tuple[int, int], Dict[str, float | None]]] = {}
+    series_meta: Dict[str, Dict[str, Any]] = {}
+
+    for key, spec in monthly_series_cfg.items():
+        spec = dict(spec or {})
+        tsid = _expand_template(
+            spec.get("tsid"),
+            project=location_id,
+            location=location_id,
+        )
+        if not tsid:
+            raise click.BadParameter(f"dataset.monthly_series.{key}.tsid is required.")
+        unit = str(spec.get("unit") or config.default_unit)
+        office_id = str(spec.get("office") or office)
+        points = _extract_series_points(
+            tsid=tsid,
+            office=office_id,
+            unit=unit,
+            begin=year_start,
+            end=year_end,
+            tz_name=tz_name,
+        )
+        monthly_values[key] = _series_value_by_month(points, tz_name)
+        series_meta[key] = {
+            "tsid": tsid,
+            "unit": unit,
+            "precision": spec.get("precision"),
+            "kind": "monthly",
+        }
+
+    for key, spec in hourly_series_cfg.items():
+        spec = dict(spec or {})
+        tsid = _expand_template(
+            spec.get("tsid"),
+            project=location_id,
+            location=location_id,
+        )
+        if not tsid:
+            raise click.BadParameter(f"dataset.hourly_series.{key}.tsid is required.")
+        unit = str(spec.get("unit") or config.default_unit)
+        office_id = str(spec.get("office") or office)
+        points = _extract_series_points(
+            tsid=tsid,
+            office=office_id,
+            unit=unit,
+            begin=year_start,
+            end=year_end,
+            tz_name=tz_name,
+        )
+        hourly_stats[key] = _series_monthly_stats(points, tz_name)
+        series_meta[key] = {
+            "tsid": tsid,
+            "unit": unit,
+            "precision": spec.get("precision"),
+            "kind": "hourly",
+        }
+
+    location = _as_location_metadata(location_id, office)
+    location_name = str(
+        location.get("public-name")
+        or location.get("name")
+        or dataset.get("location_name")
+        or dataset.get("project_name")
+        or location_id
+    )
+
+    monthly_rows: List[Dict[str, Any]] = []
+    for month in range(1, 13):
+        current = datetime(year, month, 1, 0, 0, 0, tzinfo=tzinfo)
+        row: Dict[str, Any] = {
+            "month": current.strftime("%b").upper(),
+            "month_number": month,
+        }
+        for key, values_by_month in monthly_values.items():
+            row[key] = values_by_month.get((year, month))
+        for key, stats_by_month in hourly_stats.items():
+            stats = stats_by_month.get((year, month), {})
+            row[f"{key}_last"] = stats.get("last")
+            row[f"{key}_avg"] = stats.get("avg")
+            row[f"{key}_min"] = stats.get("min")
+            row[f"{key}_max"] = stats.get("max")
+        monthly_rows.append(row)
+
+    return {
+        "dataset_kind": config.dataset.kind,
+        "base_end": year_end.astimezone(timezone.utc),
+        "location_id": location_id,
+        "project": location_id,
+        "office": office,
+        "location": location,
+        "location_name": location_name,
+        "year_label": str(year),
+        "period": {
+            "year": year,
+            "timezone": tz_name,
+        },
+        "monthly_rows": monthly_rows,
+        "series": series_meta,
     }
 
 
