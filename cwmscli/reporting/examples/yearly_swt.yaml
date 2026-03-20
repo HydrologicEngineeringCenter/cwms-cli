@@ -1,0 +1,83 @@
+office: "SWT"
+cda_api_root: "https://cwms-data.usace.army.mil/cwms-data/"
+time_zone: "America/Chicago"
+
+engine:
+  name: "text"
+
+dataset:
+  kind: "yearly_location"
+  office: "SWT"
+  location: "KEYS"
+  year: 2025
+  timezone: "America/Chicago"
+  monthly_series:
+    inflow_monthly:
+      tsid: "{location}.Volume-Res In.Total.~1Month.1Month.Ccp-Rev"
+      unit: "ac-ft"
+      precision: 0
+    outflow_monthly:
+      tsid: "{location}.Volume-Res Out.Total.~1Month.1Month.Ccp-Rev"
+      unit: "ac-ft"
+      precision: 0
+  hourly_series:
+    elev_hourly:
+      tsid: "{location}.Elev.Inst.1Hour.0.Ccp-Rev"
+      unit: "ft"
+      precision: 2
+
+report:
+  district: "Tulsa District SWT"
+  name: "Yearly Reservoir Report"
+  footer_lines:
+    - "Monthly flow values use the published 1Month inflow and outflow volume series\
+      \ for KEYS."
+    - "ELEV EOM, AVG, MIN, and MAX are computed from the hourly elevation series."
+
+template:
+  kind: "text_layout"
+  sections:
+    - type: centered
+      width: 95
+      values:
+        - path: location_name
+        - text: "YEARLY RESERVOIR REPORT"
+        - path: year_label
+    - type: blank
+      count: 1
+    - type: literal
+      text: "MONTH   INFLOW VOL  OUTFLOW VOL   ELEV EOM   ELEV AVG   ELEV MIN   ELEV\
+        \ MAX"
+    - type: repeat
+      source: monthly_rows
+      parts:
+        - path: month
+          width: 4
+        - text: "   "
+        - path: inflow_monthly
+          width: 10
+          format: int
+        - text: "   "
+        - path: outflow_monthly
+          width: 11
+          format: int
+        - text: "   "
+        - path: elev_hourly_last
+          width: 8
+          format: float
+          precision: 2
+        - text: "   "
+        - path: elev_hourly_avg
+          width: 8
+          format: float
+          precision: 2
+        - text: "   "
+        - path: elev_hourly_min
+          width: 8
+          format: float
+          precision: 2
+        - text: "   "
+        - path: elev_hourly_max
+          width: 8
+          format: float
+          precision: 2

@@ -1,6 +1,18 @@
 import click
 
 from cwmscli import requirements as reqs
+from cwmscli.utils.deps import requires
+
+
+@click.group()
+def usgs_group():
+    """USGS utilities"""
+    pass
+
+
+import click
+
+from cwmscli import requirements as reqs
 from cwmscli.utils import (
     api_key_loc_option,
     api_key_option,
