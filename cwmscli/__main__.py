@@ -9,7 +9,7 @@ from cwmscli.commands import commands_cwms
 from cwmscli.load import __main__ as load
 from cwmscli.usgs import usgs_group
 from cwmscli.utils.click_help import add_version_to_help_tree
-from cwmscli.utils.logging import LoggingConfig, setup_logging
+from cwmscli.utils.logging import LoggingConfig, apply_quiet_log_level, setup_logging
 from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
 from cwmscli.utils.version import get_cwms_cli_version
 
@@ -40,8 +40,16 @@ from cwmscli.utils.version import get_cwms_cli_version
     ),
     default="INFO",
 )
-def cli(log_file: Optional[str], no_color: bool, log_level: str) -> None:
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    default=False,
+    help="Suppress routine output; warnings and errors still print.",
+)
+def cli(log_file: Optional[str], no_color: bool, log_level: str, quiet: bool) -> None:
     level = getattr(logging, log_level.upper(), logging.INFO)
+    level = apply_quiet_log_level(level, quiet=quiet)
 
     # Disable colors if stdout isn't a TTY (piped/redirected)
     tty = sys.stdout.isatty()

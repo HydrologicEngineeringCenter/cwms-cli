@@ -18,6 +18,12 @@ class LoggingConfig:
     color: bool = True
 
 
+def apply_quiet_log_level(level: int, *, quiet: bool) -> int:
+    if quiet and level < logging.WARNING:
+        return logging.WARNING
+    return level
+
+
 class ColorLevelFormatter(logging.Formatter):
     def __init__(self, fmt: str, datefmt: str, enable_color: bool) -> None:
         super().__init__(fmt=fmt, datefmt=datefmt)

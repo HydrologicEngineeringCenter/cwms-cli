@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import functools
+import logging
 from dataclasses import dataclass
 from typing import Optional
 from urllib.parse import urlparse
@@ -9,6 +10,8 @@ import click
 
 from cwmscli import requirements as reqs
 from cwmscli.utils.deps import requires
+
+logger = logging.getLogger(__name__)
 
 CONTEXT = dict(
     help_option_names=["-h", "--help"],
@@ -56,16 +59,14 @@ def validate_cda_targets(func):
                 "Type cwms-cli load --help for arg options."
             )
         elif same_root and not same_office:
-            click.secho(
+            logger.warning(
                 "Warning: source and target use the same CDA root URL but different offices. "
                 "This is allowed, but double-check intent.",
-                fg="yellow",
             )
 
-        click.secho(
+        logger.info(
             f"Source: {source_cda} (office={source_office or '-'})\n"
             f"Target: {target_cda} (office={source_office or '-'})",
-            fg="green" if not same_root else "yellow",
         )
         return func(*args, **kwargs)
 

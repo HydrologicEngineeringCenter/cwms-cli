@@ -5,6 +5,7 @@ import click
 
 from cwmscli.utils import colors
 from cwmscli.utils.click_help import DOCS_BASE_URL
+from cwmscli.utils.logging import apply_quiet_log_level
 
 
 def to_uppercase(ctx, param, value):
@@ -19,6 +20,8 @@ def _set_log_level(ctx, param, value):
     level = getattr(py_logging, value.upper(), None)
     if level is None:
         raise click.BadParameter(f"Invalid log level: {value}")
+    quiet = bool(ctx.find_root().params.get("quiet", False))
+    level = apply_quiet_log_level(level, quiet=quiet)
     py_logging.getLogger().setLevel(level)
     return value
 
