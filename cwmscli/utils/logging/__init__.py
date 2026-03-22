@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 from dataclasses import dataclass
 from typing import Optional
@@ -18,10 +19,26 @@ class LoggingConfig:
     color: bool = True
 
 
-def apply_quiet_log_level(level: int, *, quiet: bool) -> int:
-    if quiet and level < logging.WARNING:
-        return logging.WARNING
-    return level
+PRODUCTION_ENV_ALIASES = frozenset({"prod", "production"})
+
+
+def apply_logging_policies(
+    level: int, *, quiet: bool, environment: Optional[str]
+) -> int:
+    effective_level = level
+    normalized_env = (environment or "").strip().lower()
+
+    if normalized_env in PRODUCTION_ENV_ALIASES:
+        effective_level = max(effective_level, logging.WARNING)
+
+    if quiet:
+        effective_level = max(effective_level, logging.WARNING)
+
+    return effective_level
+
+
+def current_environment() -> Optional[str]:
+    return os.getenv("ENVIRONMENT")
 
 
 class ColorLevelFormatter(logging.Formatter):
