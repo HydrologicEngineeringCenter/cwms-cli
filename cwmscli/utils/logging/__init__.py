@@ -23,12 +23,16 @@ PRODUCTION_ENV_ALIASES = frozenset({"prod", "production"})
 
 
 def apply_logging_policies(
-    level: int, *, quiet: bool, environment: Optional[str]
+    level: int,
+    *,
+    quiet: bool,
+    environment: Optional[str],
+    explicit_log_level: bool = False,
 ) -> int:
     effective_level = level
     normalized_env = (environment or "").strip().lower()
 
-    if normalized_env in PRODUCTION_ENV_ALIASES:
+    if normalized_env in PRODUCTION_ENV_ALIASES and not explicit_log_level:
         effective_level = max(effective_level, logging.WARNING)
 
     if quiet:
