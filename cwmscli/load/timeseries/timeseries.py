@@ -80,14 +80,14 @@ def load_timeseries_ids_all(
     "ts_group_category_id",
     default=None,
     type=str,
-    help="ID of the timeseries group category to copy.",
+    help="Optional category filter when matching timeseries groups.",
 )
 @click.option(
     "--ts-group-category-office-id",
     "ts_group_category_office_id",
     default=None,
     type=str,
-    help="ID of the timeseries group category office to copy.",
+    help="Optional category office filter when matching timeseries groups.",
 )
 @click.option(
     "--begin",
@@ -128,14 +128,6 @@ def load_timeseries_data(
             )
     if (ts_id is None) == (ts_group is None):
         raise click.UsageError("Exactly one of --ts-id or --ts-group must be provided.")
-    if ts_group and not ts_group_category_id:
-        raise click.UsageError(
-            "When specifying --ts-group, --ts-group-category-id must also be provided."
-        )
-    if ts_group and not ts_group_category_office_id:
-        raise click.UsageError(
-            "When specifying --ts-group, --ts-group-category-office-id must also be provided."
-        )
     from cwmscli.load.timeseries.timeseries_data import _load_timeseries_data
 
     _load_timeseries_data(

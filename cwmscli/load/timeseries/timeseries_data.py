@@ -6,6 +6,33 @@ from typing import Optional
 import click
 
 
+def _extract_timeseries_groups(payload) -> list[dict]:
+    if payload is None:
+        return []
+    if isinstance(payload, list):
+        return [item for item in payload if isinstance(item, dict)]
+    return []
+
+
+def _group_id(group: dict) -> str:
+    value = group.get("id")
+    return str(value) if value else "<unknown>"
+
+
+def _category_id(group: dict) -> Optional[str]:
+    category = group.get("time-series-category")
+    if isinstance(category, dict) and category.get("id"):
+        return str(category["id"])
+    return None
+
+
+def _assigned_timeseries(group: dict) -> list[dict]:
+    assigned = group.get("assigned-time-series", [])
+    if isinstance(assigned, list):
+        return [item for item in assigned if isinstance(item, dict)]
+    return []
+
+
 def _load_timeseries_data(
     source_cda: str,
     source_office: str,
@@ -69,21 +96,53 @@ def _load_timeseries_data(
         ts_id_groups.append((source_office, ts_ids))
 
     if ts_group:
-        ts_group_data = cwms.get_timeseries_group(
-            group_id=ts_group,
-            category_id=ts_group_category_id,
+        ts_group_data = cwms.get_timeseries_groups(
             office_id=source_office,
+            include_assigned=True,
+            timeseries_category_like=ts_group_category_id,
+            timeseries_group_like=ts_group,
             category_office_id=ts_group_category_office_id,
         )
+        groups = _extract_timeseries_groups(ts_group_data.json)
+        if not groups:
+            raise click.ClickException(
+                f"No timeseries groups matched '{ts_group}' for office '{source_office}'."
+            )
+
         logging.info(
-            f"Found {len(ts_group_data.json.get('assigned-time-series', []))} timeseries in group {ts_group}."
+            f"Matched {len(groups)} timeseries group(s) for pattern {ts_group}."
         )
         logging.info(f"Storing TSID from begin: {begin} to end: {end}")
-        ts_ids_by_office: dict[str, list[str]] = {}
-        for ts in ts_group_data.json.get("assigned-time-series", []):
-            member_office = ts["office-id"]
-            ts_ids_by_office.setdefault(member_office, []).append(ts["timeseries-id"])
-        ts_id_groups.extend(ts_ids_by_office.items())
+
+        matched_groups: list[tuple[str, Optional[str], list[str]]] = []
+        combined_ts_ids: list[str] = []
+
+        for group in groups:
+            group_name = _group_id(group)
+            category_name = _category_id(group)
+            office_ts_ids = [
+                str(item["timeseries-id"])
+                for item in _assigned_timeseries(group)
+                if item.get("office-id") == source_office and item.get("timeseries-id")
+            ]
+            matched_groups.append((group_name, category_name, office_ts_ids))
+            combined_ts_ids.extend(office_ts_ids)
+
+        click.echo(
+            f"Matched {len(matched_groups)} timeseries group(s) for office '{source_office}':"
+        )
+        for group_name, category_name, office_ts_ids in matched_groups:
+            category_text = f" (category: {category_name})" if category_name else ""
+            click.echo(
+                f"  - {group_name}{category_text}: {len(office_ts_ids)} timeseries for office {source_office}"
+            )
+
+        deduped_ts_ids = list(dict.fromkeys(combined_ts_ids))
+        if not deduped_ts_ids:
+            raise click.ClickException(
+                f"No assigned timeseries in the matched group set belong to office '{source_office}'."
+            )
+        ts_id_groups.append((source_office, deduped_ts_ids))
 
     for current_office, current_ts_ids in ts_id_groups:
         try:
