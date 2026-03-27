@@ -79,6 +79,7 @@ def cli(
 cli.add_command(usgs_group, name="usgs")
 cli.add_command(commands_cwms.shefcritimport)
 cli.add_command(commands_cwms.csv2cwms_cmd)
+cli.add_command(commands_cwms.login_cmd)
 cli.add_command(commands_cwms.update_cli_cmd)
 cli.add_command(commands_cwms.blob_group)
 cli.add_command(load.load_group)
