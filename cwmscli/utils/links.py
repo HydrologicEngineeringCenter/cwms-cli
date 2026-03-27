@@ -1,1 +1,1 @@
-CDA_REGEXP_GUIDE_URL = "https://cwms-data.usace.army.mil/cwms-data/regexp"
+CDA_REGEXP_GUIDE_URL = "https://cwms-cli.readthedocs.io/en/latest/cli/cda_regex.html"

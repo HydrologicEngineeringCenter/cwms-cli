@@ -7,6 +7,7 @@ cwms-cli Documentation
    cli
    cli/setup
    cli/api_arguments
+   cli/cda_regex
    cli/csv2cwms
    cli/csv2cwms_complete_config
    cli/csv2cwms_intervals

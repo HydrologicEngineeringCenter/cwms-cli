@@ -42,7 +42,7 @@ html_context = {
 
 rst_epilog = """
 .. |cda-regexp-guide| replace:: CWMS Data API regular expression guide
-.. _cda-regexp-guide: https://cwms-data.usace.army.mil/cwms-data/regexp
+.. _cda-regexp-guide: https://cwms-cli.readthedocs.io/en/latest/cli/cda_regex.html
 """
 
 linkcheck_ignore = [
