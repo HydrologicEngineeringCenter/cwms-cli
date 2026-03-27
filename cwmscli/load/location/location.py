@@ -22,14 +22,20 @@ def location(ctx):
 
 @location.command(
     "ids-all",
-    help="Copy ALL locations from a source CDA to a target CDA.",
+    help=(
+        "Copy locations from a source CDA catalog to a target CDA. "
+        "The --like and --location-kind-like filters use CDA regex semantics."
+    ),
 )
 @shared_source_target_options
 @click.option(
     "--like",
     default=None,
     type=str,
-    help="LIKE filter for location name (e.g. 'Turbine*').",
+    help=(
+        "Regular expression passed directly to the source CDA catalog. "
+        "Examples: '^Black Butte$' for an exact match, '^Black Butte.*' for a prefix match."
+    ),
 )
 @click.option(
     "--location-kind-like",
@@ -37,13 +43,13 @@ def location(ctx):
     default=["ALL"],
     multiple=True,
     help=(
-        "Filter by LOCATION_KIND using LIKE; may be passed multiple times.\n\n"
+        "Filter by LOCATION_KIND using CDA regex semantics; may be passed multiple times.\n\n"
         "Default is to pull all Location kinds.\n\n"
         "Common kinds: SITE, EMBANKMENT, OVERFLOW, TURBINE, STREAM, PROJECT, "
         "STREAMGAGE, BASIN, OUTLET, LOCK, GATE.\n\n"
         "Examples:\n"
         "  --location-kind-like PROJECT --location-kind-like STREAM\n"
-        "  --location-kind-like '(SITE|STREAM)'   # Posix regex"
+        "  --location-kind-like '(SITE|STREAM)'   # regex OR"
     ),
 )
 @requires(reqs.cwms)
