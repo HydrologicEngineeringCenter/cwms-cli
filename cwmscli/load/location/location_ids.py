@@ -5,6 +5,8 @@ from typing import Iterable, Optional
 import click
 import cwms
 
+from cwmscli.utils.links import CDA_REGEXP_GUIDE_URL
+
 logger = logging.getLogger(__name__)
 
 
@@ -25,6 +27,12 @@ def load_locations(
         logger.info(
             f"  like={like or '-'}  kinds={list(location_kind_like) or '-'}  dry_run={dry_run}"
         )
+        if like or (
+            location_kind_like
+            and list(location_kind_like) != ["ALL"]
+            and list(location_kind_like) != []
+        ):
+            logger.info("  CDA regex guide: %s", CDA_REGEXP_GUIDE_URL)
 
     cwms.init_session(api_root=source_cda, api_key=None)
 

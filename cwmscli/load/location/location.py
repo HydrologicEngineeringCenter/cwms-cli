@@ -10,6 +10,7 @@ from cwmscli.load.root import (
     validate_cda_targets,
 )
 from cwmscli.utils.deps import requires
+from cwmscli.utils.links import CDA_REGEXP_GUIDE_URL
 
 
 @load_group.group(
@@ -24,7 +25,8 @@ def location(ctx):
     "ids-all",
     help=(
         "Copy locations from a source CDA catalog to a target CDA. "
-        "The --like and --location-kind-like filters use CDA regex semantics."
+        "The --like and --location-kind-like filters use CDA regex semantics. "
+        f"Regex guide: {CDA_REGEXP_GUIDE_URL}"
     ),
 )
 @shared_source_target_options
@@ -34,7 +36,7 @@ def location(ctx):
     type=str,
     help=(
         "Regular expression passed directly to the source CDA catalog. "
-        "Examples: '^Black Butte$' for an exact match, '^Black Butte.*' for a prefix match."
+        "Examples: '^Black Butte$' for an exact match, '^Black Butte.*' for a prefix match. "
     ),
 )
 @click.option(
@@ -49,7 +51,7 @@ def location(ctx):
         "STREAMGAGE, BASIN, OUTLET, LOCK, GATE.\n\n"
         "Examples:\n"
         "  --location-kind-like PROJECT --location-kind-like STREAM\n"
-        "  --location-kind-like '(SITE|STREAM)'   # regex OR"
+        "  --location-kind-like '(SITE|STREAM)'"
     ),
 )
 @requires(reqs.cwms)

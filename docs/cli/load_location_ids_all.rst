@@ -6,7 +6,8 @@ source CDA catalog into a target CDA.
 
 This subcommand passes ``--like`` and ``--location-kind-like`` directly to the
 source CDA catalog, so both options use CDA regular expression behavior. The
-CLI does not apply extra exact-match filtering.
+CLI does not apply extra exact-match filtering. For CDA regex syntax, see the
+|cda-regexp-guide|_.
 
 Examples
 --------
@@ -48,3 +49,4 @@ Notes
 - Use ``^...$`` when you want an exact location name.
 - Use ``.*`` for wildcard-style matching.
 - Quote regex values in the shell so characters such as ``^``, ``$``, and ``|`` are preserved.
+- Use the |cda-regexp-guide|_ when you need CDA-specific regex examples or syntax details.
