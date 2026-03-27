@@ -49,5 +49,6 @@ linkcheck_ignore = [
     r"^http://localhost(:\d+)?/.*",
     r"^http://127\.0\.0\.1(:\d+)?/.*",
     r"^https://www\.gnu\.org/software/bash/manual/bash\.html(#.*)?$",
+    r"^https://cwms-data\.usace\.army\.mil/cwms-data/regexp/?$",
 ]
 # autodoc_mock_imports = ["cwms", "pandas", "requests"]
