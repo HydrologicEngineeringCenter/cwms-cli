@@ -48,5 +48,6 @@ rst_epilog = """
 linkcheck_ignore = [
     r"^http://localhost(:\d+)?/.*",
     r"^http://127\.0\.0\.1(:\d+)?/.*",
+    r"^https://www\.gnu\.org/software/bash/manual/bash\.html(#.*)?$",
 ]
 # autodoc_mock_imports = ["cwms", "pandas", "requests"]
