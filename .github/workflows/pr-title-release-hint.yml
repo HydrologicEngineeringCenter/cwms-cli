@@ -65,9 +65,9 @@ jobs:
             This PR changes Python files, and the title does not match the release naming convention used by \`release-please\`.
 
             Consider renaming the PR title to one of these forms:
-            - \`fix: short description\`
-            - \`feat: short description\`
-            - \`feat!: short description\`
+            - \`PATCH - fix: short description\`
+            - \`MINOR - feat: short description\`
+            - \`MAJOR - feat!: short description\`
 
             If this PR will be squash-merged, the PR title often becomes the commit message on \`main\`, which affects whether the next release is patch, minor, or major.
 
