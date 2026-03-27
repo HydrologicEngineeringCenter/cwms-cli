@@ -1,7 +1,10 @@
+import logging
 from typing import Iterable, Optional
 
 import click
 import cwms
+
+logger = logging.getLogger(__name__)
 
 
 def load_locations(
@@ -15,10 +18,10 @@ def load_locations(
     location_kind_like: Optional[Iterable[str]] = "ALL",
 ):
     if verbose:
-        click.echo(
+        logger.info(
             f"[load locations] source={source_cda} ({source_office}) -> target={target_cda}"
         )
-        click.echo(
+        logger.info(
             f"  like={like or '-'}  kinds={list(location_kind_like) or '-'}  dry_run={dry_run}"
         )
 
@@ -41,7 +44,7 @@ def load_locations(
                 cat_kwargs_k["location_kind_like"] = kind
 
             if verbose >= 2:
-                click.echo(f"  > catalog query: {cat_kwargs_k}")
+                logger.debug("  > catalog query: %s", cat_kwargs_k)
 
             resp = cwms.get_locations_catalog(**cat_kwargs_k)
             if resp.df.empty:
@@ -54,11 +57,11 @@ def load_locations(
             locations.extend(locations_resp.json or [])
 
     if verbose:
-        click.echo(f"Fetched {len(locations)} locations from source")
+        logger.info("Fetched %s locations from source", len(locations))
 
     if dry_run:
         for loc in locations:
-            click.echo(
+            logger.info(
                 f"[dry-run] would store Location(name={loc['name']}) to {target_cda} ({source_office})"
             )
         return
@@ -72,7 +75,7 @@ def load_locations(
             if loc["active"] is True:
                 result = cwms.store_location(data=loc, fail_if_exists=False)
                 if verbose:
-                    click.echo(result)
+                    logger.info("%s", result)
         except Exception as e:
             errors += 1
             click.echo(f"Error storing location {loc}: \n\t{e}", err=True)
@@ -80,4 +83,4 @@ def load_locations(
     if errors:
         raise click.ClickException(f"Completed with {errors} error(s).")
     if verbose:
-        click.echo("Done.")
+        logger.info("Done.")

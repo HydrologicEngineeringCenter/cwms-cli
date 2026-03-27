@@ -1,9 +1,12 @@
 # cwmscli/load/location_group.py
+import logging
 import re
 from typing import Optional
 
 import click
 import cwms
+
+logger = logging.getLogger(__name__)
 
 
 def exact_or_regex(ids: list[str]) -> str:
@@ -31,10 +34,10 @@ def copy_from_group(
     category_office_id = category_office_id or source_office
 
     if verbose:
-        click.echo(
+        logger.info(
             f"[load location group] source={source_cda} ({source_office}) -> target={target_cda})"
         )
-        click.echo(
+        logger.info(
             f"  group={group_id}  category={category_id}  "
             f"group_office={group_office_id}  category_office={category_office_id} "
             f"filter_office={filter_office}  dry_run={dry_run}"
@@ -51,11 +54,11 @@ def copy_from_group(
             category_office_id=category_office_id,
         )
         if verbose:
-            click.echo(f"Fetched Location Group '{group_id}' from source:")
+            logger.info("Fetched Location Group '%s' from source:", group_id)
             if hasattr(grp, "df"):
-                click.echo(grp.df)
+                logger.info("%s", grp.df)
             else:
-                click.echo(grp.json)
+                logger.info("%s", grp.json)
     except Exception as e:
         raise click.ClickException(
             f"Failed to read location group '{group_id}' in category '{category_id}': {e}"
@@ -63,7 +66,7 @@ def copy_from_group(
 
     df = getattr(grp, "df", None)
     if df is None or df.empty:
-        click.echo("No members found in the specified location group.")
+        logger.info("No members found in the specified location group.")
         return
 
     if filter_office and "office-id" in df.columns:
@@ -71,9 +74,9 @@ def copy_from_group(
 
     member_ids = sorted(df["location-id"].dropna().unique().tolist())
     if verbose:
-        click.echo(f"Group members found: {len(member_ids)}")
+        logger.info("Group members found: %s", len(member_ids))
     if not member_ids:
-        click.echo("No valid location IDs to copy.")
+        logger.info("No valid location IDs to copy.")
         return
 
     try:
@@ -85,7 +88,7 @@ def copy_from_group(
             pattern = exact_or_regex(batch)
             resp = cwms.get_locations(office_id=source_office, location_ids=pattern)
             if verbose and getattr(resp, "df", None) is not None:
-                click.echo(f"Fetched {len(resp.df)} matching Locations in batch")
+                logger.info("Fetched %s matching Locations in batch", len(resp.df))
             if resp and resp.json:
                 locations.extend(resp.json)
 
@@ -93,11 +96,11 @@ def copy_from_group(
         raise click.ClickException(f"Failed to fetch locations from source: {e}")
 
     if verbose:
-        click.echo(f"Fetched {len(locations)} Location objects from source")
+        logger.info("Fetched %s Location objects from source", len(locations))
 
     if dry_run:
         for loc in locations:
-            click.echo(
+            logger.info(
                 f"[dry-run] would store Location(name={loc.name}) to {target_cda} ({source_office})"
             )
         return
@@ -111,16 +114,18 @@ def copy_from_group(
     for loc in locations:
         try:
             if verbose:
-                click.echo(f"Store: {loc['name']}")
+                logger.info("Store: %s", loc["name"])
             cwms.store_location(data=loc, fail_if_exists=False)
             if verbose:
-                click.echo("\tStored successfully.")
+                logger.info("\tStored successfully.")
         except Exception as e:
             errors += 1
             click.echo(f"Error storing location {loc}: \n\t{e}", err=True)
 
-    click.echo(
-        f"Successfully stored {len(locations) - errors} / {len(locations)} locations."
+    logger.info(
+        "Successfully stored %s / %s locations.",
+        len(locations) - errors,
+        len(locations),
     )
 
     if errors:
