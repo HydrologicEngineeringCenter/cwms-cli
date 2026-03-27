@@ -19,6 +19,45 @@ Once you have the repository on your system you can proceed:
 
 To run tests you can run: `poetry run pytest`
 
+## Releases
+
+Releases are managed with `release-please`. Do not create releases or tags manually in the GitHub UI.
+
+The release flow is:
+
+1. Merge changes to `main`.
+2. GitHub Actions updates or opens a release PR with the proposed version bump and changelog.
+3. Review and merge that release PR when the release is ready.
+4. The release workflow creates the git tag and GitHub release, publishes to PyPI, and uploads the built artifacts.
+
+Contributor expectations:
+
+- Prefer Conventional Commit style subjects in squash commits or PR titles when practical, for example `fix: handle location regex filtering` or `feat: add blob upload glob support`.
+- Keep user-visible changes described clearly in PR titles and merge commits because release notes are assembled from merged work.
+- Do not bump `pyproject.toml` manually for normal releases.
+- Do not draft a release in the GitHub UI before the release workflow runs.
+
+Maintainer note:
+
+- Repository Settings > Actions > General should allow GitHub Actions to create pull requests, otherwise `release-please` will not be able to open the release PR.
+
+### Conventional Commit Guidance
+
+`release-please` decides the next release version from merged commit messages.
+
+- `fix: ...` creates a patch release.
+- `feat: ...` creates a minor release.
+- `feat!: ...` creates a major release.
+- `BREAKING CHANGE: ...` in the commit body or footer also creates a major release.
+
+Examples:
+
+- `fix: handle duplicate release asset upload`
+- `feat: add location ids-bygroup loader`
+- `feat!: rename blob upload flags`
+
+If you use squash merge, the PR title usually becomes the final commit subject on `main`, so PR titles should follow this format for user-visible Python changes.
+
 ## Helpful Tips
 
 Confirm your packages installed in your environment with:
