@@ -1,8 +1,11 @@
 import logging
+import re
 from typing import Iterable, Optional
 
 import click
 import cwms
+
+from cwmscli.utils.links import CDA_REGEXP_GUIDE_URL
 
 logger = logging.getLogger(__name__)
 
@@ -24,20 +27,28 @@ def load_locations(
         logger.info(
             f"  like={like or '-'}  kinds={list(location_kind_like) or '-'}  dry_run={dry_run}"
         )
+        if like or (
+            location_kind_like
+            and list(location_kind_like) != ["ALL"]
+            and list(location_kind_like) != []
+        ):
+            logger.info("  CDA regex guide: %s", CDA_REGEXP_GUIDE_URL)
 
     cwms.init_session(api_root=source_cda, api_key=None)
 
     cat_kwargs = {"office_id": source_office}
     if like:
         cat_kwargs["like"] = like
-    kinds = list(location_kind_like) if location_kind_like else [None]
+    kinds = list(location_kind_like) if location_kind_like else ["ALL"]
+    if "ALL" in kinds:
+        kinds = ["ALL"]
 
     locations = []
 
-    if "ALL" in kinds:
+    if kinds == ["ALL"] and not like:
         locations = cwms.get_locations(office_id=source_office).json
     else:
-        locations = []
+        seen_location_ids = set()
         for kind in kinds:
             cat_kwargs_k = dict(cat_kwargs)
             if kind != "ALL":
@@ -50,11 +61,18 @@ def load_locations(
             if resp.df.empty:
                 continue
 
-            loc_ids = resp.df["name"].tolist()
-            locations_resp = cwms.get_locations(
-                office_id=source_office, location_ids=loc_ids
-            )
-            locations.extend(locations_resp.json or [])
+            for location_id in resp.df["name"].tolist():
+                if location_id in seen_location_ids:
+                    continue
+                seen_location_ids.add(location_id)
+                if verbose >= 2:
+                    logger.debug("  > location fetch: %s", location_id)
+                detail_resp = cwms.get_locations(
+                    office_id=source_office,
+                    location_ids=rf"^{re.escape(location_id)}$",
+                )
+                if detail_resp and detail_resp.json:
+                    locations.extend(detail_resp.json)
 
     if verbose:
         logger.info("Fetched %s locations from source", len(locations))

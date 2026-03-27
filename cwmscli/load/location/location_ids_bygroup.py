@@ -14,7 +14,7 @@ def exact_or_regex(ids: list[str]) -> str:
         return r"^$"
     if len(ids) == 1:
         return rf"^{re.escape(ids[0])}$"
-    return r"^(?:" + "|".join(re.escape(x) for x in ids) + r")$"
+    return r"^(" + "|".join(re.escape(x) for x in ids) + r")$"
 
 
 def copy_from_group(
@@ -101,7 +101,7 @@ def copy_from_group(
     if dry_run:
         for loc in locations:
             logger.info(
-                f"[dry-run] would store Location(name={loc.name}) to {target_cda} ({source_office})"
+                f"[dry-run] would store Location(name={loc['name']}) to {target_cda} ({source_office})"
             )
         return
 

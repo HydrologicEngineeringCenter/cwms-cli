@@ -1,0 +1,31 @@
+{% extends "!footer.html" %}
+
+{% block extrafooter %}
+  {{ super() }}
+  {% set doc_title = title|striptags %}
+  {% if doc_title == '<no title>' %}
+    {% set doc_title = project ~ ' Documentation' %}
+  {% endif %}
+  {% if docs_public_base_url %}
+    {% set doc_page = docs_public_base_url ~ pagename ~ '.html' %}
+  {% elif pageurl %}
+    {% set doc_page = pageurl %}
+  {% else %}
+    {% set doc_page = pagename ~ '.html' %}
+  {% endif %}
+  {% set issue_title = ('Docs issue: ' ~ doc_title) | urlencode %}
+  {% set issue_body = (
+    'Documentation page: ' ~ doc_page ~ '\n'
+    ~ 'Source page key: ' ~ pagename ~ '\n\n'
+    ~ 'Describe the documentation issue here.'
+  ) | urlencode %}
+  <p>
+    <strong>
+      <span class="fa fa-exclamation-circle" aria-hidden="true"></span>
+      Found a documentation issue?
+    </strong>
+    <a href="https://github.com/hydrologicengineeringcenter/cwms-cli/issues/new?title={{ issue_title }}&body={{ issue_body }}">
+      Report it on GitHub
+    </a>.
+  </p>
+{% endblock %}

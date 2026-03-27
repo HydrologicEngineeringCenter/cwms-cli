@@ -9,6 +9,7 @@ from cwmscli.load.root import (
     validate_cda_targets,
 )
 from cwmscli.utils.deps import requires
+from cwmscli.utils.links import CDA_REGEXP_GUIDE_URL
 
 
 @load_group.group(
@@ -21,7 +22,10 @@ def timeseries(ctx):
 
 @timeseries.command(
     "ids-all",
-    help="Copy ALL timeseries IDs for locations in a target CDA from a source CDA.",
+    help=(
+        "Copy ALL timeseries IDs for locations in a target CDA from a source CDA. "
+        f"Regex guide for --timeseries-id-regex: {CDA_REGEXP_GUIDE_URL}"
+    ),
 )
 @shared_source_target_options
 @click.option(
@@ -29,7 +33,7 @@ def timeseries(ctx):
     "timeseries_id_regex",
     default=None,
     type=str,
-    help="regex filter for timeseries ID (e.g. 'LocID.*').",
+    help="Regex filter for timeseries ID (e.g. '^LocID.*').",
 )
 @requires(reqs.cwms)
 @validate_cda_targets

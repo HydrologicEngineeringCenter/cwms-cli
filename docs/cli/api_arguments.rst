@@ -49,6 +49,7 @@ Notes
 - ``--office`` uses the ``OFFICE`` environment variable.
 - ``--api-root`` uses the ``CDA_API_ROOT`` environment variable.
 - ``--api-key`` uses the ``CDA_API_KEY`` environment variable.
+- For CDA-backed regex filters such as ``--like``, ``--location-kind-like``, and ``--timeseries-id-regex``, see the |cda-regexp-guide|_.
 - Commands may still expose additional non-API options such as config files,
   timezone selection, or dry-run behavior.
 
