@@ -2,6 +2,7 @@ import os
 import subprocess
 import sys
 import textwrap
+from typing import Optional
 
 import click
 
@@ -115,7 +116,7 @@ def csv2cwms_cmd(**kwargs):
     default=False,
     help="Skip confirmation prompt and run update immediately.",
 )
-def update_cli_cmd(target_version: str | None, pre: bool, yes: bool) -> None:
+def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
     current_version = get_cwms_cli_version()
     package_spec = build_update_package_spec(target_version)
 

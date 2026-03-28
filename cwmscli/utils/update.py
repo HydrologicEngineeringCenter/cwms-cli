@@ -1,8 +1,9 @@
 import subprocess
 import tempfile
+from typing import List, Optional
 
 
-def build_update_package_spec(target_version: str | None) -> str:
+def build_update_package_spec(target_version: Optional[str]) -> str:
     if target_version:
         return f"cwms-cli=={target_version}"
     return "cwms-cli"
@@ -15,7 +16,7 @@ def looks_like_missing_version(pip_output: str, package_spec: str) -> bool:
     ) and package_spec in pip_output
 
 
-def write_windows_update_script(cmd: list[str]) -> str:
+def write_windows_update_script(cmd: List[str]) -> str:
     quoted_cmd = subprocess.list2cmdline(cmd)
     script = "\r\n".join(
         [
@@ -50,7 +51,7 @@ def write_windows_update_script(cmd: list[str]) -> str:
         return fh.name
 
 
-def launch_windows_update(cmd: list[str]) -> str:
+def launch_windows_update(cmd: List[str]) -> str:
     script_path = write_windows_update_script(cmd)
     creationflags = getattr(subprocess, "CREATE_NEW_CONSOLE", 0)
     subprocess.Popen(
