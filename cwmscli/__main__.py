@@ -17,15 +17,18 @@ from cwmscli.utils.logging import (
     setup_logging,
 )
 from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
-from cwmscli.utils.version import get_cwms_cli_version
+from cwmscli.utils.version_cli import show_version_and_exit
 
 
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
-@click.version_option(
-    get_cwms_cli_version(),
+@click.option(
     "--version",
     "-V",
-    message="cwms-cli version %(version)s",
+    is_flag=True,
+    is_eager=True,
+    expose_value=False,
+    callback=show_version_and_exit,
+    help="Show the cwms-cli version and exit.",
 )
 @click.option(
     "--log-file",
