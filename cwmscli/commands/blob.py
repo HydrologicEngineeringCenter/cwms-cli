@@ -133,6 +133,11 @@ def _resolve_optional_api_key(api_key: Optional[str], anonymous: bool) -> Option
     return get_api_key(api_key, None)
 
 
+def _response_status_code(exc: BaseException) -> Optional[int]:
+    response = getattr(exc, "response", None)
+    return getattr(response, "status_code", None)
+
+
 def store_blob(**kwargs):
     import cwms
     import requests
@@ -597,6 +602,7 @@ def download_cmd(
 
 def delete_cmd(blob_id: str, office: str, api_root: str, api_key: str, dry_run: bool):
     import cwms
+    import requests
 
     if dry_run:
         logging.info(
@@ -604,7 +610,17 @@ def delete_cmd(blob_id: str, office: str, api_root: str, api_key: str, dry_run: 
         )
         return
     cwms.init_session(api_root=api_root, api_key=api_key)
-    cwms.delete_blob(office_id=office, blob_id=blob_id)
+    try:
+        cwms.delete_blob(office_id=office, blob_id=blob_id)
+    except requests.HTTPError as e:
+        if _response_status_code(e) == 404:
+            logging.info(
+                "Blob %s was already absent in office %s. Nothing to delete.",
+                blob_id,
+                office,
+            )
+            return
+        raise
     logging.info(f"Deleted blob: {blob_id} for office: {office}")
 
 
