@@ -88,11 +88,11 @@ log_level_option = click.option(
 
 
 def get_api_key(api_key: str, api_key_loc: str) -> str:
-    if api_key is not None:
-        return api_key
-    elif api_key_loc is not None:
+    if api_key_loc is not None:
         with open(api_key_loc, "r") as f:
             return f.readline().strip()
+    elif api_key is not None:
+        return api_key
     else:
         raise Exception(
             "must add a value to either --api-key(-k) or --api-key-loc(-kl)"
