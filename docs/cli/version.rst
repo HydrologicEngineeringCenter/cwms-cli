@@ -2,6 +2,8 @@ Version argument
 ================
 
 Use the version argument to print the installed ``cwms-cli`` version and exit.
+If a newer release is available on PyPI, ``cwms-cli`` also prints a short
+upgrade hint that points to ``cwms-cli update``.
 
 Examples
 --------
