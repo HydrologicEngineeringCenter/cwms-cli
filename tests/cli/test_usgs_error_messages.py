@@ -53,7 +53,7 @@ def test_get_cwms_ts_loc_data_errors_when_api_root_returns_html(monkeypatch, cap
         raise AssertionError("Expected SystemExit")
     except SystemExit as exc:
         assert exc.code == 1
-    assert "returned an HTML page" in caplog.text
+    assert "returned an unexpected response" in caplog.text
     assert "/cwms-data" in caplog.text
 
 
