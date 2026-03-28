@@ -6,6 +6,45 @@ import numpy as np
 import pandas as pd
 import requests
 
+from cwmscli.utils import colors
+
+
+def _response_looks_like_html(payload) -> bool:
+    return isinstance(payload, str) and "<html" in payload.lower()
+
+
+def _log_error_and_exit(message: str, hint: str | None = None, *, exit_code: int = 1):
+    logging.error(colors.c(message, "red", bright=True))
+    if hint:
+        logging.error(colors.c(f"Hint: {hint}", "yellow", bright=True))
+    raise SystemExit(exit_code)
+
+
+def _require_group_dataframe(response, *, resource_name: str, office: str):
+    payload = getattr(response, "json", None)
+    if _response_looks_like_html(payload):
+        _log_error_and_exit(
+            f"CWMS returned an HTML page instead of {resource_name} data for office {office}.",
+            "Check that --api-root points to the CDA API endpoint ending in /cwms-data.",
+        )
+
+    try:
+        df = response.df
+    except AttributeError as exc:
+        if isinstance(payload, str):
+            _log_error_and_exit(
+                f"CWMS returned an unexpected response while reading {resource_name} for office {office}.",
+                "Check that --api-root points to the CDA API endpoint ending in /cwms-data.",
+            )
+        raise
+
+    if df is None:
+        _log_error_and_exit(
+            f"CWMS did not return any {resource_name} data for office {office}."
+        )
+
+    return df
+
 
 def getusgs_cda(
     api_root: str,
@@ -58,12 +97,13 @@ def getusgs_cda(
         CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back)
     else:
         if backfill_tsids:
-            logging.error(
-                f"The following backload timeseries ids were not present in the USGS timeseries or Locations groups: {backfill_tsids}"
+            _log_error_and_exit(
+                f"The following backfill time series ids were not present in the USGS time series or location alias groups: {backfill_tsids}"
             )
         else:
-            logging.error(
-                f"USGS data was present in the timeseries or locations groups"
+            _log_error_and_exit(
+                f"No eligible USGS time series were found for office {office_id}.",
+                "Confirm that time series exist in Data Acquisition / USGS TS Data Acquisition and that matching entries exist in Agency Aliases / USGS Station Number.",
             )
 
 
@@ -115,18 +155,36 @@ def get_CMWS_TS_Loc_Data(office):
             usgs_param = "Not Found"
         return usgs_param
 
-    df = cwms.get_timeseries_group(
-        group_id="USGS TS Data Acquisition",
-        category_id="Data Acquisition",
-        office_id=office,
-        category_office_id="CWMS",
-        group_office_id="CWMS",
-    ).df
+    df = _require_group_dataframe(
+        cwms.get_timeseries_group(
+            group_id="USGS TS Data Acquisition",
+            category_id="Data Acquisition",
+            office_id=office,
+            category_office_id="CWMS",
+            group_office_id="CWMS",
+        ),
+        resource_name="USGS TS Data Acquisition group",
+        office=office,
+    )
+    if df is None or df.empty:
+        _log_error_and_exit(
+            f"No time series are defined in Data Acquisition / USGS TS Data Acquisition for office {office}.",
+            "Add one or more time series to that group, then rerun the command.",
+        )
+    if "timeseries-id" not in df.columns:
+        _log_error_and_exit(
+            "The USGS TS Data Acquisition group response did not include a 'timeseries-id' column."
+        )
     df[["location-id", "param", "type", "int", "dur", "ver"]] = df[
         "timeseries-id"
     ].str.split(".", expand=True)
 
     df = df[df["office-id"] == office]
+    if df.empty:
+        _log_error_and_exit(
+            f"No time series are defined in Data Acquisition / USGS TS Data Acquisition for office {office}.",
+            "Add one or more office-specific time series to that group, then rerun the command.",
+        )
     df["base-loc"] = df["location-id"].str.split("-", expand=True)[0]
     if "alias-id" not in df.columns:
         df["alias-id"] = np.nan
@@ -135,17 +193,31 @@ def get_CMWS_TS_Loc_Data(office):
     df = df.rename(columns={"alias-id": "USGS_Method_TS"})
 
     # error in CDA with category_office_id and group_office_id. need to fix once CDA is updated
-    Locdf = cwms.get_location_group(
-        loc_group_id="USGS Station Number",
-        category_id="Agency Aliases",
-        office_id="CWMS",
-    ).df.set_index("location-id")
+    Locdf = _require_group_dataframe(
+        cwms.get_location_group(
+            loc_group_id="USGS Station Number",
+            category_id="Agency Aliases",
+            office_id="CWMS",
+        ),
+        resource_name="USGS Station Number alias group",
+        office=office,
+    ).set_index("location-id")
 
     Locdf = Locdf[Locdf["office-id"] == office]
+    if Locdf.empty:
+        _log_error_and_exit(
+            f"No USGS location aliases are defined in Agency Aliases / USGS Station Number for office {office}.",
+            "Add one or more location aliases to that group, then rerun the command.",
+        )
     if "attribute" not in Locdf.columns:
         Locdf["attribute"] = np.nan
     # Grab all of the locations that have a USGS station number assigned to them
     USGS_alias = Locdf[Locdf["alias-id"].notnull()]
+    if USGS_alias.empty:
+        _log_error_and_exit(
+            f"No USGS location aliases are defined in Agency Aliases / USGS Station Number for office {office}.",
+            "Add one or more alias-id values for that office, then rerun the command.",
+        )
     # rename the columns
     USGS_alias = USGS_alias.rename(
         columns={"alias-id": "USGS_St_Num", "attribute": "Loc_attribute"}
