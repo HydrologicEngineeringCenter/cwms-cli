@@ -13,6 +13,9 @@ Install the base CLI package:
 
    pip install cwms-cli
 
+After installation, see :doc:`Shell Completion <shell_completion>` if you want
+tab completion for supported shells.
+
 Some commands require additional libraries that are not installed with the base
 package. You will be alerted to missing dependencies if you try to run a
 command that requires an optional library that is not installed. See the next
@@ -115,6 +118,7 @@ look correct before you point the command at a production config.
 See also
 --------
 
+- :doc:`Shell Completion <shell_completion>`
 - :doc:`csv2cwms <csv2cwms>`
 - :doc:`Common API Arguments <api_arguments>`
 - :doc:`Complete config example <csv2cwms_complete_config>`
