@@ -72,7 +72,8 @@ def select_value(
     else:
         value = raw_values[-1]
 
-    value = round(value, precision) if value is not None else None
+    if value is not None and precision is not None:
+        value = round(value, precision)
     quality = 3 if value is not None else 5
     return value, quality
 
@@ -154,7 +155,7 @@ def load_timeseries(file_data, file_key, config, logger):
     for name, meta in ts_config.items():
         expr = meta["columns"]
         units = meta.get("units", "")
-        precision = meta.get("precision", 2)
+        precision = meta.get("precision")
         ts_data = data
         ts_interval = interval
 

@@ -133,6 +133,41 @@ def test_load_timeseries_uses_raw_timestamps_when_rounding_disabled(monkeypatch)
     ]
 
 
+def test_load_timeseries_preserves_raw_value_when_precision_omitted(monkeypatch):
+    monkeypatch.setenv("CDA_API_KEY", "test-key")
+    monkeypatch.setenv("CDA_OFFICE", "SWT")
+    monkeypatch.setenv("CDA_HOST", "https://example.test")
+
+    csv2_main = importlib.import_module("cwmscli.commands.csv2cwms.__main__")
+    tz = csv2_main.safe_zoneinfo("UTC")
+    epoch = int(datetime(2025, 3, 25, 12, 7, tzinfo=tz).timestamp())
+
+    file_data = {
+        "header": ["Time", "Headwater"],
+        "data": {
+            epoch: ["2025-03-25 12:07", "10.12345"],
+        },
+        "source_timezone": tz,
+    }
+    config = {
+        "interval": 900,
+        "input_files": {
+            "BROK": {
+                "timeseries": {
+                    "BROK.Elev.Inst.15Minutes.0.Rev-SCADA-cda": {
+                        "columns": "Headwater",
+                        "units": "ft",
+                    }
+                }
+            }
+        },
+    }
+
+    result = csv2_main.load_timeseries(file_data, "BROK", config)
+
+    assert result[0]["values"] == [[epoch * 1000, 10.12345, 3]]
+
+
 def test_load_timeseries_rounds_to_configured_interval_when_present(monkeypatch):
     monkeypatch.setenv("CDA_API_KEY", "test-key")
     monkeypatch.setenv("CDA_OFFICE", "SWT")
