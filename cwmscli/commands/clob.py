@@ -1,9 +1,6 @@
-import base64
 import json
 import logging
-import mimetypes
 import os
-import re
 import sys
 from typing import Optional, Sequence
 
@@ -11,7 +8,24 @@ import cwms
 import pandas as pd
 import requests
 
-from cwmscli.utils import get_api_key, has_invalid_chars
+from cwmscli.utils import get_api_key, has_invalid_chars, log_scoped_read_hint
+
+
+def _join_api_url(api_root: str, path: str) -> str:
+    return f"{api_root.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _resolve_optional_api_key(api_key: Optional[str], anonymous: bool) -> Optional[str]:
+    if anonymous or not api_key:
+        return None
+    return get_api_key(api_key, None)
+
+
+def _write_clob_content(content: str, dest: str) -> str:
+    os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
+    with open(dest, "w", encoding="utf-8", newline="") as f:
+        f.write(content)
+    return dest
 
 
 def list_clobs(
@@ -68,10 +82,10 @@ def upload_cmd(
     api_root: str,
     api_key: str,
 ):
-    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
+    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
     try:
         file_size = os.path.getsize(input_file)
-        with open(input_file, "r") as f:
+        with open(input_file, "r", encoding="utf-8") as f:
             file_data = f.read()
         logging.info(f"Read file: {input_file} ({file_size} bytes)")
     except Exception as e:
@@ -92,13 +106,16 @@ def upload_cmd(
         "value": file_data,
     }
     params = {"fail-if-exists": not overwrite}
+    view_url = _join_api_url(api_root, f"clobs/{clob_id_up}?office={office}")
 
     if dry_run:
-        logging.info(f"DRY RUN: would POST {api_root}clobs with params={params}")
+        logging.info(
+            f"DRY RUN: would POST {_join_api_url(api_root, 'clobs')} with params={params}"
+        )
         logging.info(
             json.dumps(
                 {
-                    "url": f"{api_root}clobs",
+                    "url": _join_api_url(api_root, "clobs"),
                     "params": params,
                     "clob": {**clob, "value": f'<{len(clob["value"])} chars>'},
                 },
@@ -110,14 +127,12 @@ def upload_cmd(
     try:
         cwms.store_clobs(clob, fail_if_exists=not overwrite)
         logging.info(f"Uploaded clob: {clob_id_up}")
-        # IDs with / can't be used directly in the path
-        # TODO: check for other disallowed characters
         if has_invalid_chars(clob_id_up):
             logging.info(
-                f"View: {api_root}clobs/ignored?clob-id={clob_id_up}&office={office}"
+                f"View: {_join_api_url(api_root, f'clobs/ignored?clob-id={clob_id_up}&office={office}')}"
             )
         else:
-            logging.info(f"View: {api_root}clobs/{clob_id_up}?office={office}")
+            logging.info(f"View: {view_url}")
     except requests.HTTPError as e:
         detail = getattr(e.response, "text", "") or str(e)
         logging.error(f"Failed to upload (HTTP): {detail}")
@@ -128,31 +143,56 @@ def upload_cmd(
 
 
 def download_cmd(
-    clob_id: str, dest: str, office: str, api_root: str, api_key: str, dry_run: bool
+    clob_id: str,
+    dest: str,
+    office: str,
+    api_root: str,
+    api_key: str,
+    dry_run: bool,
+    anonymous: bool = False,
 ):
     if dry_run:
         logging.info(
             f"DRY RUN: would GET {api_root} clob with clob-id={clob_id} office={office}."
         )
         return
-    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
+    resolved_api_key = _resolve_optional_api_key(api_key, anonymous)
+    cwms.init_session(api_root=api_root, api_key=resolved_api_key)
     bid = clob_id.upper()
     logging.debug(f"Office={office} clobID={bid}")
 
     try:
         clob = cwms.get_clob(office_id=office, clob_id=bid)
-        os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
-        sys.stderr.write(repr(clob.json) + "\n")
-        with open(dest, "wt") as f:
-            f.write(clob.json["value"])
-
-        logging.info(f"Downloaded clob to: {dest}")
+        payload = getattr(clob, "json", clob)
+        if callable(payload):
+            payload = payload()
+        if isinstance(payload, dict):
+            content = payload.get("value", "")
+        else:
+            content = str(payload)
+        target = dest or bid
+        _write_clob_content(content, target)
+        logging.info(f"Downloaded clob to: {target}")
     except requests.HTTPError as e:
         detail = getattr(e.response, "text", "") or str(e)
         logging.error(f"Failed to download (HTTP): {detail}")
+        log_scoped_read_hint(
+            api_key=resolved_api_key,
+            anonymous=anonymous,
+            office=office,
+            action="download",
+            resource="clob content",
+        )
         sys.exit(1)
     except Exception as e:
         logging.error(f"Failed to download: {e}")
+        log_scoped_read_hint(
+            api_key=resolved_api_key,
+            anonymous=anonymous,
+            office=office,
+            action="download",
+            resource="clob content",
+        )
         sys.exit(1)
 
 
@@ -163,7 +203,7 @@ def delete_cmd(clob_id: str, office: str, api_root: str, api_key: str, dry_run: 
             f"DRY RUN: would DELETE {api_root} clob with clob-id={clob_id} office={office}"
         )
         return
-    cwms.init_session(api_root=api_root, api_key=api_key)
+    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
     cwms.delete_clob(office_id=office, clob_id=clob_id)
     logging.info(f"Deleted clob: {clob_id} for office: {office}")
 
@@ -187,7 +227,7 @@ def update_cmd(
     if input_file:
         try:
             file_size = os.path.getsize(input_file)
-            with open(input_file, "r") as f:
+            with open(input_file, "r", encoding="utf-8") as f:
                 file_data = f.read()
             logging.info(f"Read file: {input_file} ({file_size} bytes)")
         except Exception as e:
@@ -200,7 +240,7 @@ def update_cmd(
 
     if file_data:
         clob["value"] = file_data
-    cwms.init_session(api_root=api_root, api_key=api_key)
+    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
     cwms.update_clob(clob, clob_id.upper(), ignore_nulls=ignore_nulls)
 
 
@@ -214,16 +254,28 @@ def list_cmd(
     office: str,
     api_root: str,
     api_key: str,
+    anonymous: bool = False,
 ):
-    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
-    df = list_clobs(
-        office=office,
-        clob_id_like=clob_id_like,
-        columns=columns,
-        sort_by=sort_by,
-        ascending=not desc,
-        limit=limit,
-    )
+    resolved_api_key = _resolve_optional_api_key(api_key, anonymous)
+    cwms.init_session(api_root=api_root, api_key=resolved_api_key)
+    try:
+        df = list_clobs(
+            office=office,
+            clob_id_like=clob_id_like,
+            columns=columns,
+            sort_by=sort_by,
+            ascending=not desc,
+            limit=limit,
+        )
+    except Exception:
+        log_scoped_read_hint(
+            api_key=resolved_api_key,
+            anonymous=anonymous,
+            office=office,
+            action="list",
+            resource="clob content",
+        )
+        raise
     if to_csv:
         df.to_csv(to_csv, index=False)
         logging.info(f"Wrote {len(df)} rows to {to_csv}")

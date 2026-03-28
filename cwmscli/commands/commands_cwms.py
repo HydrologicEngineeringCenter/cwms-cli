@@ -201,7 +201,7 @@ def blob_group():
     help="Override media type (guessed from file if omitted).",
 )
 @click.option(
-    "--overwrite",
+    "--overwrite/--no-overwrite",
     default=False,
     show_default=True,
     help="If true, replace existing blob.",
@@ -396,6 +396,11 @@ def clob_upload(**kwargs):
     default=None,
     help="Destination file path. Defaults to clob-id.",
 )
+@click.option(
+    "--anonymous",
+    is_flag=True,
+    help="Do not send credentials for this read request, even if they are configured.",
+)
 @click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
 def clob_download(**kwargs):
@@ -478,6 +483,11 @@ def update_cmd(**kwargs):
     "--to-csv",
     type=click.Path(dir_okay=False, writable=True, path_type=str),
     help="If set, write results to this CSV file.",
+)
+@click.option(
+    "--anonymous",
+    is_flag=True,
+    help="Do not send credentials for this read request, even if they are configured.",
 )
 @common_api_options
 def list_cmd(**kwargs):
