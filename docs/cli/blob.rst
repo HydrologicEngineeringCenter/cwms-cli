@@ -1,6 +1,8 @@
 Blob commands
 =============
 
+.. include:: ../_generated/maintainers/blob.inc
+
 Use ``cwms-cli blob`` to upload, download, delete, update, and list CWMS blobs.
 
 Quick reference

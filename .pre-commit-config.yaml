@@ -6,12 +6,14 @@ repos:
         entry: poetry run black
         language: system
         types: [file, python]
+        exclude: ^cwmscli/_generated/ownership_data\.py$
 
       - id: isort
         name: isort
         entry: poetry run isort
         language: system
         types: [file, python]
+        exclude: ^cwmscli/_generated/ownership_data\.py$
 
       - id: yamlfix
         name: yamlfix
@@ -20,7 +22,7 @@ repos:
         types: [file, yaml]
 
       - id: ownership-sync
-        name: ownership sync
+        name: generated ownership files
         entry: poetry run python scripts/sync_ownership.py --check
         language: system
         pass_filenames: false
