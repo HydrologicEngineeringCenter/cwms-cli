@@ -9,10 +9,6 @@ import requests
 from cwmscli.utils import colors
 
 
-def _response_looks_like_html(payload) -> bool:
-    return isinstance(payload, str) and "<html" in payload.lower()
-
-
 def _log_error_and_exit(message: str, hint: str | None = None, *, exit_code: int = 1):
     logging.error(colors.c(message, "red", bright=True))
     if hint:
@@ -22,11 +18,6 @@ def _log_error_and_exit(message: str, hint: str | None = None, *, exit_code: int
 
 def _require_group_dataframe(response, *, resource_name: str, office: str):
     payload = getattr(response, "json", None)
-    if _response_looks_like_html(payload):
-        _log_error_and_exit(
-            f"CWMS returned an HTML page instead of {resource_name} data for office {office}.",
-            "Check that --api-root points to the CDA API endpoint ending in /cwms-data.",
-        )
 
     try:
         df = response.df
