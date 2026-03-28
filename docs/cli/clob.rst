@@ -130,6 +130,27 @@ Example:
      --ignore-nulls \
      --office SWT
 
+Special-character IDs
+---------------------
+
+Clob IDs that contain ``/`` or other characters that are not supported
+in the URL path:
+
+- cwms-cli detects those IDs automatically.
+- For path-sensitive operations such as download, update, and delete, the CLI
+  uses the CDA fallback pattern with an ``ignored`` path segment and the clob ID
+  in the query string.
+- You can still use the normal ``--clob-id`` argument from the CLI.
+
+Example:
+
+.. code-block:: bash
+
+   cwms-cli clob download \
+     --clob-id "OPS/TEMPLATES/CONFIG.JSON" \
+     --dest ./downloads/config.json \
+     --office SWT
+
 Blob vs clob
 ------------
 

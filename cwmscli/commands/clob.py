@@ -7,6 +7,7 @@ from typing import Optional, Sequence
 import cwms
 import pandas as pd
 import requests
+from cwms import api as cwms_api
 
 from cwmscli.utils import get_api_key, has_invalid_chars, log_scoped_read_hint
 
@@ -26,6 +27,23 @@ def _write_clob_content(content: str, dest: str) -> str:
     with open(dest, "w", encoding="utf-8", newline="") as f:
         f.write(content)
     return dest
+
+
+def _clob_endpoint_id(clob_id: str) -> tuple[str, Optional[str]]:
+    normalized = clob_id.upper()
+    if has_invalid_chars(normalized):
+        return "ignored", normalized
+    return normalized, None
+
+
+def _get_special_clob_text(*, office: str, clob_id: str) -> str:
+    with cwms_api.SESSION.get(
+        "clobs/ignored",
+        params={"office": office, "clob-id": clob_id},
+        headers={"Accept": "text/plain"},
+    ) as response:
+        response.raise_for_status()
+        return response.text
 
 
 def list_clobs(
@@ -162,14 +180,18 @@ def download_cmd(
     logging.debug(f"Office={office} clobID={bid}")
 
     try:
-        clob = cwms.get_clob(office_id=office, clob_id=bid)
-        payload = getattr(clob, "json", clob)
-        if callable(payload):
-            payload = payload()
-        if isinstance(payload, dict):
-            content = payload.get("value", "")
+        path_id, query_id = _clob_endpoint_id(bid)
+        if query_id is None:
+            clob = cwms.get_clob(office_id=office, clob_id=path_id)
+            payload = getattr(clob, "json", clob)
+            if callable(payload):
+                payload = payload()
+            if isinstance(payload, dict):
+                content = payload.get("value", "")
+            else:
+                content = str(payload)
         else:
-            content = str(payload)
+            content = _get_special_clob_text(office=office, clob_id=query_id)
         target = dest or bid
         _write_clob_content(content, target)
         logging.info(f"Downloaded clob to: {target}")
@@ -204,7 +226,14 @@ def delete_cmd(clob_id: str, office: str, api_root: str, api_key: str, dry_run: 
         )
         return
     cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
-    cwms.delete_clob(office_id=office, clob_id=clob_id)
+    cid = clob_id.upper()
+    path_id, query_id = _clob_endpoint_id(cid)
+    if query_id is None:
+        cwms.delete_clob(office_id=office, clob_id=cid)
+    else:
+        cwms_api.delete(
+            f"clobs/{path_id}", params={"office": office, "clob-id": query_id}
+        )
     logging.info(f"Deleted clob: {clob_id} for office: {office}")
 
 
@@ -241,7 +270,17 @@ def update_cmd(
     if file_data:
         clob["value"] = file_data
     cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
-    cwms.update_clob(clob, clob_id.upper(), ignore_nulls=ignore_nulls)
+    cid = clob_id.upper()
+    path_id, query_id = _clob_endpoint_id(cid)
+    if query_id is None:
+        cwms.update_clob(clob, cid, ignore_nulls=ignore_nulls)
+    else:
+        cwms_api.patch(
+            f"clobs/{path_id}",
+            data=clob,
+            params={"clob-id": query_id, "ignore-nulls": ignore_nulls},
+        )
+    logging.info(f"Updated clob: {clob_id} for office: {office}")
 
 
 def list_cmd(
