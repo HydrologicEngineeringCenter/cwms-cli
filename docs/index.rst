@@ -13,5 +13,6 @@ cwms-cli Documentation
    cli/csv2cwms_intervals
    cli/load_location_ids_all
    cli/blob
+   cli/clob
    cli/update
    cli/version
