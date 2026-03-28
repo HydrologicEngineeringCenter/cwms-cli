@@ -10,6 +10,7 @@ from cwmscli.commands import commands_cwms
 from cwmscli.load import __main__ as load
 from cwmscli.usgs import usgs_group
 from cwmscli.utils.click_help import add_version_to_help_tree
+from cwmscli.utils.friendly_errors import to_user_facing_error
 from cwmscli.utils.logging import (
     LoggingConfig,
     apply_logging_policies,
@@ -117,6 +118,13 @@ def main() -> None:
             )
             click.echo(ssl_help_text(), err=True)
             raise SystemExit(2)
+
+        if not debug:
+            friendly_error = to_user_facing_error(e)
+            if friendly_error is not None:
+                logging.debug("Suppressed traceback for CLI exception", exc_info=e)
+                friendly_error.show()
+                raise SystemExit(friendly_error.exit_code)
 
         # If debug is enabled (or it's not a cert verify error), keep the normal failure behavior.
         raise
