@@ -20,4 +20,5 @@ See also
 - :doc:`Update command <update>`
 
 The ``update`` command can upgrade the installed package, and then you can run
-``cwms-cli --version`` to verify the result.
+``cwms-cli --version`` to verify the result. It also supports
+``--target-version`` when you need to install an exact release.
