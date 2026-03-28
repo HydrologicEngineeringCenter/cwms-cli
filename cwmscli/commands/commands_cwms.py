@@ -1,3 +1,4 @@
+import os
 import subprocess
 import sys
 import textwrap
@@ -7,8 +8,13 @@ import click
 from cwmscli import requirements as reqs
 from cwmscli.callbacks import csv_to_list
 from cwmscli.commands import csv2cwms
-from cwmscli.utils import api_key_loc_option, common_api_options, to_uppercase
+from cwmscli.utils import api_key_loc_option, colors, common_api_options, to_uppercase
 from cwmscli.utils.deps import requires
+from cwmscli.utils.update import (
+    build_update_package_spec,
+    launch_windows_update,
+    looks_like_missing_version,
+)
 from cwmscli.utils.version import get_cwms_cli_version
 
 
@@ -86,7 +92,16 @@ def csv2cwms_cmd(**kwargs):
     csv2_main(**kwargs)
 
 
-@click.command("update", help="Update cwms-cli to the latest version using pip.")
+@click.command(
+    "update",
+    help="Update cwms-cli with pip, optionally targeting a specific version.",
+)
+@click.option(
+    "--target-version",
+    "target_version",
+    metavar="VERSION",
+    help="Install a specific cwms-cli version instead of the latest release.",
+)
 @click.option(
     "--pre",
     is_flag=True,
@@ -100,32 +115,76 @@ def csv2cwms_cmd(**kwargs):
     default=False,
     help="Skip confirmation prompt and run update immediately.",
 )
-def update_cli_cmd(pre: bool, yes: bool) -> None:
+def update_cli_cmd(target_version: str | None, pre: bool, yes: bool) -> None:
     current_version = get_cwms_cli_version()
-    click.echo(f"Current cwms-cli version: {current_version}")
+    package_spec = build_update_package_spec(target_version)
 
-    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "cwms-cli"]
+    click.echo(
+        "Current cwms-cli version: " f"{colors.c(current_version, 'cyan', bright=True)}"
+    )
+    if target_version:
+        click.echo(
+            "Requested cwms-cli version: "
+            f"{colors.c(target_version, 'cyan', bright=True)}"
+        )
+    else:
+        click.echo("Requested cwms-cli version: latest available release")
+
+    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", package_spec]
     if pre:
         cmd.append("--pre")
 
     if not yes:
         proceed = click.confirm("Proceed with updating cwms-cli via pip?", default=True)
         if not proceed:
-            click.echo("Update canceled.")
+            click.echo(colors.warn("Update canceled."))
             return
 
     click.echo(f"Running: {' '.join(cmd)}")
+    if os.name == "nt":
+        try:
+            script_path = launch_windows_update(cmd)
+        except OSError as e:
+            raise click.ClickException(
+                f"Unable to launch Windows update process: {e}"
+            ) from e
+        click.echo(
+            colors.ok(
+                "Opened a separate command window to complete the update after "
+                "cwms-cli exits."
+            )
+        )
+        click.echo(f"Update helper script: {script_path}")
+        return
+
     try:
-        result = subprocess.run(cmd, check=False)
+        result = subprocess.run(
+            cmd,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
     except OSError as e:
         raise click.ClickException(f"Unable to run pip update command: {e}") from e
 
+    if result.stdout:
+        click.echo(result.stdout, nl=False)
+    if result.stderr:
+        click.echo(result.stderr, err=True, nl=False)
+
     if result.returncode != 0:
+        pip_output = "\n".join(part for part in [result.stdout, result.stderr] if part)
+        if target_version and looks_like_missing_version(pip_output, package_spec):
+            raise click.ClickException(
+                colors.err(
+                    f"Requested cwms-cli version '{target_version}' was not found."
+                )
+            )
         raise click.ClickException(
-            "cwms-cli update failed. Please review pip output above."
+            colors.err("cwms-cli update failed. Please review pip output above.")
         )
 
-    click.echo("Update complete. Run `cwms-cli --version` to verify.")
+    click.echo(colors.ok("Update complete. Run `cwms-cli --version` to verify."))
 
 
 # region Blob
