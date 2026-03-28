@@ -65,13 +65,6 @@ def shefcritimport(filename, office, api_root, api_key, api_key_loc):
     type=click.Path(exists=True),
     help="Path to JSON config file",
 )
-@click.option(
-    "-df",
-    "--data-file",
-    "data_file",
-    type=str,
-    help="Override CSV file (else use config)",
-)
 @click.option("--log", show_default=True, help="Path to the log file.")
 @click.option("--dry-run", is_flag=True, help="Log only (no HTTP calls)")
 @click.option("--begin", type=str, help="YYYY-MM-DDTHH:MM (local to --tz)")
@@ -159,14 +152,48 @@ def blob_group():
 # ================================================================================
 #       Upload
 # ================================================================================
-@blob_group.command("upload", help="Upload a file as a blob")
+@blob_group.command(
+    "upload",
+    help="Upload a single file or a directory of files as CWMS blob(s).",
+)
 @click.option(
     "--input-file",
-    required=True,
+    required=False,
     type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
-    help="Path to the file to upload.",
+    help="Path to a single file to upload.",
 )
-@click.option("--blob-id", required=True, type=str, help="Blob ID to create.")
+@click.option(
+    "--input-dir",
+    required=False,
+    type=click.Path(exists=True, file_okay=False, readable=True, path_type=str),
+    help="Directory containing multiple files to upload.",
+)
+@click.option(
+    "--file-regex",
+    default=".*",
+    show_default=True,
+    type=str,
+    help="Regex used to match files in --input-dir (matched against relative path).",
+)
+@click.option(
+    "--recursive/--no-recursive",
+    default=False,
+    show_default=True,
+    help="Recurse into subdirectories when using --input-dir.",
+)
+@click.option(
+    "--blob-id",
+    required=False,
+    type=str,
+    help="Blob ID to create for single-file upload.",
+)
+@click.option(
+    "--blob-id-prefix",
+    default="",
+    show_default=True,
+    type=str,
+    help="Prefix added to generated blob IDs for directory uploads.",
+)
 @click.option("--description", default=None, help="Optional description JSON or text.")
 @click.option(
     "--media-type",
@@ -174,7 +201,7 @@ def blob_group():
     help="Override media type (guessed from file if omitted).",
 )
 @click.option(
-    "--overwrite",
+    "--overwrite/--no-overwrite",
     default=False,
     show_default=True,
     help="If true, replace existing blob.",
@@ -198,6 +225,11 @@ def blob_upload(**kwargs):
     "--dest",
     default=None,
     help="Destination file path. Defaults to blob-id.",
+)
+@click.option(
+    "--anonymous",
+    is_flag=True,
+    help="Do not send credentials for this read request, even if they are configured.",
 )
 @click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
@@ -289,6 +321,11 @@ def update_cmd(**kwargs):
     "--to-csv",
     type=click.Path(dir_okay=False, writable=True, path_type=str),
     help="If set, write results to this CSV file.",
+)
+@click.option(
+    "--anonymous",
+    is_flag=True,
+    help="Do not send credentials for this read request, even if they are configured.",
 )
 @common_api_options
 @requires(reqs.cwms)

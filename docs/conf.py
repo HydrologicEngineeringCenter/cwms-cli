@@ -25,6 +25,7 @@ extensions = [
     "sphinx_click",
 ]
 
+templates_path = ["_templates"]
 autosummary_generate = True
 autodoc_typehints = "description"
 
@@ -33,9 +34,16 @@ intersphinx_mapping = {
 }
 
 html_theme = "sphinx_rtd_theme"
+html_baseurl = "https://cwms-cli.readthedocs.io/en/latest/"
+
+html_context = {
+    "docs_public_base_url": html_baseurl,
+}
 
 linkcheck_ignore = [
     r"^http://localhost(:\d+)?/.*",
     r"^http://127\.0\.0\.1(:\d+)?/.*",
+    r"^https://www\.gnu\.org/software/bash/manual/bash\.html(#.*)?$",
+    r"^https://cwms-data\.usace\.army\.mil/cwms-data/regexp/?$",
 ]
 # autodoc_mock_imports = ["cwms", "pandas", "requests"]

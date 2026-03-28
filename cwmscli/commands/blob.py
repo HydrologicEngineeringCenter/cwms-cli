@@ -1,17 +1,22 @@
 import base64
+import binascii
 import json
 import logging
 import mimetypes
 import os
 import re
 import sys
-from typing import Optional, Sequence
+from collections import defaultdict
+from typing import Optional, Sequence, Tuple
 
-from cwmscli.utils import get_api_key
+from cwmscli.utils import colors, get_api_key, log_scoped_read_hint
+from cwmscli.utils.click_help import DOCS_BASE_URL
 from cwmscli.utils.deps import requires
 
 # used to rebuild data URL for images
 DATA_URL_RE = re.compile(r"^data:(?P<mime>[^;]+);base64,(?P<data>.+)$", re.I | re.S)
+BASE64_TEXT_RE = re.compile(r"^[A-Za-z0-9+/]+={0,2}$")
+BLOB_DOCS_URL = f"{DOCS_BASE_URL}/cli/blob.html"
 
 
 @requires(
@@ -43,46 +48,89 @@ def _determine_ext(data: bytes) -> str:
     return f".{kind}" if kind else ".bin"
 
 
-def _save_base64(
-    b64_or_dataurl: str,
+def _decode_base64_data(raw: str) -> bytes:
+    compact = re.sub(r"\s+", "", raw)
+    try:
+        return base64.b64decode(compact, validate=True)
+    except binascii.Error:
+        return base64.b64decode(compact + "=" * (-len(compact) % 4))
+
+
+def _looks_like_base64(raw: str) -> bool:
+    compact = re.sub(r"\s+", "", raw)
+    if len(compact) < 16 or len(compact) % 4 != 0:
+        return False
+    return bool(BASE64_TEXT_RE.fullmatch(compact))
+
+
+def _save_blob_content(
+    content: bytes | str,
     dest: str,
     media_type_hint: Optional[str] = None,
 ) -> str:
-    m = DATA_URL_RE.match(b64_or_dataurl.strip())
-    if m:
-        media_type = m.group("mime")
-        b64 = m.group("data")
-    else:
-        media_type = media_type_hint
-        b64 = b64_or_dataurl
-    data = b64
-    compact = re.sub(r"\s+", "", b64)
+    media_type = media_type_hint
+    data: bytes | str = content
+
+    if isinstance(content, str):
+        m = DATA_URL_RE.match(content.strip())
+        if m:
+            media_type = m.group("mime")
+            data = _decode_base64_data(m.group("data"))
+        elif (
+            media_type
+            and media_type.lower().startswith("image/")
+            and _looks_like_base64(content)
+        ):
+            data = _decode_base64_data(content)
+
     base, ext = os.path.splitext(dest)
-    # If an image was uploaded, convert it back from base64 encoding
-    # TODO: probably should handle this better in cwms-python?
-    write_type = "w"
-    if ext.lower() in [".png", ".jpg"]:
-        write_type = "wb"
-        try:
-            data = base64.b64decode(compact, validate=True)
-        except Exception:
-            data = base64.b64decode(compact + "=" * (-len(compact) % 4))
+
+    write_type = "wb" if isinstance(data, bytes) else "w"
     if not ext:
-        # guess extension from mime or bytes
         if media_type:
             ext = mimetypes.guess_extension(media_type.split(";")[0].lower()) or ""
             if ext == ".jpe":
                 ext = ".jpg"
-        # last resort, try to determine from the data itself
-        # requires imghdr to dig into the bytes to determine image type
         if not ext and isinstance(data, bytes):
             ext = _determine_ext(data)
         dest = base + ext
 
     os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
-    with open(dest, write_type) as f:
+    encoding = None if write_type == "wb" else "utf-8"
+    newline = None if write_type == "wb" else ""
+    with open(dest, write_type, encoding=encoding, newline=newline) as f:
         f.write(data)
     return dest
+
+
+def _blob_media_type(cwms_module, office: str, blob_id: str) -> Optional[str]:
+    try:
+        result = cwms_module.get_blobs(office_id=office, blob_id_like=blob_id)
+    except Exception:
+        return None
+
+    df = getattr(result, "df", result)
+    if df is None or getattr(df, "empty", True):
+        return None
+    if "id" not in df.columns or "media-type-id" not in df.columns:
+        return None
+
+    matches = df[df["id"].astype(str).str.upper() == blob_id.upper()]
+    if matches.empty:
+        return None
+
+    media_type = matches.iloc[0].get("media-type-id")
+    return str(media_type) if media_type else None
+
+
+def _join_api_url(api_root: str, path: str) -> str:
+    return f"{api_root.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _resolve_optional_api_key(api_key: Optional[str], anonymous: bool) -> Optional[str]:
+    if anonymous or not api_key:
+        return None
+    return get_api_key(api_key, None)
 
 
 def store_blob(**kwargs):
@@ -107,6 +155,9 @@ def store_blob(**kwargs):
     }
 
     params = {"fail-if-exists": not kwargs.get("overwrite")}
+    view_url = _join_api_url(
+        kwargs.get("api_root"), f"blobs/{blob_id}?office={kwargs.get('office')}"
+    )
 
     if kwargs.get("dry_run"):
         logging.info(
@@ -118,7 +169,7 @@ def store_blob(**kwargs):
         logging.info(
             json.dumps(
                 {
-                    "url": f"{kwargs.get('api_root')}blobs",
+                    "url": _join_api_url(kwargs.get("api_root"), "blobs"),
                     "params": params,
                     "blob": {**blob, "value": f"<base64:{len(blob['value'])} chars>"},
                 },
@@ -130,9 +181,7 @@ def store_blob(**kwargs):
     try:
         cwms.store_blobs(blob, fail_if_exists=kwargs.get("overwrite"))
         logging.info(f"Successfully stored blob with ID: {blob_id}")
-        logging.info(
-            f"View: {kwargs.get('api_root')}blobs/{blob_id}?office={kwargs.get('office')}"
-        )
+        logging.info(f"View: {view_url}")
     except requests.HTTPError as e:
         # Include response text when available
         detail = getattr(e.response, "text", "") or str(e)
@@ -162,7 +211,11 @@ def retrieve_blob(**kwargs):
         logging.info(
             f"Successfully retrieved blob with ID: {blob_id}",
         )
-        _save_base64(blob, dest=blob_id)
+        _save_blob_content(
+            blob,
+            dest=blob_id,
+            media_type_hint=_blob_media_type(cwms, kwargs.get("office"), blob_id),
+        )
         logging.info(f"Downloaded blob to: {blob_id}")
     except requests.HTTPError as e:
         detail = getattr(e.response, "text", "") or str(e)
@@ -247,30 +300,24 @@ def get_media_type(file_path: str) -> str:
     return mime_type or "application/octet-stream"
 
 
-def upload_cmd(
+def _read_file_bytes(input_file: str) -> bytes:
+    file_size = os.path.getsize(input_file)
+    with open(input_file, "rb") as f:
+        file_data = f.read()
+    logging.info(f"Read file: {input_file} ({file_size} bytes)")
+    return file_data
+
+
+def _store_blob_payload(
+    *,
+    file_data: bytes,
     input_file: str,
     blob_id: str,
     description: str,
     media_type: str,
     overwrite: bool,
-    dry_run: bool,
     office: str,
-    api_root: str,
-    api_key: str,
 ):
-    import cwms
-    import requests
-
-    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, ""))
-    try:
-        file_size = os.path.getsize(input_file)
-        with open(input_file, "rb") as f:
-            file_data = f.read()
-        logging.info(f"Read file: {input_file} ({file_size} bytes)")
-    except Exception as e:
-        logging.error(f"Failed to read file: {e}")
-        sys.exit(1)
-
     media = media_type or get_media_type(input_file)
     blob_id_up = blob_id.upper()
     logging.debug(f"Office={office} BlobID={blob_id_up} Media={media}")
@@ -287,36 +334,221 @@ def upload_cmd(
         "value": base64.b64encode(file_data).decode("utf-8"),
     }
     params = {"fail-if-exists": not overwrite}
+    return blob, params, blob_id_up
 
-    if dry_run:
-        logging.info(f"DRY RUN: would POST {api_root}blobs with params={params}")
+
+def _list_matching_files(
+    input_dir: str, file_regex: str, recursive: bool
+) -> list[Tuple[str, str]]:
+    try:
+        pattern = re.compile(file_regex)
+    except re.error as e:
+        raise ValueError(f"Invalid --file-regex: {e}") from e
+
+    matches: list[Tuple[str, str]] = []
+    for root, _, files in os.walk(input_dir):
+        for name in files:
+            full_path = os.path.join(root, name)
+            rel_path = os.path.relpath(full_path, input_dir).replace(os.sep, "/")
+            if pattern.search(rel_path):
+                matches.append((full_path, rel_path))
+        if not recursive:
+            break
+    matches.sort(key=lambda x: x[1].lower())
+    return matches
+
+
+def _blob_id_for_path(input_dir: str, rel_path: str, blob_id_prefix: str) -> str:
+    rel_no_ext = os.path.splitext(rel_path)[0].replace("/", "_")
+    return f"{blob_id_prefix}{rel_no_ext}".upper()
+
+
+def _find_blob_id_collisions(
+    matches: list[Tuple[str, str]], input_dir: str, blob_id_prefix: str
+) -> dict[str, list[str]]:
+    collisions: dict[str, list[str]] = defaultdict(list)
+    for _, rel_path in matches:
+        blob_id = _blob_id_for_path(
+            input_dir=input_dir,
+            rel_path=rel_path,
+            blob_id_prefix=blob_id_prefix,
+        )
+        collisions[blob_id].append(rel_path)
+    return {
+        blob_id: rel_paths
+        for blob_id, rel_paths in collisions.items()
+        if len(rel_paths) > 1
+    }
+
+
+def upload_cmd(
+    input_file: Optional[str],
+    input_dir: Optional[str],
+    file_regex: str,
+    recursive: bool,
+    blob_id: Optional[str],
+    blob_id_prefix: str,
+    description: str,
+    media_type: str,
+    overwrite: bool,
+    dry_run: bool,
+    office: str,
+    api_root: str,
+    api_key: str,
+):
+    import cwms
+    import requests
+
+    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
+
+    using_single = bool(input_file)
+    using_multi = bool(input_dir)
+    if using_single == using_multi:
+        logging.error("Choose exactly one input source: --input-file or --input-dir.")
+        sys.exit(2)
+
+    uploads: list[Tuple[str, str]] = []
+    if using_single:
+        if not blob_id:
+            logging.error("--blob-id is required when using --input-file.")
+            sys.exit(2)
+        uploads = [(input_file, blob_id)]
+    else:
+        try:
+            matches = _list_matching_files(input_dir, file_regex, recursive)
+        except ValueError as e:
+            logging.error(str(e))
+            sys.exit(2)
+        if not matches:
+            logging.error(
+                f"No files in {input_dir!r} matched --file-regex {file_regex!r}."
+            )
+            sys.exit(1)
+        collisions = _find_blob_id_collisions(matches, input_dir, blob_id_prefix)
+        if collisions:
+            for blob_id, rel_paths in collisions.items():
+                logging.error(
+                    "Generated blob ID collision for %s from files: %s",
+                    blob_id,
+                    ", ".join(rel_paths),
+                )
+            logging.error(
+                "Bulk upload aborted. Adjust file names or use --blob-id-prefix to avoid duplicate generated blob IDs. Docs: %s#blob-bulk-collisions",
+                BLOB_DOCS_URL,
+            )
+            sys.exit(2)
+        uploads = [
+            (
+                full_path,
+                _blob_id_for_path(
+                    input_dir=input_dir,
+                    rel_path=rel_path,
+                    blob_id_prefix=blob_id_prefix,
+                ),
+            )
+            for full_path, rel_path in matches
+        ]
         logging.info(
-            json.dumps(
-                {
-                    "url": f"{api_root}blobs",
-                    "params": params,
-                    "blob": {**blob, "value": f'<base64:{len(blob["value"])} chars>'},
-                },
-                indent=2,
+            colors.c(
+                f"Matched {len(uploads)} file(s) in {input_dir} with regex: {file_regex}",
+                "cyan",
+                bright=True,
             )
         )
-        return
 
-    try:
-        cwms.store_blobs(blob, fail_if_exists=not overwrite)
-        logging.info(f"Uploaded blob: {blob_id_up}")
-        logging.info(f"View: {api_root}blobs/{blob_id_up}?office={office}")
-    except requests.HTTPError as e:
-        detail = getattr(e.response, "text", "") or str(e)
-        logging.error(f"Failed to upload (HTTP): {detail}")
+    failures = 0
+    for file_path, next_blob_id in uploads:
+        try:
+            file_data = _read_file_bytes(file_path)
+            blob, params, blob_id_up = _store_blob_payload(
+                file_data=file_data,
+                input_file=file_path,
+                blob_id=next_blob_id,
+                description=description,
+                media_type=media_type,
+                overwrite=overwrite,
+                office=office,
+            )
+            if dry_run:
+                logging.info(
+                    colors.c(
+                        f"[DRY RUN] {file_path} -> {blob_id_up}",
+                        "yellow",
+                        bright=True,
+                    )
+                )
+                logging.info(
+                    json.dumps(
+                        {
+                            "url": _join_api_url(api_root, "blobs"),
+                            "params": params,
+                            "blob": {
+                                **blob,
+                                "value": f'<base64:{len(blob["value"])} chars>',
+                            },
+                        },
+                        indent=2,
+                    )
+                )
+                continue
+
+            cwms.store_blobs(blob, fail_if_exists=not overwrite)
+            view_url = _join_api_url(api_root, f"blobs/{blob_id_up}?office={office}")
+            logging.info(
+                colors.c(
+                    f"[OK] Uploaded {file_path} as {blob_id_up}",
+                    "green",
+                    bright=True,
+                )
+            )
+            logging.info(f"View: {view_url}")
+        except requests.HTTPError as e:
+            failures += 1
+            detail = getattr(e.response, "text", "") or str(e)
+            logging.error(
+                colors.c(
+                    f"[FAIL] {file_path} -> {next_blob_id.upper()} (HTTP): {detail}",
+                    "red",
+                    bright=True,
+                )
+            )
+        except Exception as e:
+            failures += 1
+            logging.error(
+                colors.c(
+                    f"[FAIL] {file_path} -> {next_blob_id.upper()}: {e}",
+                    "red",
+                    bright=True,
+                )
+            )
+
+    success_count = len(uploads) - failures
+    if failures:
+        logging.warning(
+            colors.c(
+                f"Upload completed with failures: {success_count}/{len(uploads)} succeeded, {failures} failed.",
+                "yellow",
+                bright=True,
+            )
+        )
         sys.exit(1)
-    except Exception as e:
-        logging.error(f"Failed to upload: {e}")
-        sys.exit(1)
+    logging.info(
+        colors.c(
+            f"Upload completed successfully: {success_count}/{len(uploads)} file(s).",
+            "green",
+            bright=True,
+        )
+    )
 
 
 def download_cmd(
-    blob_id: str, dest: str, office: str, api_root: str, api_key: str, dry_run: bool
+    blob_id: str,
+    dest: str,
+    office: str,
+    api_root: str,
+    api_key: str,
+    dry_run: bool,
+    anonymous: bool = False,
 ):
     import cwms
     import requests
@@ -326,21 +558,40 @@ def download_cmd(
             f"DRY RUN: would GET {api_root} blob with blob-id={blob_id} office={office}."
         )
         return
-    cwms.init_session(api_root=api_root)
+    resolved_api_key = _resolve_optional_api_key(api_key, anonymous)
+    cwms.init_session(api_root=api_root, api_key=resolved_api_key)
     bid = blob_id.upper()
     logging.debug(f"Office={office} BlobID={bid}")
 
     try:
-        blob_b64 = cwms.get_blob(office_id=office, blob_id=bid)
+        blob_content = cwms.get_blob(office_id=office, blob_id=bid)
         target = dest or bid
-        _save_base64(blob_b64, dest=target)
+        _save_blob_content(
+            blob_content,
+            dest=target,
+            media_type_hint=_blob_media_type(cwms, office, bid),
+        )
         logging.info(f"Downloaded blob to: {target}")
     except requests.HTTPError as e:
         detail = getattr(e.response, "text", "") or str(e)
         logging.error(f"Failed to download (HTTP): {detail}")
+        log_scoped_read_hint(
+            api_key=resolved_api_key,
+            anonymous=anonymous,
+            office=office,
+            action="download",
+            resource="blob content",
+        )
         sys.exit(1)
     except Exception as e:
         logging.error(f"Failed to download: {e}")
+        log_scoped_read_hint(
+            api_key=resolved_api_key,
+            anonymous=anonymous,
+            office=office,
+            action="download",
+            resource="blob content",
+        )
         sys.exit(1)
 
 
@@ -375,6 +626,7 @@ def update_cmd(
             f"DRY RUN: would PATCH {api_root} blob with blob-id={blob_id} office={office}"
         )
         return
+    cwms.init_session(api_root=api_root, api_key=api_key)
     file_data = None
     if input_file:
         try:
@@ -401,7 +653,6 @@ def update_cmd(
 
     if file_data:
         blob["value"] = base64.b64encode(file_data).decode("utf-8")
-    cwms.init_session(api_root=api_root, api_key=api_key)
     cwms.update_blob(blob, fail_if_not_exists=not overwrite)
 
 
@@ -415,19 +666,31 @@ def list_cmd(
     office: str,
     api_root: str,
     api_key: str,
+    anonymous: bool = False,
 ):
     import cwms
     import pandas as pd
 
-    cwms.init_session(api_root=api_root)
-    df = list_blobs(
-        office=office,
-        blob_id_like=blob_id_like,
-        columns=columns,
-        sort_by=sort_by,
-        ascending=not desc,
-        limit=limit,
-    )
+    resolved_api_key = _resolve_optional_api_key(api_key, anonymous)
+    cwms.init_session(api_root=api_root, api_key=resolved_api_key)
+    try:
+        df = list_blobs(
+            office=office,
+            blob_id_like=blob_id_like,
+            columns=columns,
+            sort_by=sort_by,
+            ascending=not desc,
+            limit=limit,
+        )
+    except Exception:
+        log_scoped_read_hint(
+            api_key=resolved_api_key,
+            anonymous=anonymous,
+            office=office,
+            action="list",
+            resource="blob content",
+        )
+        raise
     if to_csv:
         df.to_csv(to_csv, index=False)
         logging.info(f"Wrote {len(df)} rows to {to_csv}")

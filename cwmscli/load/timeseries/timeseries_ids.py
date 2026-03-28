@@ -4,6 +4,8 @@ from typing import Optional
 import click
 import pandas as pd
 
+logger = logging.getLogger(__name__)
+
 
 def load_timeseries_ids(
     source_cda: str,
@@ -17,7 +19,7 @@ def load_timeseries_ids(
     import cwms
 
     if verbose:
-        click.echo(
+        logger.info(
             f"Loading timeseries IDs from source CDA '{source_cda}' (office '{source_office}') "
             f"to target CDA '{target_cda}'."
         )
@@ -35,14 +37,14 @@ def load_timeseries_ids(
     ts_lo_ids = pd.merge(ts_ids, locs, how="inner", on=["location-id", "office-id"])
 
     if verbose:
-        click.echo(f"Found {len(ts_lo_ids)} timeseries IDs to copy.")
+        logger.info("Found %s timeseries IDs to copy.", len(ts_lo_ids))
 
     cwms.init_session(api_root=target_cda, api_key=target_api_key)
     errors = 0
     for i, row in ts_lo_ids.iterrows():
         ts_id = row["time-series-id"]
         if dry_run:
-            click.echo(
+            logger.info(
                 f"[dry-run] would store Timeseries ID(name={ts_id}) to {target_cda} ({source_office})"
             )
             continue
@@ -58,7 +60,7 @@ def load_timeseries_ids(
                 data=t_id_json, fail_if_exists=False
             )
             if verbose:
-                click.echo(result)
+                logger.info("%s", result)
         except Exception as e:
             errors += 1
             click.echo(f"Error storing location {ts_id}: \n\t{e}", err=True)
@@ -66,4 +68,4 @@ def load_timeseries_ids(
     if errors:
         raise click.ClickException(f"Completed with {errors} error(s).")
     if verbose:
-        click.echo("Timeseries ID copy operation completed.")
+        logger.info("Timeseries ID copy operation completed.")

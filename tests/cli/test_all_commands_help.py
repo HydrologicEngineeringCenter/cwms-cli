@@ -53,6 +53,13 @@ def test_log_level_info_is_accepted(runner):
     assert f"cwms-cli version {get_cwms_cli_version()}" in result.output
 
 
+def test_explicit_log_level_overrides_production_floor(runner, monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "prod")
+    result = runner.invoke(cli, ["--log-level", "INFO", "load", "--help"])
+    assert result.exit_code == 0
+    assert "logger configured" in result.output
+
+
 @pytest.mark.parametrize("path,command", list(iter_commands(cli)))
 def test_every_command_has_help(runner, path, command):
     """

@@ -1,6 +1,12 @@
 import logging as py_logging
+from typing import Optional
 
 import click
+from click.core import ParameterSource
+
+from cwmscli.utils import colors
+from cwmscli.utils.click_help import DOCS_BASE_URL
+from cwmscli.utils.logging import apply_logging_policies, current_environment
 
 
 def to_uppercase(ctx, param, value):
@@ -15,6 +21,14 @@ def _set_log_level(ctx, param, value):
     level = getattr(py_logging, value.upper(), None)
     if level is None:
         raise click.BadParameter(f"Invalid log level: {value}")
+    quiet = bool(ctx.find_root().params.get("quiet", False))
+    level = apply_logging_policies(
+        level,
+        quiet=quiet,
+        environment=current_environment(),
+        explicit_log_level=ctx.get_parameter_source(param.name)
+        == ParameterSource.COMMANDLINE,
+    )
     py_logging.getLogger().setLevel(level)
     return value
 
@@ -83,6 +97,27 @@ def get_api_key(api_key: str, api_key_loc: str) -> str:
         raise Exception(
             "must add a value to either --api-key(-k) or --api-key-loc(-kl)"
         )
+
+
+def log_scoped_read_hint(
+    *,
+    api_key: Optional[str],
+    anonymous: bool,
+    office: str,
+    action: str,
+    resource: str = "content",
+) -> None:
+    if anonymous or not api_key:
+        return
+    py_logging.warning(
+        colors.c(
+            f"Access scope hint: a key was sent for this {action} request in office {office}. "
+            f"If you need to view {resource} outside that key's access scope, retry with "
+            f"--anonymous or remove the configured API key. Docs: {DOCS_BASE_URL}/cli/blob.html#blob-auth-scope",
+            "yellow",
+            bright=True,
+        )
+    )
 
 
 def common_api_options(f):

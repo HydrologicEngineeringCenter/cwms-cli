@@ -1,6 +1,6 @@
 import pytest
 
-from ..utils.expression import eval_expression
+from ..utils.expression import eval_expression, expression_columns
 
 
 @pytest.mark.parametrize(
@@ -14,6 +14,7 @@ from ..utils.expression import eval_expression
         ),
         ("U1_MW-U2_MW", ["", "", "60.0", "", "15.5"], {"u1_mw": 2, "u2_mw": 4}, 44.5),
         ("U1_MW*U2_MW", ["", "", "5.0", "", "2.0"], {"u1_mw": 2, "u2_mw": 4}, 10.0),
+        ("U1_MW/U2_MW", ["", "", "10.0", "", "2.0"], {"u1_mw": 2, "u2_mw": 4}, 5.0),
         ("MISSING+U1_MW", ["", "", "50.0"], {"u1_mw": 2}, None),
     ],
 )
@@ -47,3 +48,7 @@ def test_eval_expression_non_numeric():
     row = ["", "", "fifty", "", "two"]
     header_map = {"u1_mw": 2, "u2_mw": 4}
     assert eval_expression("U1_MW+U2_MW", row, header_map) is None
+
+
+def test_expression_columns_supports_division():
+    assert expression_columns("U1_MW/U2_MW") == ["U1_MW", "U2_MW"]
