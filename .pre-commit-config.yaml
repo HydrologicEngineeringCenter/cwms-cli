@@ -18,3 +18,9 @@ repos:
         entry: poetry run yamlfix
         language: system
         types: [file, yaml]
+
+      - id: ownership-sync
+        name: ownership sync
+        entry: poetry run python scripts/sync_ownership.py --check
+        language: system
+        pass_filenames: false
