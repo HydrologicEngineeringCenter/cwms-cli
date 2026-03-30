@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.8](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.3.7...v0.3.8) (2026-03-30)
+
+
+### Bug Fixes
+
+* 108 issue passing  kl into cwms cli ([#170](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/170)) ([2d4d63e](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/2d4d63e5e2c2007ee74b1da042cfbca8dfe93cc5))
+* Add and test for friendly user error output on usgs ts command ([#177](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/177)) ([9b7886a](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/9b7886a0018eb90566d35d5d43fdc4223c8a75a5))
+
 ## [0.3.7](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.3.6...v0.3.7) (2026-03-28)
 
 
