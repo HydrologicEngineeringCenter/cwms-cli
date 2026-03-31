@@ -10,6 +10,7 @@ from cwmscli.commands import commands_cwms
 from cwmscli.load import __main__ as load
 from cwmscli.usgs import usgs_group
 from cwmscli.utils.click_help import add_version_to_help_tree
+from cwmscli.utils.friendly_errors import to_user_facing_error
 from cwmscli.utils.logging import (
     LoggingConfig,
     apply_logging_policies,
@@ -17,15 +18,18 @@ from cwmscli.utils.logging import (
     setup_logging,
 )
 from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
-from cwmscli.utils.version import get_cwms_cli_version
+from cwmscli.utils.version_cli import show_version_and_exit
 
 
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
-@click.version_option(
-    get_cwms_cli_version(),
+@click.option(
     "--version",
     "-V",
-    message="cwms-cli version %(version)s",
+    is_flag=True,
+    is_eager=True,
+    expose_value=False,
+    callback=show_version_and_exit,
+    help="Show the cwms-cli version and exit.",
 )
 @click.option(
     "--log-file",
@@ -115,6 +119,13 @@ def main() -> None:
             )
             click.echo(ssl_help_text(), err=True)
             raise SystemExit(2)
+
+        if not debug:
+            friendly_error = to_user_facing_error(e)
+            if friendly_error is not None:
+                logging.debug("Suppressed traceback for CLI exception", exc_info=e)
+                friendly_error.show()
+                raise SystemExit(friendly_error.exit_code)
 
         # If debug is enabled (or it's not a cert verify error), keep the normal failure behavior.
         raise

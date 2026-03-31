@@ -22,6 +22,11 @@ Or as of version `0.3.0+`
 cwms-cli update
 ```
 
+To install a specific version:
+```sh
+cwms-cli update --target-version 0.7.1 --yes
+```
+
 ## Command line implementation
 
 View the help in terminal:

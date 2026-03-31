@@ -109,8 +109,8 @@ Configuration options
      - No; ``""``
      - Units to send with the time series payload.
    * - ``{ precision }``
-     - No; ``2``
-     - Decimal precision used when rounding output values before storage.
+     - No; raw value when omitted
+     - Decimal precision used when rounding output values before storage. If omitted, the raw computed value is stored without rounding.
 
 Source file:
 ``cwmscli/commands/csv2cwms/examples/complete_config.json``

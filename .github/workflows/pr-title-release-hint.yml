@@ -35,7 +35,14 @@ jobs:
               }
             );
 
-            const hasPythonChanges = files.some((file) => file.filename.endsWith(".py"));
+            const excludedPythonFiles = new Set([
+              "docs/conf.py",
+            ]);
+            const hasPythonChanges = files.some(
+              (file) =>
+                file.filename.endsWith(".py") &&
+                !excludedPythonFiles.has(file.filename)
+            );
             if (!hasPythonChanges || expected.test(pr.title)) {
               const comments = await github.paginate(
                 github.rest.issues.listComments,

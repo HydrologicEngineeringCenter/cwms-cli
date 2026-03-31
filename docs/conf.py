@@ -6,6 +6,7 @@ import sys
 sys.path.insert(0, os.path.abspath(".."))
 
 project = "cwms-cli"
+root_doc = "index"
 
 # Get the installed package version without shadowing Sphinx's "version"
 try:
@@ -34,7 +35,13 @@ intersphinx_mapping = {
 }
 
 html_theme = "sphinx_rtd_theme"
+html_title = "cwms-cli Documentation"
+html_short_title = project
 html_baseurl = "https://cwms-cli.readthedocs.io/en/latest/"
+html_theme_options = {
+    "collapse_navigation": False,
+    "navigation_depth": 4,
+}
 
 html_context = {
     "docs_public_base_url": html_baseurl,
@@ -44,6 +51,7 @@ linkcheck_ignore = [
     r"^http://localhost(:\d+)?/.*",
     r"^http://127\.0\.0\.1(:\d+)?/.*",
     r"^https://www\.gnu\.org/software/bash/manual/bash\.html(#.*)?$",
+    r"^https://cwms-cli\.readthedocs\.io/.*$",
     r"^https://cwms-data\.usace\.army\.mil/cwms-data/regexp/?$",
 ]
 # autodoc_mock_imports = ["cwms", "pandas", "requests"]
