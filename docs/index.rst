@@ -58,6 +58,7 @@ Contents
 
    cli/csv2cwms
    cli/blob
+   cli/clob
    cli/load_location_ids_all
    cli/update
    cli/version

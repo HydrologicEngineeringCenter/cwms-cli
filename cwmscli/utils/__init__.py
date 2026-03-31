@@ -15,6 +15,18 @@ def to_uppercase(ctx, param, value):
     return value.upper()
 
 
+def has_invalid_chars(id: str) -> bool:
+    """
+    Checks if ID contains any invalid web path characters.
+    """
+    INVALID_PATH_CHARS = ["/", "\\", "&", "?", "="]
+
+    for char in INVALID_PATH_CHARS:
+        if char in id:
+            return True
+    return False
+
+
 def _set_log_level(ctx, param, value):
     if value is None:
         return
