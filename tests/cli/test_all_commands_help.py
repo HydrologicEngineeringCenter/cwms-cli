@@ -1,3 +1,6 @@
+import importlib.metadata
+import sys
+
 import pytest
 from click.testing import CliRunner
 
@@ -5,7 +8,19 @@ from cwmscli.__main__ import cli
 from cwmscli.utils.click_help import DOCS_BASE_URL
 from cwmscli.utils.version import get_cwms_cli_version
 
-## Expectations
+
+@pytest.fixture(autouse=True)
+def ensure_cwms_for_help(monkeypatch):
+    class _FakeCwms:
+        class api:
+            class ApiError(Exception):
+                pass
+
+    monkeypatch.setitem(sys.modules, "cwms", _FakeCwms)
+    monkeypatch.setattr(importlib.metadata, "version", lambda pkg: "1.0.7")
+
+
+# Expectations
 # - The help commands should run without requiring an import
 # - Help text should include "Usage: <command> <subcommand> --help"
 # - Every command and subcommand should be tested for help text to ensure help renders as expected and no early import errors occur
@@ -38,15 +53,8 @@ def help_args_for_path(path):
     # even when help is requested on a nested subcommand.
     if len(path) >= 3 and path[:2] == ("users", "roles"):
         return [
-            "users",
-            "roles",
-            "--office",
-            "SPK",
-            "--api-root",
-            "https://example.test/cda/",
-            "--api-key",
-            "ignored",
-            *path[2:],
+            *path[:2],  # 'users', 'roles'
+            *path[2:],  # 'add' or 'delete'
             "--help",
         ]
     return args

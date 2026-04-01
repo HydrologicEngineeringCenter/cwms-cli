@@ -1,8 +1,13 @@
 from __future__ import annotations
 
+import logging
+from typing import Optional, Union
+
 import click
 
 from cwmscli.utils import colors, get_api_key
+
+logging.basicConfig(level=logging.DEBUG)
 
 
 def _format_table(headers: list[str], rows: list[list[str]]) -> str:
@@ -41,7 +46,7 @@ def _handle_api_error(error: Exception, cwms_module) -> None:
     raise click.ClickException(_format_api_error(error, cwms_module)) from None
 
 
-def _init_cwms(api_root: str, api_key: str, api_key_loc: str):
+def _init_cwms(api_root: str, api_key: str, api_key_loc: str) -> object:
     import cwms
 
     resolved_api_key = get_api_key(api_key, api_key_loc)
@@ -56,29 +61,66 @@ def _fetch_roles(cwms_module) -> list[str]:
         _handle_api_error(error, cwms_module)
 
 
-def _fetch_users(cwms_module, page_size: int = 500) -> list[dict]:
+def _fetch_users(
+    cwms_module, office=None, username_like=None, page_size: int = 5000
+) -> list[dict]:
     users: list[dict] = []
-    page = None
 
-    while True:
-        try:
-            response = cwms_module.get_users(page=page, page_size=page_size)
-        except cwms_module.api.ApiError as error:
-            _handle_api_error(error, cwms_module)
+    try:
+        response = cwms_module.get_users(
+            office_id=office, username_like=username_like, page_size=page_size
+        )
+    except cwms_module.api.ApiError as error:
+        _handle_api_error(error, cwms_module)
 
-        payload = getattr(response, "json", {}) or {}
-        page_users = payload.get("users", [])
-        if isinstance(page_users, list):
-            users.extend(user for user in page_users if isinstance(user, dict))
-
-        page = payload.get("next-page")
-        if not page:
-            break
+    payload = getattr(response, "json", {}) or {}
+    page_users = payload.get("users", [])
+    users.extend(page_users)
 
     return users
 
 
-def _existing_user_name(users: list[dict], user_name: str) -> str | None:
+def _fetch_user_roles(
+    cwms_module, user_name: str, office: Optional[str] = None
+) -> list[str]:
+    roles_payload = _get_user_roles_payload(cwms_module, user_name)
+    return _extract_roles_from_payload(roles_payload, office)
+
+
+def _get_user_roles_payload(cwms_module, user_name: str) -> dict:
+    try:
+        payload = cwms_module.get_user(user_name=user_name)
+        return payload.get("roles", {})
+    except cwms_module.api.ApiError as error:
+        _handle_api_error(error, cwms_module)
+
+
+def _extract_roles_from_payload(
+    roles_payload: dict, office: Optional[str] = None
+) -> list[str]:
+    if isinstance(roles_payload, dict):
+        if office:
+            office_key = office.strip().upper()
+            office_roles = roles_payload.get(office_key, [])
+            if office_roles is None:
+                office_roles = []
+            return [r.strip() for r in office_roles if r and r.strip()]
+        all_roles = []
+        for rlist in roles_payload.values():
+            if rlist:
+                all_roles.extend(rlist)
+        return sorted(
+            {r.strip() for r in all_roles if r and r.strip()}, key=str.casefold
+        )
+
+    if isinstance(roles_payload, list):
+        return [r.strip() for r in roles_payload if r and r.strip()]
+
+    return []
+
+
+def _existing_user_name(users: list[dict], user_name: str) -> Optional[str]:
+
     requested = user_name.strip().casefold()
     for user in users:
         existing = str(user.get("user-name", "")).strip()
@@ -87,10 +129,31 @@ def _existing_user_name(users: list[dict], user_name: str) -> str | None:
     return None
 
 
-def _split_roles(raw_roles: tuple[str, ...] | list[str] | None) -> list[str]:
+def _split_roles(
+    raw_roles: Optional[Union[tuple[str, ...], list[str]]] = None
+) -> list[str]:
     if not raw_roles:
         return []
     return [role.strip() for role in raw_roles if role and role.strip()]
+
+
+def _expand_role_shortcuts(roles: list[str]) -> list[str]:
+    emap = {
+        "admin": ["All Users", "CWMS Users", "TS ID Creator", "CWMS User Admins"],
+        "readonly": ["All Users", "CWMS Users"],
+        "readwrite": ["All Users", "CWMS Users", "TS ID Creator"],
+    }
+
+    expanded_roles: list[str] = []
+    for role in roles:
+        key = role.strip().casefold()
+        if key == "all":
+            expanded_roles.append(role)  # Keep "all" as is, handled elsewhere
+        elif key in emap:
+            expanded_roles.extend(emap[key])
+        else:
+            expanded_roles.append(role)
+    return expanded_roles
 
 
 def _validate_role_inputs(
@@ -117,7 +180,13 @@ def _validate_role_inputs(
             f"Unknown role value(s): {invalid}. Run {_cmd('cwms-cli users roles')} to see the valid role catalog."
         )
 
-    deduped_roles = sorted(set(normalized_roles), key=str.casefold)
+    deduped_roles = []
+    seen_roles = set()
+    for role in normalized_roles:
+        if role not in seen_roles:
+            seen_roles.add(role)
+            deduped_roles.append(role)
+
     if not deduped_roles:
         raise click.ClickException("At least one valid role is required.")
 
@@ -127,6 +196,19 @@ def _validate_role_inputs(
 def _render_roles_table(roles: list[str]) -> str:
     rows = [[colors.c(role, "green")] for role in roles]
     return _format_table(["Role"], rows)
+
+
+def _render_user_roles_table(user_roles: dict[str, list[str]]) -> str:
+    rows = []
+    for office, roles in sorted(user_roles.items()):
+        roles_str = ", ".join(sorted(roles))
+        rows.append([colors.c(office, "cyan"), colors.c(roles_str, "green")])
+    return _format_table(["Office", "Roles"], rows)
+
+
+def _render_users_table(users: list[dict]) -> str:
+    rows = [[colors.c(user.get("user-name", ""), "green")] for user in users]
+    return _format_table(["User Name"], rows)
 
 
 def _prompt_for_role_inputs(
@@ -140,7 +222,8 @@ def _prompt_for_role_inputs(
     click.echo(_render_roles_table(available_roles))
     click.echo("")
     roles_raw = click.prompt(
-        "Roles (comma-separated; use names exactly as listed)", type=str
+        "Roles (comma-separated; use names exactly as listed; or shortcuts admin/readwrite/readonly)",
+        type=str,
     ).strip()
     roles = [role.strip() for role in roles_raw.split(",") if role.strip()]
     return user_name, roles
@@ -162,18 +245,71 @@ def _prompt_for_office(office: str) -> str:
     )
 
 
-def list_roles(office: str, api_root: str, api_key: str, api_key_loc: str) -> None:
+def list_roles(api_root: str, api_key: str, api_key_loc: str) -> None:
     cwms = _init_cwms(api_root, api_key, api_key_loc)
     roles = _fetch_roles(cwms)
-
     header_count = colors.c(str(len(roles)), "cyan", bright=True)
     click.echo(f"Available roles for user management: {header_count}")
-
     if not roles:
-        click.echo(colors.warn(f"No roles were returned for office {office}."))
+        click.echo(colors.warn("No roles were returned."))
         return
-
     click.echo(_render_roles_table(roles))
+
+
+def list_user_roles(
+    user_name: str, office: Optional[str], api_root: str, api_key: str, api_key_loc: str
+) -> None:
+    cwms = _init_cwms(api_root, api_key, api_key_loc)
+    roles_payload = _get_user_roles_payload(cwms, user_name)
+    if isinstance(roles_payload, dict):
+        if office:
+            office_key = office.strip().upper()
+            office_roles = roles_payload.get(office_key, [])
+            if office_roles is None:
+                office_roles = []
+            user_roles = [r.strip() for r in office_roles if r and r.strip()]
+            header = (
+                f"Roles for user '{user_name}' in office '{office}': {len(user_roles)}"
+            )
+            click.echo(colors.c(header, "cyan", bright=True))
+            if not user_roles:
+                click.echo(colors.warn("No roles found."))
+                return
+            click.echo(_render_roles_table(user_roles))
+        else:
+            # List roles for each office
+            header = f"Roles for user '{user_name}' across all offices:"
+            click.echo(colors.c(header, "cyan", bright=True))
+            for off, roles in roles_payload.items():
+                if roles:
+                    cleaned_roles = [r.strip() for r in roles if r and r.strip()]
+                    if cleaned_roles:
+                        click.echo(
+                            colors.c(
+                                f"Office '{off}': {len(cleaned_roles)} roles", "yellow"
+                            )
+                        )
+                        click.echo(_render_roles_table(cleaned_roles))
+                        click.echo("")
+                else:
+                    click.echo(colors.c(f"Office '{off}': No roles", "yellow"))
+                    click.echo("")
+    else:
+        click.echo(colors.warn("Unexpected roles format."))
+
+
+def list_user_ids(
+    office: str,
+    api_root: str,
+    api_key: str,
+    api_key_loc: str,
+    username_like: Optional[str] = None,
+) -> None:
+    # This command is wired from user roles group default action. Users can
+    # pass an optional name filter but for now roles view is what should be shown.
+    cwms = _init_cwms(api_root, api_key, api_key_loc)
+    users = _fetch_users(cwms, office, username_like=username_like)
+    click.echo(_render_users_table(users))
 
 
 def add_roles(
@@ -181,8 +317,8 @@ def add_roles(
     api_root: str,
     api_key: str,
     api_key_loc: str,
-    user_name: str | None,
-    roles: tuple[str, ...] | list[str] | None,
+    user_name: Optional[str],
+    roles: Optional[Union[tuple[str, ...], list[str]]],
 ) -> None:
     provided_user_name = (user_name or "").strip()
     provided_roles = _split_roles(roles)
@@ -203,6 +339,7 @@ def add_roles(
             "add", available_roles
         )
 
+    provided_roles = _expand_role_shortcuts(provided_roles)
     existing_user, validated_roles = _validate_role_inputs(
         users, available_roles, provided_user_name, provided_roles
     )
@@ -227,11 +364,12 @@ def delete_roles(
     api_root: str,
     api_key: str,
     api_key_loc: str,
-    user_name: str | None,
-    roles: tuple[str, ...] | list[str] | None,
+    user_name: Optional[str],
+    roles: Optional[Union[tuple[str, ...], list[str]]],
 ) -> None:
     provided_user_name = (user_name or "").strip()
     provided_roles = _split_roles(roles)
+    provided_roles = _expand_role_shortcuts(provided_roles)
 
     if bool(provided_user_name) ^ bool(provided_roles):
         raise click.ClickException(
@@ -240,7 +378,7 @@ def delete_roles(
         )
 
     cwms = _init_cwms(api_root, api_key, api_key_loc)
-    users = _fetch_users(cwms)
+    users = _fetch_users(cwms, office)
     available_roles = _fetch_roles(cwms)
 
     if not provided_user_name and not provided_roles:
@@ -248,11 +386,28 @@ def delete_roles(
         provided_user_name, provided_roles = _prompt_for_role_inputs(
             "delete", available_roles
         )
+        provided_roles = _expand_role_shortcuts(provided_roles)
+
+    if provided_roles and any(r.strip().casefold() == "all" for r in provided_roles):
+        if len(provided_roles) > 1:
+            raise click.ClickException("'all' cannot be specified with other roles.")
+        existing_user = _existing_user_name(users, provided_user_name)
+        if not existing_user:
+            raise click.ClickException(f"User '{provided_user_name}' not found.")
+        fetched_roles = _fetch_user_roles(cwms, existing_user, office)
+        provided_roles = fetched_roles
 
     existing_user, validated_roles = _validate_role_inputs(
         users, available_roles, provided_user_name, provided_roles
     )
-
+    if "All Users" in validated_roles:
+        validated_roles.remove("All Users")
+        click.echo(
+            colors.warn(
+                "Warning: 'All Users' role cannot be deleted directly and will remain assigned. "
+                "Any other specified roles will be deleted as requested."
+            )
+        )
     try:
         cwms.delete_user_roles(
             user_name=existing_user, office_id=office, roles=validated_roles
