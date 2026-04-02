@@ -1,0 +1,83 @@
+[people.charles]
+name = "Charles Graham"
+email = "charles.r.graham@usace.army.mil"
+
+[people.eric]
+name = "Eric Novotny"
+email = "eric.v.novotny@usace.army.mil"
+
+[poetry]
+authors = ["eric", "charles"]
+
+[cli]
+default = ["charles", "eric"]
+
+[cli.commands]
+"cwms-cli csv2cwms" = ["charles"]
+"cwms-cli blob" = ["charles"]
+"cwms-cli update" = ["charles"]
+"cwms-cli load" = ["charles", "eric"]
+"cwms-cli usgs" = ["eric"]
+"cwms-cli shefcritimport" = ["eric"]
+
+[docs.pages]
+"cli" = "cwms-cli"
+"blob" = "cwms-cli blob"
+"csv2cwms" = "cwms-cli csv2cwms"
+"update" = "cwms-cli update"
+"load_location_ids_all" = "cwms-cli load"
+
+[[codeowners.rule]]
+pattern = "*"
+owners = ["charles", "eric"]
+comment = "Default owners for repository-wide files and shared cwms-cli behavior"
+
+[[codeowners.rule]]
+pattern = "/.github/CODEOWNERS"
+owners = ["charles", "eric"]
+comment = "Protect ownership rules themselves"
+
+[[codeowners.rule]]
+pattern = "/cwmscli/commands/csv2cwms/"
+owners = ["charles"]
+
+[[codeowners.rule]]
+pattern = "/docs/cli/csv2cwms*.rst"
+owners = ["charles"]
+
+[[codeowners.rule]]
+pattern = "/cwmscli/commands/blob.py"
+owners = ["charles"]
+
+[[codeowners.rule]]
+pattern = "/docs/cli/blob.rst"
+owners = ["charles"]
+
+[[codeowners.rule]]
+pattern = "/cwmscli/utils/update.py"
+owners = ["charles"]
+
+[[codeowners.rule]]
+pattern = "/docs/cli/update.rst"
+owners = ["charles"]
+
+[[codeowners.rule]]
+pattern = "/cwmscli/load/"
+owners = ["charles", "eric"]
+
+[[codeowners.rule]]
+pattern = "/docs/cli/load_*.rst"
+owners = ["charles", "eric"]
+
+[[codeowners.rule]]
+pattern = "/cwmscli/usgs/"
+owners = ["eric"]
+
+[[codeowners.rule]]
+pattern = "/cwmscli/commands/shef_critfile_import.py"
+owners = ["eric"]
+
+[[codeowners.rule]]
+pattern = "/cwmscli/commands/commands_cwms.py"
+owners = ["charles", "eric"]
+comment = "Shared Click wrappers span commands owned by both maintainers"

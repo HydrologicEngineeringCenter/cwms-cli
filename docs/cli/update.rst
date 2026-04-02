@@ -1,6 +1,8 @@
 Update command
 ==============
 
+.. include:: ../_generated/maintainers/update.inc
+
 Use ``cwms-cli update`` to update the installed ``cwms-cli`` package with pip.
 By default it installs the latest available release, and you can optionally
 target a specific version with ``--target-version``. After updating, use

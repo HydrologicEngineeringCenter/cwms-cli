@@ -1,6 +1,8 @@
 csv2cwms
 ========
 
+.. include:: ../_generated/maintainers/csv2cwms.inc
+
 Use ``cwms-cli csv2cwms`` to load CSV time series data into
 `CWMS Data API (CDA) <https://cwms-data.usace.army.mil/cwms-data>`_ with a
 user-defined JSON configuration file.
