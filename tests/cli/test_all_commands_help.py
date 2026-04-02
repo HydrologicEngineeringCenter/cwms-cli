@@ -75,10 +75,47 @@ def test_root_version_flag(runner):
     assert f"cwms-cli version {get_cwms_cli_version()}" in result.output
 
 
+def test_root_version_flag_shows_update_hint_when_newer_release_exists(
+    runner, monkeypatch
+):
+    monkeypatch.setattr(
+        "cwmscli.utils.version_cli.get_cwms_cli_version", lambda: "0.3.6"
+    )
+    monkeypatch.setattr(
+        "cwmscli.utils.version_cli.get_latest_cwms_cli_version", lambda: "0.3.7"
+    )
+
+    result = runner.invoke(cli, ["--version"])
+
+    assert result.exit_code == 0
+    assert "cwms-cli version 0.3.6" in result.output
+    assert "Newer version available: 0.3.7" in result.output
+    assert "Run: cwms-cli update" in result.output
+
+
+def test_root_version_flag_ignores_update_check_failures(runner, monkeypatch):
+    monkeypatch.setattr(
+        "cwmscli.utils.version_cli.get_latest_cwms_cli_version",
+        lambda: None,
+    )
+
+    result = runner.invoke(cli, ["--version"])
+
+    assert result.exit_code == 0
+    assert "Newer version available:" not in result.output
+
+
 def test_log_level_info_is_accepted(runner):
     result = runner.invoke(cli, ["--log-level", "INFO", "--version"])
     assert result.exit_code == 0
     assert f"cwms-cli version {get_cwms_cli_version()}" in result.output
+
+
+def test_explicit_log_level_overrides_production_floor(runner, monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "prod")
+    result = runner.invoke(cli, ["--log-level", "INFO", "load", "--help"])
+    assert result.exit_code == 0
+    assert "logger configured" in result.output
 
 
 @pytest.mark.parametrize("path,command", list(iter_commands(cli)))

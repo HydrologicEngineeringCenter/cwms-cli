@@ -46,7 +46,7 @@ def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc, backfi
     from cwmscli.usgs.getusgs_cda import getusgs_cda
 
     if backfill is not None:
-        backfill_list = backfill.replace(" ", "").split(",")
+        backfill_list = [item.strip() for item in backfill.split(",") if item.strip()]
     else:
         backfill_list = None
 
@@ -78,7 +78,9 @@ def getusgs_ratings(office, days_back, api_root, api_key, api_key_loc, rating_su
     from cwmscli.usgs.getUSGS_ratings_cda import getusgs_rating_cda
 
     if rating_subset is not None:
-        rating_list = rating_subset.replace(" ", "").split(",")
+        rating_list = [
+            item.strip() for item in rating_subset.split(",") if item.strip()
+        ]
     else:
         rating_list = None
 
@@ -158,7 +160,9 @@ def getusgs_measurements(
         if "group" in backfill:
             backfill_group = True
         elif type(backfill) == str:
-            backfill_list = backfill.replace(" ", "").split(",")
+            backfill_list = [
+                item.strip() for item in backfill.split(",") if item.strip()
+            ]
     api_key = get_api_key(api_key, api_key_loc)
     getusgs_measurement_cda(
         api_root=api_root,

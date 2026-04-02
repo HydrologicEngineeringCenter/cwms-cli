@@ -4,22 +4,32 @@ import sys
 from typing import Optional
 
 import click
+from click.core import ParameterSource
 
 from cwmscli.commands import commands_cwms
 from cwmscli.load import __main__ as load
 from cwmscli.usgs import usgs_group
 from cwmscli.utils.click_help import add_version_to_help_tree
-from cwmscli.utils.logging import LoggingConfig, setup_logging
+from cwmscli.utils.friendly_errors import to_user_facing_error
+from cwmscli.utils.logging import (
+    LoggingConfig,
+    apply_logging_policies,
+    current_environment,
+    setup_logging,
+)
 from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
-from cwmscli.utils.version import get_cwms_cli_version
+from cwmscli.utils.version_cli import show_version_and_exit
 
 
 @click.group(context_settings=dict(help_option_names=["-h", "--help"]))
-@click.version_option(
-    get_cwms_cli_version(),
+@click.option(
     "--version",
     "-V",
-    message="cwms-cli version %(version)s",
+    is_flag=True,
+    is_eager=True,
+    expose_value=False,
+    callback=show_version_and_exit,
+    help="Show the cwms-cli version and exit.",
 )
 @click.option(
     "--log-file",
@@ -40,8 +50,29 @@ from cwmscli.utils.version import get_cwms_cli_version
     ),
     default="INFO",
 )
-def cli(log_file: Optional[str], no_color: bool, log_level: str) -> None:
+@click.option(
+    "-q",
+    "--quiet",
+    is_flag=True,
+    default=False,
+    help="Suppress routine output; warnings and errors still print.",
+)
+@click.pass_context
+def cli(
+    ctx: click.Context,
+    log_file: Optional[str],
+    no_color: bool,
+    log_level: str,
+    quiet: bool,
+) -> None:
     level = getattr(logging, log_level.upper(), logging.INFO)
+    level = apply_logging_policies(
+        level,
+        quiet=quiet,
+        environment=current_environment(),
+        explicit_log_level=ctx.get_parameter_source("log_level")
+        == ParameterSource.COMMANDLINE,
+    )
 
     # Disable colors if stdout isn't a TTY (piped/redirected)
     tty = sys.stdout.isatty()
@@ -88,6 +119,13 @@ def main() -> None:
             )
             click.echo(ssl_help_text(), err=True)
             raise SystemExit(2)
+
+        if not debug:
+            friendly_error = to_user_facing_error(e)
+            if friendly_error is not None:
+                logging.debug("Suppressed traceback for CLI exception", exc_info=e)
+                friendly_error.show()
+                raise SystemExit(friendly_error.exit_code)
 
         # If debug is enabled (or it's not a cert verify error), keep the normal failure behavior.
         raise
