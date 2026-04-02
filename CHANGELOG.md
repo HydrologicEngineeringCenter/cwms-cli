@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.4.0](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.3.8...v0.4.0) (2026-04-02)
+
+
+### Features
+
+* 45 users cli ([#147](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/147)) ([08ae2a4](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/08ae2a45dbc7a3d945d056a1dda991c641a1743e))
+
 ## [0.3.8](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.3.7...v0.3.8) (2026-03-30)
 
 
