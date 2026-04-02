@@ -119,7 +119,7 @@ def test_update_command_surfaces_missing_target_version(monkeypatch):
     result = runner.invoke(cli, ["update", "--target-version", "9.9.9", "--yes"])
 
     assert result.exit_code == 1
-    assert "Requested cwms-cli version '9.9.9' was not found." in result.stderr
+    assert "Requested cwms-cli version '9.9.9' was not found." in result.output
 
 
 def test_update_command_cancelled_by_user(monkeypatch):

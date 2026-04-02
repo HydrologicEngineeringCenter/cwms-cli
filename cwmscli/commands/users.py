@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import logging
 from typing import Optional, Union
 
 import click
 
 from cwmscli.utils import colors, get_api_key
-
-logging.basicConfig(level=logging.DEBUG)
 
 
 def _format_table(headers: list[str], rows: list[list[str]]) -> str:

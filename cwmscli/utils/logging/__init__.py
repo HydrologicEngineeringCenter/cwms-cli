@@ -106,4 +106,4 @@ def setup_logging(cfg: LoggingConfig) -> None:
         file_handler = logging.FileHandler(cfg.log_file, encoding="utf-8")
         file_handler.setFormatter(logging.Formatter(base_fmt, date_fmt))
         root.addHandler(file_handler)
-    logging.getLogger().debug("logger configured")
+    logging.getLogger().info("logger configured")

@@ -18,7 +18,7 @@ from cwmscli.utils import (
     get_api_key,
     office_option,
     office_option_notrequired,
-    to_uppercase
+    to_uppercase,
 )
 from cwmscli.utils.deps import requires
 from cwmscli.utils.update import (

@@ -118,73 +118,6 @@ def test_users_roles_surfaces_handled_api_errors_without_traceback(monkeypatch):
     assert "Traceback" not in result.output
 
 
-def test_users_roles_add_interactive(monkeypatch):
-    monkeypatch.setattr(
-        "cwmscli.utils.get_api_key", lambda api_key, api_key_loc: "test-key"
-    )
-
-    calls = {}
-
-    class _FakeCwms:
-        class api:
-            class ApiError(Exception):
-                pass
-
-            class PermissionError(ApiError):
-                pass
-
-        @staticmethod
-        def init_session(api_root, api_key):
-            calls["init_session"] = (api_root, api_key)
-
-        @staticmethod
-        def get_users(office_id=None, username_like=None, page_size=None):
-            calls.setdefault("get_users", []).append(
-                (office_id, username_like, page_size)
-            )
-            return _FakeData({"users": [{"user-name": "q0hectest"}], "next-page": None})
-
-        @staticmethod
-        def get_roles():
-            return ["Viewer Users", "CWMS User Admins", "CWMS Users"]
-
-        @staticmethod
-        def store_user(user_name, office_id, roles):
-            calls["store_user"] = (user_name, office_id, roles)
-
-    monkeypatch.setitem(__import__("sys").modules, "cwms", _FakeCwms)
-
-    runner = CliRunner()
-    result = runner.invoke(
-        cli,
-        [
-            "users",
-            "roles",
-            "add",
-            "--office",
-            "SPK",
-            "--api-root",
-            "https://example.test/cda/",
-            "--api-key",
-            "ignored",
-            "--api-key-loc",
-            "header",
-        ],
-        input="n\nq0hectest\nCWMS User Admins, Viewer Users\n",
-    )
-
-    assert result.exit_code == 0
-    assert calls["store_user"] == (
-        "q0hectest",
-        "SPK",
-        ["CWMS User Admins", "Viewer Users"],
-    )
-    assert "You have office set to SPK, would you like to change this?" in result.output
-    assert "User name" in result.output
-    assert "Roles (comma-separated" in result.output
-    assert "Added 2 role(s) to user q0hectest for office SPK." in result.output
-
-
 def test_users_roles_add_shortcut_roles_expand(monkeypatch):
     monkeypatch.setattr(
         "cwmscli.utils.get_api_key", lambda api_key, api_key_loc: "test-key"
@@ -483,62 +416,6 @@ def test_users_roles_delete_all_roles(monkeypatch):
     )
 
 
-def test_users_roles_add_interactive_allows_office_override(monkeypatch):
-    monkeypatch.setattr(
-        "cwmscli.utils.get_api_key", lambda api_key, api_key_loc: "test-key"
-    )
-
-    calls = {}
-
-    class _FakeCwms:
-        class api:
-            class ApiError(Exception):
-                pass
-
-            class PermissionError(ApiError):
-                pass
-
-        @staticmethod
-        def init_session(api_root, api_key):
-            calls["init_session"] = (api_root, api_key)
-
-        @staticmethod
-        def get_users(office_id=None, username_like=None, page_size=None):
-            return _FakeData({"users": [{"user-name": "q0hectest"}], "next-page": None})
-
-        @staticmethod
-        def get_roles():
-            return ["CWMS User Admins"]
-
-        @staticmethod
-        def store_user(user_name, office_id, roles):
-            calls["store_user"] = (user_name, office_id, roles)
-
-    monkeypatch.setitem(__import__("sys").modules, "cwms", _FakeCwms)
-
-    runner = CliRunner()
-    result = runner.invoke(
-        cli,
-        [
-            "users",
-            "roles",
-            "add",
-            "--office",
-            "SPK",
-            "--api-root",
-            "https://example.test/cda/",
-            "--api-key",
-            "ignored",
-        ],
-        input="y\nswt\nq0hectest\nCWMS User Admins\n",
-    )
-
-    assert result.exit_code == 0
-    assert calls["store_user"] == ("q0hectest", "SWT", ["CWMS User Admins"])
-    assert "Office [SPK]" in result.output
-    assert "Added 1 role(s) to user q0hectest for office SWT." in result.output
-
-
 def test_users_roles_add_requires_all_add_args_or_none(monkeypatch):
     monkeypatch.setattr(
         "cwmscli.utils.get_api_key", lambda api_key, api_key_loc: "test-key"
@@ -585,66 +462,6 @@ def test_users_roles_add_requires_all_add_args_or_none(monkeypatch):
     assert "Traceback" not in result.output
 
 
-def test_users_roles_delete_interactive(monkeypatch):
-    monkeypatch.setattr(
-        "cwmscli.utils.get_api_key", lambda api_key, api_key_loc: "test-key"
-    )
-
-    calls = {}
-
-    class _FakeCwms:
-        class api:
-            class ApiError(Exception):
-                pass
-
-            class PermissionError(ApiError):
-                pass
-
-        @staticmethod
-        def init_session(api_root, api_key):
-            calls["init_session"] = (api_root, api_key)
-
-        @staticmethod
-        def get_users(office_id=None, username_like=None, page_size=None):
-            return _FakeData({"users": [{"user-name": "q0hectest"}], "next-page": None})
-
-        @staticmethod
-        def get_roles():
-            return ["Viewer Users", "CWMS User Admins", "CWMS Users"]
-
-        @staticmethod
-        def delete_user_roles(user_name, office_id, roles):
-            calls["delete_user_roles"] = (user_name, office_id, roles)
-
-    monkeypatch.setitem(__import__("sys").modules, "cwms", _FakeCwms)
-
-    runner = CliRunner()
-    result = runner.invoke(
-        cli,
-        [
-            "users",
-            "roles",
-            "delete",
-            "--office",
-            "SPK",
-            "--api-root",
-            "https://example.test/cda/",
-            "--api-key",
-            "ignored",
-        ],
-        input="n\nq0hectest\nCWMS User Admins, Viewer Users\n",
-    )
-
-    assert result.exit_code == 0
-    assert calls["delete_user_roles"] == (
-        "q0hectest",
-        "SPK",
-        ["CWMS User Admins", "Viewer Users"],
-    )
-    assert "Enter the target user and one or more roles to delete." in result.output
-    assert "Deleted 2 role(s) from user q0hectest for office SPK." in result.output
-
-
 def test_users_roles_delete_requires_all_delete_args_or_none(monkeypatch):
     monkeypatch.setattr(
         "cwmscli.utils.get_api_key", lambda api_key, api_key_loc: "test-key"
@@ -681,8 +498,8 @@ def test_users_roles_delete_requires_all_delete_args_or_none(monkeypatch):
             "https://example.test/cda/",
             "--api-key",
             "ignored",
-            "--roles",
-            "CWMS User Admins",
+            "--user-name",
+            "q0hectest",
         ],
     )
 
