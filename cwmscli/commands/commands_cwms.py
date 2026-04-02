@@ -9,7 +9,17 @@ import click
 from cwmscli import requirements as reqs
 from cwmscli.callbacks import csv_to_list
 from cwmscli.commands import csv2cwms
-from cwmscli.utils import api_key_loc_option, colors, common_api_options, to_uppercase
+from cwmscli.utils import (
+    api_key_loc_option,
+    api_key_option,
+    api_root_option,
+    colors,
+    common_api_options,
+    get_api_key,
+    office_option,
+    office_option_notrequired,
+    to_uppercase,
+)
 from cwmscli.utils.deps import requires
 from cwmscli.utils.update import (
     build_update_package_spec,
@@ -393,3 +403,146 @@ def list_cmd(**kwargs):
     from cwmscli.commands.blob import list_cmd
 
     list_cmd(**kwargs)
+
+
+# ================================================================================
+#       USERS
+# ================================================================================
+user_name_option = click.option(
+    "-u",
+    "--user-name",
+    type=str,
+    default=None,
+    required=True,
+    help="Existing user name.",
+)
+
+
+@click.group(
+    "users",
+    help="Manage CWMS users and user-management roles",
+)
+def users_group():
+    pass
+
+
+@users_group.command(
+    "user-ids",
+    help="List all available user IDs for an office or lookup using like filter",
+)
+@office_option_notrequired
+@api_root_option
+@api_key_option
+@api_key_loc_option
+@click.option(
+    "-ul",
+    "--username-like",
+    type=str,
+    default=None,
+    help="Enter any part of a user name to filter user id listing. Case-insensitive.",
+)
+@requires(reqs.cwms)
+def users_user_ids(office, api_root, api_key, api_key_loc, username_like):
+    from cwmscli.commands.users import list_user_ids
+
+    list_user_ids(
+        office=office,
+        api_root=api_root,
+        api_key=api_key,
+        api_key_loc=api_key_loc,
+        username_like=username_like,
+    )
+
+
+@click.group(
+    "roles",
+    help="Manage CWMS users and user-management roles",
+)
+def roles_group():
+    pass
+
+
+@roles_group.command(
+    "list-all",
+    help="List assignable CWMS user-management roles",
+)
+@api_root_option
+@api_key_option
+@api_key_loc_option
+@requires(reqs.cwms)
+def users_roles_list_all(api_root, api_key, api_key_loc):
+    from cwmscli.commands.users import list_roles
+
+    list_roles(api_root=api_root, api_key=api_key, api_key_loc=api_key_loc)
+
+
+@roles_group.command("list-user", help="List roles for a specific user and office")
+@user_name_option
+@office_option_notrequired
+@api_root_option
+@api_key_option
+@api_key_loc_option
+@requires(reqs.cwms)
+def users_roles_list_user(user_name, office, api_root, api_key, api_key_loc):
+    from cwmscli.commands.users import list_user_roles
+
+    list_user_roles(
+        user_name=user_name,
+        office=office,
+        api_root=api_root,
+        api_key=api_key,
+        api_key_loc=api_key_loc,
+    )
+
+
+@roles_group.command("add", help="Add one or more roles to an existing user")
+@common_api_options
+@api_key_loc_option
+@user_name_option
+@click.option(
+    "--roles",
+    multiple=True,
+    default=None,
+    callback=csv_to_list,
+    help="enter admin, readonly, readwrite, or individual role name(s) to add. Repeat the option or pass a comma/pipe-separated list.",
+)
+@requires(reqs.cwms)
+def users_roles_add(office, api_root, api_key, api_key_loc, user_name, roles):
+    from cwmscli.commands.users import add_roles
+
+    add_roles(
+        user_name=user_name,
+        roles=roles,
+        office=office,
+        api_root=api_root,
+        api_key=api_key,
+        api_key_loc=api_key_loc,
+    )
+
+
+@roles_group.command("delete", help="Remove one or more roles from an existing user")
+@common_api_options
+@api_key_loc_option
+@user_name_option
+@click.option(
+    "--roles",
+    multiple=True,
+    default=None,
+    callback=csv_to_list,
+    help="enter 'all' to delete all roles, or admin, readonly, readwrite, or individual role name(s) to delete. Repeat the option or pass a comma/pipe-separated list.",
+)
+@requires(reqs.cwms)
+def users_roles_delete(office, api_root, api_key, api_key_loc, user_name, roles):
+    from cwmscli.commands.users import delete_roles
+
+    delete_roles(
+        user_name=user_name,
+        roles=roles,
+        office=office,
+        api_root=api_root,
+        api_key=api_key,
+        api_key_loc=api_key_loc,
+    )
+
+
+users_group.add_command(roles_group)
