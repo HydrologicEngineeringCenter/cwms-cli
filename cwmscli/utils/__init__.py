@@ -1,7 +1,7 @@
 import logging as py_logging
 import time
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Union
 
 import click
 from click.core import ParameterSource
@@ -113,7 +113,7 @@ def get_api_key(api_key: str, api_key_loc: str) -> str:
 
 
 def get_saved_login_token(
-    token_file: Optional[str | Path] = None,
+    token_file: Optional[Union[str, Path]] = None,
     provider: str = "federation-eams",
 ) -> Optional[str]:
     from cwmscli.utils.auth import AuthError, default_token_file, load_saved_login
@@ -159,7 +159,7 @@ def init_cwms_session(
     api_key: Optional[str] = None,
     api_key_loc: Optional[str] = None,
     anonymous: bool = False,
-    token_file: Optional[str | Path] = None,
+    token_file: Optional[Union[str, Path]] = None,
     provider: str = "federation-eams",
 ):
     init_fn = getattr(cwms_module, "init_session", None)
