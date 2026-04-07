@@ -6,6 +6,8 @@ from typing import Optional
 import click
 import pandas as pd
 
+from cwmscli.utils import init_cwms_session
+
 logger = logging.getLogger(__name__)
 
 
@@ -26,12 +28,12 @@ def load_timeseries_ids(
             f"to target CDA '{target_cda}'."
         )
 
-    cwms.init_session(api_root=source_cda, api_key=None)
+    init_cwms_session(cwms, api_root=source_cda)
     ts_ids = cwms.get_timeseries_identifiers(
         office_id=source_office, timeseries_id_regex=timeseries_id_regex
     ).df
 
-    cwms.init_session(api_root=target_cda, api_key=target_api_key)
+    init_cwms_session(cwms, api_root=target_cda, api_key=target_api_key)
     # only grab time_ids for locations that are in the target database
     locations = cwms.get_locations_catalog(office_id=source_office)
     ts_ids[["location-id", "param", "type", "int", "dur", "ver"]] = ts_ids[

@@ -6,6 +6,8 @@ from typing import Optional
 import click
 import cwms
 
+from cwmscli.utils import init_cwms_session
+
 logger = logging.getLogger(__name__)
 
 
@@ -43,7 +45,7 @@ def copy_from_group(
             f"filter_office={filter_office}  dry_run={dry_run}"
         )
 
-    cwms.init_session(api_root=source_cda, api_key=None)
+    init_cwms_session(cwms, api_root=source_cda)
 
     try:
         grp = cwms.get_location_group(
@@ -106,7 +108,7 @@ def copy_from_group(
         return
 
     try:
-        cwms.init_session(api_root=target_cda, api_key=target_api_key)
+        init_cwms_session(cwms, api_root=target_cda, api_key=target_api_key)
     except Exception as e:
         raise click.ClickException(f"Failed to init target session: {e}")
 
