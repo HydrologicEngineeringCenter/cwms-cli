@@ -260,12 +260,19 @@ def list_blobs(
     sort_by: Optional[Sequence[str]] = None,
     ascending: bool = True,
     limit: Optional[int] = None,
+    page_size: Optional[int] = None,
 ):
     logging.info(f"Listing blobs for office: {office!r}...")
     import cwms
     import pandas as pd
 
-    result = cwms.get_blobs(office_id=office, blob_id_like=blob_id_like)
+    # Use page size if it's provided per #184
+    fetch_page_size = page_size if page_size is not None else limit
+    result = cwms.get_blobs(
+        office_id=office,
+        blob_id_like=blob_id_like,
+        page_size=fetch_page_size,
+    )
 
     # Accept either a DataFrame or a JSON/dict-like response
     if isinstance(result, pd.DataFrame):
@@ -678,6 +685,7 @@ def list_cmd(
     sort_by: list[str],
     desc: bool,
     limit: int,
+    page_size: int,
     to_csv: str,
     office: str,
     api_root: str,
@@ -697,6 +705,7 @@ def list_cmd(
             sort_by=sort_by,
             ascending=not desc,
             limit=limit,
+            page_size=page_size,
         )
     except Exception:
         log_scoped_read_hint(
