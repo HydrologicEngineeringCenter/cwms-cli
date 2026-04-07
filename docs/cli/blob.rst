@@ -8,7 +8,7 @@ Quick reference
 
 - ``blob upload`` supports single-file upload and directory upload.
 - ``blob download`` writes the returned blob content to disk using the server media type when possible.
-- ``blob list`` and ``blob download`` send an API key if one is configured, unless ``--anonymous`` is used.
+- ``blob list`` and ``blob download`` send a saved login token if one exists, otherwise an API key if one is configured, unless ``--anonymous`` is used.
 - Directory upload stops before sending anything if generated blob IDs would collide.
 - ``blob upload --overwrite``: To replace existing blobs.
 
@@ -37,12 +37,13 @@ Example:
 Auth and scope
 --------------
 
-Blob reads can behave differently depending on whether an API key is sent.
+Blob reads can behave differently depending on whether credentials are sent.
 
-- If ``--api-key`` is provided, or ``CDA_API_KEY`` is set, cwms-cli sends that key.
-- If no key is provided, blob read commands default to anonymous access.
-- Use ``--anonymous`` on ``blob download`` or ``blob list`` to force an anonymous read even when a key is configured.
-- If a keyed read fails because the key scope is narrower than the content you are trying to view, the CLI logs a scope hint telling you to retry with ``--anonymous`` or remove the configured key.
+- If a saved login token exists, cwms-cli sends that token first.
+- Otherwise, if ``--api-key`` is provided, or ``CDA_API_KEY`` is set, cwms-cli sends that key.
+- If no token or key is available, blob read commands default to anonymous access.
+- Use ``--anonymous`` on ``blob download`` or ``blob list`` to force an anonymous read even when a token or key is configured.
+- If an authenticated read fails because the credential scope is narrower than the content you are trying to view, the CLI logs a scope hint telling you to retry with ``--anonymous`` or remove the configured credential.
 
 Examples:
 
