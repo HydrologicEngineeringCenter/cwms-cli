@@ -42,6 +42,9 @@ def _docs_url_for_context(ctx: click.Context) -> Optional[str]:
     page_map = {
         "blob": "blob",
         "login": "login",
+        "update": "update",
+        "users": "users",
+        "version": "version",
     }
     # Link to dedicated pages that are created in \docs
     if command in page_map:

@@ -1,16 +1,33 @@
 import logging
+import os
 import subprocess
 import sys
 import textwrap
 from pathlib import Path
+from typing import Optional
 
 import click
 
 from cwmscli import requirements as reqs
 from cwmscli.callbacks import csv_to_list
 from cwmscli.commands import csv2cwms
-from cwmscli.utils import api_key_loc_option, common_api_options, to_uppercase
+from cwmscli.utils import (
+    api_key_loc_option,
+    api_key_option,
+    api_root_option,
+    colors,
+    common_api_options,
+    get_api_key,
+    office_option,
+    office_option_notrequired,
+    to_uppercase,
+)
 from cwmscli.utils.deps import requires
+from cwmscli.utils.update import (
+    build_update_package_spec,
+    launch_windows_update,
+    looks_like_missing_version,
+)
 from cwmscli.utils.version import get_cwms_cli_version
 
 
@@ -241,13 +258,6 @@ def shefcritimport(filename, office, api_root, api_key, api_key_loc):
     type=click.Path(exists=True),
     help="Path to JSON config file",
 )
-@click.option(
-    "-df",
-    "--data-file",
-    "data_file",
-    type=str,
-    help="Override CSV file (else use config)",
-)
 @click.option("--log", show_default=True, help="Path to the log file.")
 @click.option("--dry-run", is_flag=True, help="Log only (no HTTP calls)")
 @click.option("--begin", type=str, help="YYYY-MM-DDTHH:MM (local to --tz)")
@@ -269,7 +279,16 @@ def csv2cwms_cmd(**kwargs):
     csv2_main(**kwargs)
 
 
-@click.command("update", help="Update cwms-cli to the latest version using pip.")
+@click.command(
+    "update",
+    help="Update cwms-cli with pip, optionally targeting a specific version.",
+)
+@click.option(
+    "--target-version",
+    "target_version",
+    metavar="VERSION",
+    help="Install a specific cwms-cli version instead of the latest release.",
+)
 @click.option(
     "--pre",
     is_flag=True,
@@ -283,32 +302,76 @@ def csv2cwms_cmd(**kwargs):
     default=False,
     help="Skip confirmation prompt and run update immediately.",
 )
-def update_cli_cmd(pre: bool, yes: bool) -> None:
+def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
     current_version = get_cwms_cli_version()
-    click.echo(f"Current cwms-cli version: {current_version}")
+    package_spec = build_update_package_spec(target_version)
 
-    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "cwms-cli"]
+    click.echo(
+        "Current cwms-cli version: " f"{colors.c(current_version, 'cyan', bright=True)}"
+    )
+    if target_version:
+        click.echo(
+            "Requested cwms-cli version: "
+            f"{colors.c(target_version, 'cyan', bright=True)}"
+        )
+    else:
+        click.echo("Requested cwms-cli version: latest available release")
+
+    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", package_spec]
     if pre:
         cmd.append("--pre")
 
     if not yes:
         proceed = click.confirm("Proceed with updating cwms-cli via pip?", default=True)
         if not proceed:
-            click.echo("Update canceled.")
+            click.echo(colors.warn("Update canceled."))
             return
 
     click.echo(f"Running: {' '.join(cmd)}")
+    if os.name == "nt":
+        try:
+            script_path = launch_windows_update(cmd)
+        except OSError as e:
+            raise click.ClickException(
+                f"Unable to launch Windows update process: {e}"
+            ) from e
+        click.echo(
+            colors.ok(
+                "Opened a separate command window to complete the update after "
+                "cwms-cli exits."
+            )
+        )
+        click.echo(f"Update helper script: {script_path}")
+        return
+
     try:
-        result = subprocess.run(cmd, check=False)
+        result = subprocess.run(
+            cmd,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
     except OSError as e:
         raise click.ClickException(f"Unable to run pip update command: {e}") from e
 
+    if result.stdout:
+        click.echo(result.stdout, nl=False)
+    if result.stderr:
+        click.echo(result.stderr, err=True, nl=False)
+
     if result.returncode != 0:
+        pip_output = "\n".join(part for part in [result.stdout, result.stderr] if part)
+        if target_version and looks_like_missing_version(pip_output, package_spec):
+            raise click.ClickException(
+                colors.err(
+                    f"Requested cwms-cli version '{target_version}' was not found."
+                )
+            )
         raise click.ClickException(
-            "cwms-cli update failed. Please review pip output above."
+            colors.err("cwms-cli update failed. Please review pip output above.")
         )
 
-    click.echo("Update complete. Run `cwms-cli --version` to verify.")
+    click.echo(colors.ok("Update complete. Run `cwms-cli --version` to verify."))
 
 
 # region Blob
@@ -335,14 +398,48 @@ def blob_group():
 # ================================================================================
 #       Upload
 # ================================================================================
-@blob_group.command("upload", help="Upload a file as a blob")
+@blob_group.command(
+    "upload",
+    help="Upload a single file or a directory of files as CWMS blob(s).",
+)
 @click.option(
     "--input-file",
-    required=True,
+    required=False,
     type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
-    help="Path to the file to upload.",
+    help="Path to a single file to upload.",
 )
-@click.option("--blob-id", required=True, type=str, help="Blob ID to create.")
+@click.option(
+    "--input-dir",
+    required=False,
+    type=click.Path(exists=True, file_okay=False, readable=True, path_type=str),
+    help="Directory containing multiple files to upload.",
+)
+@click.option(
+    "--file-regex",
+    default=".*",
+    show_default=True,
+    type=str,
+    help="Regex used to match files in --input-dir (matched against relative path).",
+)
+@click.option(
+    "--recursive/--no-recursive",
+    default=False,
+    show_default=True,
+    help="Recurse into subdirectories when using --input-dir.",
+)
+@click.option(
+    "--blob-id",
+    required=False,
+    type=str,
+    help="Blob ID to create for single-file upload.",
+)
+@click.option(
+    "--blob-id-prefix",
+    default="",
+    show_default=True,
+    type=str,
+    help="Prefix added to generated blob IDs for directory uploads.",
+)
 @click.option("--description", default=None, help="Optional description JSON or text.")
 @click.option(
     "--media-type",
@@ -350,7 +447,7 @@ def blob_group():
     help="Override media type (guessed from file if omitted).",
 )
 @click.option(
-    "--overwrite",
+    "--overwrite/--no-overwrite",
     default=False,
     show_default=True,
     help="If true, replace existing blob.",
@@ -374,6 +471,11 @@ def blob_upload(**kwargs):
     "--dest",
     default=None,
     help="Destination file path. Defaults to blob-id.",
+)
+@click.option(
+    "--anonymous",
+    is_flag=True,
+    help="Do not send credentials for this read request, even if they are configured.",
 )
 @click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @common_api_options
@@ -466,9 +568,157 @@ def update_cmd(**kwargs):
     type=click.Path(dir_okay=False, writable=True, path_type=str),
     help="If set, write results to this CSV file.",
 )
+@click.option(
+    "--anonymous",
+    is_flag=True,
+    help="Do not send credentials for this read request, even if they are configured.",
+)
 @common_api_options
 @requires(reqs.cwms)
 def list_cmd(**kwargs):
     from cwmscli.commands.blob import list_cmd
 
     list_cmd(**kwargs)
+
+
+# ================================================================================
+#       USERS
+# ================================================================================
+user_name_option = click.option(
+    "-u",
+    "--user-name",
+    type=str,
+    default=None,
+    required=True,
+    help="Existing user name.",
+)
+
+
+@click.group(
+    "users",
+    help="Manage CWMS users and user-management roles",
+)
+def users_group():
+    pass
+
+
+@users_group.command(
+    "user-ids",
+    help="List all available user IDs for an office or lookup using like filter",
+)
+@office_option_notrequired
+@api_root_option
+@api_key_option
+@api_key_loc_option
+@click.option(
+    "-ul",
+    "--username-like",
+    type=str,
+    default=None,
+    help="Enter any part of a user name to filter user id listing. Case-insensitive.",
+)
+@requires(reqs.cwms)
+def users_user_ids(office, api_root, api_key, api_key_loc, username_like):
+    from cwmscli.commands.users import list_user_ids
+
+    list_user_ids(
+        office=office,
+        api_root=api_root,
+        api_key=api_key,
+        api_key_loc=api_key_loc,
+        username_like=username_like,
+    )
+
+
+@click.group(
+    "roles",
+    help="Manage CWMS users and user-management roles",
+)
+def roles_group():
+    pass
+
+
+@roles_group.command(
+    "list-all",
+    help="List assignable CWMS user-management roles",
+)
+@api_root_option
+@api_key_option
+@api_key_loc_option
+@requires(reqs.cwms)
+def users_roles_list_all(api_root, api_key, api_key_loc):
+    from cwmscli.commands.users import list_roles
+
+    list_roles(api_root=api_root, api_key=api_key, api_key_loc=api_key_loc)
+
+
+@roles_group.command("list-user", help="List roles for a specific user and office")
+@user_name_option
+@office_option_notrequired
+@api_root_option
+@api_key_option
+@api_key_loc_option
+@requires(reqs.cwms)
+def users_roles_list_user(user_name, office, api_root, api_key, api_key_loc):
+    from cwmscli.commands.users import list_user_roles
+
+    list_user_roles(
+        user_name=user_name,
+        office=office,
+        api_root=api_root,
+        api_key=api_key,
+        api_key_loc=api_key_loc,
+    )
+
+
+@roles_group.command("add", help="Add one or more roles to an existing user")
+@common_api_options
+@api_key_loc_option
+@user_name_option
+@click.option(
+    "--roles",
+    multiple=True,
+    default=None,
+    callback=csv_to_list,
+    help="enter admin, readonly, readwrite, or individual role name(s) to add. Repeat the option or pass a comma/pipe-separated list.",
+)
+@requires(reqs.cwms)
+def users_roles_add(office, api_root, api_key, api_key_loc, user_name, roles):
+    from cwmscli.commands.users import add_roles
+
+    add_roles(
+        user_name=user_name,
+        roles=roles,
+        office=office,
+        api_root=api_root,
+        api_key=api_key,
+        api_key_loc=api_key_loc,
+    )
+
+
+@roles_group.command("delete", help="Remove one or more roles from an existing user")
+@common_api_options
+@api_key_loc_option
+@user_name_option
+@click.option(
+    "--roles",
+    multiple=True,
+    default=None,
+    callback=csv_to_list,
+    help="enter 'all' to delete all roles, or admin, readonly, readwrite, or individual role name(s) to delete. Repeat the option or pass a comma/pipe-separated list.",
+)
+@requires(reqs.cwms)
+def users_roles_delete(office, api_root, api_key, api_key_loc, user_name, roles):
+    from cwmscli.commands.users import delete_roles
+
+    delete_roles(
+        user_name=user_name,
+        roles=roles,
+        office=office,
+        api_root=api_root,
+        api_key=api_key,
+        api_key_loc=api_key_loc,
+    )
+
+
+users_group.add_command(roles_group)

@@ -1,13 +1,18 @@
-# Confirm the docs build works on PRs touching docs or code
-name: ReadTheDocs/Sphinx Validation
+name: Docs Validation
+
 on:
   pull_request:
     paths: ["docs/**", "cwmscli/**", "pyproject.toml"]
   push:
     branches: [main]
     paths: ["docs/**", "cwmscli/**", "pyproject.toml"]
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
 jobs:
-  build:
+  html:
+    if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -20,6 +25,20 @@ jobs:
           pip install -r docs/requirements.txt
           pip install .
       - name: Sphinx build (treat warnings as errors)
+        id: sphinx_html
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         run: sphinx-build -nW -b html docs docs/_build/html
       - name: Link check (optional)
+        id: sphinx_linkcheck
+        continue-on-error: ${{ github.event_name == 'pull_request' }}
         run: sphinx-build -b linkcheck docs docs/_build/linkcheck
+      - name: Docs validation summary
+        if: always()
+        run: |
+          echo "## Docs validation" >> "$GITHUB_STEP_SUMMARY"
+          echo "- HTML build: ${{ steps.sphinx_html.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Link check: ${{ steps.sphinx_linkcheck.outcome }}" >> "$GITHUB_STEP_SUMMARY"
+      - name: Fail non-PR docs validation
+        if: github.event_name != 'pull_request' && (steps.sphinx_html.outcome != 'success'
+          || steps.sphinx_linkcheck.outcome != 'success')
+        run: exit 1
