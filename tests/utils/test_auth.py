@@ -7,7 +7,9 @@ import pytest
 from cwmscli.utils.auth import (
     CallbackBindError,
     OIDCLoginConfig,
+    _extract_oidc_base_url_from_openapi,
     _receive_callback,
+    discover_oidc_base_url,
     login_with_browser,
 )
 
@@ -110,3 +112,52 @@ def test_receive_callback_serves_branded_html_page():
     assert "Close this tab" in body
     assert "#c1121f" in body
     assert captured["params"] == {"state": "example-state", "code": "example-code"}
+
+
+def test_extract_oidc_base_url_from_openapi_prefers_usable_flow_url():
+    document = {
+        "components": {
+            "securitySchemes": {
+                "OpenIDConnect": {
+                    "type": "openIdConnect",
+                    "openIdConnectUrl": "https://identityc.sec.usace.army.mil/auth/realms/cwbi/.well-known/openid-configuration/auth/realms/cwbi/.well-known/openid-configuration",
+                    "flows": {
+                        "authorizationCode": {
+                            "authorizationUrl": "https://identityc.sec.usace.army.mil/auth/realms/cwbi/.well-known/openid-configuration/auth/realms/cwbi/protocol/openid-connect/auth",
+                            "tokenUrl": "https://identityc.sec.usace.army.mil/auth/realms/cwbi/.well-known/openid-configuration/auth/realms/cwbi/protocol/openid-connect/token",
+                        }
+                    },
+                }
+            }
+        }
+    }
+
+    assert (
+        _extract_oidc_base_url_from_openapi(document)
+        == "https://identityc.sec.usace.army.mil/auth/realms/cwbi/protocol/openid-connect"
+    )
+
+
+def test_discover_oidc_base_url_uses_cache_on_request_failure(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "cwmscli.utils.auth._oidc_cache_file", lambda: tmp_path / "oidc-cache.json"
+    )
+    (tmp_path / "oidc-cache.json").write_text(
+        '{"entries":{"https://example.test/cwms-data":"https://cached.example/auth/realms/cwbi/protocol/openid-connect"}}',
+        encoding="utf-8",
+    )
+
+    class FakeRequests:
+        class RequestException(Exception):
+            pass
+
+        @staticmethod
+        def get(*args, **kwargs):
+            raise FakeRequests.RequestException("boom")
+
+    monkeypatch.setitem(__import__("sys").modules, "requests", FakeRequests)
+
+    assert (
+        discover_oidc_base_url("https://example.test/cwms-data")
+        == "https://cached.example/auth/realms/cwbi/protocol/openid-connect"
+    )

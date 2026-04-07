@@ -49,10 +49,19 @@ from cwmscli.utils.version import get_cwms_cli_version
     help="OIDC client ID.",
 )
 @click.option(
-    "--oidc-base-url",
-    default="https://identity-test.cwbi.us/auth/realms/cwbi/protocol/openid-connect",
+    "-a",
+    "--api-root",
+    default="https://cwms-data.usace.army.mil/cwms-data",
+    envvar="CDA_API_ROOT",
     show_default=True,
-    help="OIDC realm base URL ending in /protocol/openid-connect.",
+    help="CDA API root used to discover the OpenID Connect configuration.",
+)
+@click.option(
+    "--oidc-base-url",
+    default=None,
+    show_default=True,
+    hidden=True,
+    help="Override the discovered OIDC realm base URL ending in /protocol/openid-connect.",
 )
 @click.option(
     "--scope",
@@ -109,7 +118,8 @@ from cwmscli.utils.version import get_cwms_cli_version
 def login_cmd(
     provider: str,
     client_id: str,
-    oidc_base_url: str,
+    api_root: str,
+    oidc_base_url: Optional[str],
     scope: str,
     redirect_host: str,
     redirect_port: int,
@@ -120,11 +130,13 @@ def login_cmd(
     ca_bundle: Path,
 ):
     from cwmscli.utils.auth import (
+        DEFAULT_CDA_API_ROOT,
         AuthError,
         CallbackBindError,
         LoginTimeoutError,
         OIDCLoginConfig,
         default_token_file,
+        discover_oidc_base_url,
         login_with_browser,
         refresh_saved_login,
         refresh_token_expiry_text,
@@ -136,6 +148,7 @@ def login_cmd(
     provider = provider.lower()
     token_file = token_file or default_token_file(provider)
     verify = str(ca_bundle) if ca_bundle else None
+    api_root = (api_root or DEFAULT_CDA_API_ROOT).rstrip("/")
     action = (
         "refreshed your saved sign-in for" if refresh_only else "authenticated against"
     )
@@ -146,9 +159,13 @@ def login_cmd(
             config = result["config"]
             token = result["token"]
         else:
+            discovered_oidc_base_url = oidc_base_url or discover_oidc_base_url(
+                api_root=api_root,
+                verify=verify,
+            )
             config = OIDCLoginConfig(
                 client_id=client_id,
-                oidc_base_url=oidc_base_url.rstrip("/"),
+                oidc_base_url=discovered_oidc_base_url.rstrip("/"),
                 redirect_host=redirect_host,
                 redirect_port=redirect_port,
                 scope=scope,

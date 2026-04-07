@@ -3,6 +3,7 @@ import hashlib
 import http.server
 import json
 import os
+import re
 import secrets
 import socketserver
 import time
@@ -15,6 +16,7 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 DEFAULT_CLIENT_ID = "cwms"
+DEFAULT_CDA_API_ROOT = "https://cwms-data.usace.army.mil/cwms-data"
 DEFAULT_OIDC_BASE_URL = (
     "https://identity-test.cwbi.us/auth/realms/cwbi/protocol/openid-connect"
 )
@@ -107,6 +109,130 @@ def default_token_file(provider: str) -> Path:
     else:
         base_dir = Path.home() / ".config"
     return base_dir / "cwms-cli" / "auth" / f"{provider}.json"
+
+
+def _oidc_cache_file() -> Path:
+    return default_token_file("discovery").with_name("oidc-cache.json")
+
+
+def _normalize_api_root(api_root: str) -> str:
+    return api_root.rstrip("/")
+
+
+def _swagger_docs_url(api_root: str) -> str:
+    return f"{_normalize_api_root(api_root)}/swagger-docs"
+
+
+def _realm_base_from_url(candidate: str) -> Optional[str]:
+    if not candidate:
+        return None
+    parsed = urllib.parse.urlparse(candidate)
+    if not parsed.scheme or not parsed.netloc:
+        return None
+    matches = re.findall(
+        r"(/auth/realms/[^/]+/protocol/openid-connect)(?:/(?:auth|token))?$",
+        parsed.path,
+    )
+    if matches:
+        return f"{parsed.scheme}://{parsed.netloc}{matches[-1]}"
+
+    if "/.well-known/openid-configuration" in parsed.path:
+        base_path = parsed.path.split("/.well-known/openid-configuration", 1)[0]
+        if base_path:
+            return (
+                f"{parsed.scheme}://{parsed.netloc}{base_path}/protocol/openid-connect"
+            )
+    return None
+
+
+def _extract_oidc_base_url_from_openapi(document: Dict[str, Any]) -> str:
+    schemes = document.get("components", {}).get("securitySchemes", {})
+    oidc = schemes.get("OpenIDConnect", {})
+
+    candidates = []
+    openid_url = oidc.get("openIdConnectUrl")
+    if isinstance(openid_url, str):
+        candidates.append(openid_url)
+
+    flows = oidc.get("flows", {})
+    for flow in flows.values():
+        if not isinstance(flow, dict):
+            continue
+        authorization_url = flow.get("authorizationUrl")
+        token_url = flow.get("tokenUrl")
+        if isinstance(authorization_url, str):
+            candidates.append(authorization_url)
+        if isinstance(token_url, str):
+            candidates.append(token_url)
+
+    for candidate in candidates:
+        base = _realm_base_from_url(candidate)
+        if base:
+            return base
+
+    raise AuthError(
+        "CDA OpenAPI spec did not contain a usable OpenID Connect configuration."
+    )
+
+
+def _load_oidc_cache() -> Dict[str, str]:
+    cache_file = _oidc_cache_file()
+    if not cache_file.exists():
+        return {}
+    try:
+        with cache_file.open("r", encoding="utf-8") as f:
+            payload = json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return {}
+    entries = payload.get("entries", {})
+    return entries if isinstance(entries, dict) else {}
+
+
+def _save_oidc_cache(entries: Dict[str, str]) -> None:
+    cache_file = _oidc_cache_file()
+    cache_file.parent.mkdir(parents=True, exist_ok=True)
+    with cache_file.open("w", encoding="utf-8") as f:
+        json.dump(
+            {"saved_at": time.time(), "entries": entries}, f, indent=2, sort_keys=True
+        )
+        f.write("\n")
+
+
+def discover_oidc_base_url(
+    api_root: str,
+    verify: Optional[str] = None,
+) -> str:
+    import requests
+
+    normalized_root = _normalize_api_root(api_root)
+    cache = _load_oidc_cache()
+
+    try:
+        response = requests.get(
+            _swagger_docs_url(normalized_root),
+            verify=_verify_setting(verify),
+            timeout=30,
+        )
+        response.raise_for_status()
+        document = response.json()
+        oidc_base_url = _extract_oidc_base_url_from_openapi(document)
+        cache[normalized_root] = oidc_base_url
+        _save_oidc_cache(cache)
+        return oidc_base_url
+    except requests.RequestException as e:
+        cached = cache.get(normalized_root)
+        if cached:
+            return cached
+        raise AuthError(
+            f"Could not retrieve CDA OpenAPI spec from {_swagger_docs_url(normalized_root)}: {e}"
+        ) from e
+    except ValueError as e:
+        cached = cache.get(normalized_root)
+        if cached:
+            return cached
+        raise AuthError(
+            f"CDA OpenAPI spec at {_swagger_docs_url(normalized_root)} was not valid JSON."
+        ) from e
 
 
 def token_expiry_text(token: Dict[str, Any]) -> Optional[str]:

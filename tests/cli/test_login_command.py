@@ -4,6 +4,7 @@ from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
 from cwmscli.utils.auth import (
+    DEFAULT_CDA_API_ROOT,
     DEFAULT_CLIENT_ID,
     DEFAULT_OIDC_BASE_URL,
     DEFAULT_REDIRECT_HOST,
@@ -58,6 +59,10 @@ def test_login_defaults_can_start_and_prompt(monkeypatch):
         "cwmscli.utils.auth.default_token_file", fake_default_token_file
     )
     monkeypatch.setattr(
+        "cwmscli.utils.auth.discover_oidc_base_url",
+        lambda api_root, verify=None: DEFAULT_OIDC_BASE_URL,
+    )
+    monkeypatch.setattr(
         "cwmscli.utils.auth.login_with_browser", fake_login_with_browser
     )
     monkeypatch.setattr("cwmscli.utils.auth.save_login", fake_save_login)
@@ -82,6 +87,7 @@ def test_login_defaults_can_start_and_prompt(monkeypatch):
     config = saved["config"]
     assert config.provider == "federation-eams"
     assert config.client_id == DEFAULT_CLIENT_ID
+    assert saved["config"].oidc_base_url == DEFAULT_OIDC_BASE_URL
     assert config.oidc_base_url == DEFAULT_OIDC_BASE_URL
     assert config.scope == DEFAULT_SCOPE
     assert config.redirect_host == DEFAULT_REDIRECT_HOST
@@ -129,6 +135,10 @@ def test_login_debug_output_includes_saved_session_details(monkeypatch):
     monkeypatch.setattr("cwmscli.utils.deps.importlib.metadata.version", fake_version)
     monkeypatch.setattr(
         "cwmscli.utils.auth.default_token_file", fake_default_token_file
+    )
+    monkeypatch.setattr(
+        "cwmscli.utils.auth.discover_oidc_base_url",
+        lambda api_root, verify=None: DEFAULT_OIDC_BASE_URL,
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.login_with_browser", fake_login_with_browser
@@ -204,6 +214,10 @@ def test_login_saves_selected_fallback_callback_port(monkeypatch):
         "cwmscli.utils.auth.default_token_file", fake_default_token_file
     )
     monkeypatch.setattr(
+        "cwmscli.utils.auth.discover_oidc_base_url",
+        lambda api_root, verify=None: DEFAULT_OIDC_BASE_URL,
+    )
+    monkeypatch.setattr(
         "cwmscli.utils.auth.login_with_browser", fake_login_with_browser
     )
     monkeypatch.setattr("cwmscli.utils.auth.save_login", fake_save_login)
@@ -241,6 +255,10 @@ def test_login_shows_actionable_message_when_callback_port_is_in_use(monkeypatch
     )
     monkeypatch.setattr("cwmscli.utils.deps.importlib.metadata.version", fake_version)
     monkeypatch.setattr(
+        "cwmscli.utils.auth.discover_oidc_base_url",
+        lambda api_root, verify=None: DEFAULT_OIDC_BASE_URL,
+    )
+    monkeypatch.setattr(
         "cwmscli.utils.auth.login_with_browser", fake_login_with_browser
     )
 
@@ -249,3 +267,62 @@ def test_login_shows_actionable_message_when_callback_port_is_in_use(monkeypatch
     assert result.exit_code == 1
     assert "ports are already in use" in result.output
     assert "Another `cwms-cli login` instance may still be running" in result.output
+
+
+def test_login_discovers_oidc_config_from_api_root(monkeypatch):
+    runner = CliRunner()
+    saved = {}
+
+    def fake_import_module(name):
+        if name == "requests":
+            return object()
+        return __import__(name)
+
+    def fake_version(_package):
+        return "999.0.0"
+
+    def fake_default_token_file(provider):
+        return Path(f"/tmp/{provider}.json")
+
+    def fake_discover_oidc_base_url(api_root, verify=None):
+        saved["api_root"] = api_root
+        saved["verify"] = verify
+        return "https://identityc.sec.usace.army.mil/auth/realms/cwbi/protocol/openid-connect"
+
+    def fake_login_with_browser(
+        config, launch_browser=True, authorization_url_callback=None
+    ):
+        saved["config"] = config
+        return {
+            "authorization_url": "https://example.test/auth",
+            "browser_opened": False,
+            "token": {
+                "access_token": "access",
+                "refresh_token": "refresh",
+            },
+        }
+
+    monkeypatch.setattr(
+        "cwmscli.utils.deps.importlib.import_module", fake_import_module
+    )
+    monkeypatch.setattr("cwmscli.utils.deps.importlib.metadata.version", fake_version)
+    monkeypatch.setattr(
+        "cwmscli.utils.auth.default_token_file", fake_default_token_file
+    )
+    monkeypatch.setattr(
+        "cwmscli.utils.auth.discover_oidc_base_url", fake_discover_oidc_base_url
+    )
+    monkeypatch.setattr(
+        "cwmscli.utils.auth.login_with_browser", fake_login_with_browser
+    )
+    monkeypatch.setattr("cwmscli.utils.auth.save_login", lambda *args, **kwargs: None)
+
+    result = runner.invoke(cli, ["login", "--api-root", DEFAULT_CDA_API_ROOT])
+
+    assert result.exit_code == 0
+    assert saved["api_root"] == DEFAULT_CDA_API_ROOT
+    assert saved["verify"] is None
+    assert (
+        saved["config"].oidc_base_url
+        == "https://identityc.sec.usace.army.mil/auth/realms/cwbi/protocol/openid-connect"
+    )
