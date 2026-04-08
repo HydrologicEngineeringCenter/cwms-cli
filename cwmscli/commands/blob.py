@@ -7,7 +7,7 @@ import os
 import re
 import sys
 from collections import defaultdict
-from typing import Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple, Union
 
 from cwmscli.utils import colors, get_api_key, log_scoped_read_hint
 from cwmscli.utils.click_help import DOCS_BASE_URL
@@ -64,12 +64,12 @@ def _looks_like_base64(raw: str) -> bool:
 
 
 def _save_blob_content(
-    content: bytes | str,
+    content: Union[bytes, str],
     dest: str,
     media_type_hint: Optional[str] = None,
 ) -> str:
     media_type = media_type_hint
-    data: bytes | str = content
+    data: Union[bytes, str] = content
 
     if isinstance(content, str):
         m = DATA_URL_RE.match(content.strip())

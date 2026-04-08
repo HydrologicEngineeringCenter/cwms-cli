@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timedelta
+from typing import Optional
 
 import cwms
 import numpy as np
@@ -9,7 +10,9 @@ import requests
 from cwmscli.utils import colors
 
 
-def _log_error_and_exit(message: str, hint: str | None = None, *, exit_code: int = 1):
+def _log_error_and_exit(
+    message: str, hint: Optional[str] = None, *, exit_code: int = 1
+):
     logging.error(colors.c(message, "red", bright=True))
     if hint:
         logging.error(colors.c(f"Hint: {hint}", "yellow", bright=True))
