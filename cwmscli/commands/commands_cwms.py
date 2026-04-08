@@ -22,6 +22,7 @@ from cwmscli.utils import (
     office_option_notrequired,
     to_uppercase,
 )
+from cwmscli.utils.auth import DEFAULT_REDIRECT_HOST, DEFAULT_REDIRECT_PORT
 from cwmscli.utils.deps import requires
 from cwmscli.utils.update import (
     build_update_package_spec,
@@ -71,13 +72,13 @@ from cwmscli.utils.version import get_cwms_cli_version
 )
 @click.option(
     "--redirect-host",
-    default="127.0.0.1",
+    default=DEFAULT_REDIRECT_HOST,
     show_default=True,
     help="Local host for the login callback listener.",
 )
 @click.option(
     "--redirect-port",
-    default=5555,
+    default=DEFAULT_REDIRECT_PORT,
     type=int,
     show_default=True,
     help="Local port for the login callback listener.",
@@ -137,6 +138,7 @@ def login_cmd(
         OIDCLoginConfig,
         default_token_file,
         discover_oidc_base_url,
+        discover_oidc_configuration,
         login_with_browser,
         refresh_saved_login,
         refresh_token_expiry_text,
@@ -159,13 +161,23 @@ def login_cmd(
             config = result["config"]
             token = result["token"]
         else:
-            discovered_oidc_base_url = oidc_base_url or discover_oidc_base_url(
-                api_root=api_root,
-                verify=verify,
+            discovered_oidc = (
+                {
+                    "oidc_base_url": oidc_base_url.rstrip("/"),
+                    "authorization_endpoint": f"{oidc_base_url.rstrip('/')}/auth",
+                    "token_endpoint": f"{oidc_base_url.rstrip('/')}/token",
+                }
+                if oidc_base_url
+                else discover_oidc_configuration(
+                    api_root=api_root,
+                    verify=verify,
+                )
             )
             config = OIDCLoginConfig(
                 client_id=client_id,
-                oidc_base_url=discovered_oidc_base_url.rstrip("/"),
+                oidc_base_url=discovered_oidc["oidc_base_url"].rstrip("/"),
+                authorization_endpoint_url=discovered_oidc["authorization_endpoint"],
+                token_endpoint_url=discovered_oidc["token_endpoint"],
                 redirect_host=redirect_host,
                 redirect_port=redirect_port,
                 scope=scope,

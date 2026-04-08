@@ -20,7 +20,7 @@ DEFAULT_CDA_API_ROOT = "https://cwms-data.usace.army.mil/cwms-data"
 DEFAULT_OIDC_BASE_URL = (
     "https://identity-test.cwbi.us/auth/realms/cwbi/protocol/openid-connect"
 )
-DEFAULT_REDIRECT_HOST = "127.0.0.1"
+DEFAULT_REDIRECT_HOST = "localhost"
 DEFAULT_REDIRECT_PORT = 5555
 DEFAULT_SCOPE = "openid profile"
 DEFAULT_TIMEOUT_SECONDS = 30
@@ -47,6 +47,8 @@ class CallbackBindError(AuthError):
 class OIDCLoginConfig:
     client_id: str = DEFAULT_CLIENT_ID
     oidc_base_url: str = DEFAULT_OIDC_BASE_URL
+    authorization_endpoint_url: Optional[str] = None
+    token_endpoint_url: Optional[str] = None
     redirect_host: str = DEFAULT_REDIRECT_HOST
     redirect_port: int = DEFAULT_REDIRECT_PORT
     scope: str = DEFAULT_SCOPE
@@ -60,10 +62,14 @@ class OIDCLoginConfig:
 
     @property
     def authorization_endpoint(self) -> str:
+        if self.authorization_endpoint_url:
+            return self.authorization_endpoint_url
         return f"{self.oidc_base_url}/auth"
 
     @property
     def token_endpoint(self) -> str:
+        if self.token_endpoint_url:
+            return self.token_endpoint_url
         return f"{self.oidc_base_url}/token"
 
     @property
@@ -123,6 +129,10 @@ def _swagger_docs_url(api_root: str) -> str:
     return f"{_normalize_api_root(api_root)}/swagger-docs"
 
 
+def _is_local_host(hostname: Optional[str]) -> bool:
+    return hostname in {"localhost", "127.0.0.1", "::1"}
+
+
 def _realm_base_from_url(candidate: str) -> Optional[str]:
     if not candidate:
         return None
@@ -175,6 +185,113 @@ def _extract_oidc_base_url_from_openapi(document: Dict[str, Any]) -> str:
     )
 
 
+def _well_known_url_from_oidc_base_url(oidc_base_url: str) -> Optional[str]:
+    parsed = urllib.parse.urlparse(oidc_base_url)
+    marker = "/protocol/openid-connect"
+    if marker not in parsed.path:
+        return None
+    realm_path = parsed.path.split(marker, 1)[0]
+    return urllib.parse.urlunparse(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            f"{realm_path}/.well-known/openid-configuration",
+            "",
+            "",
+            "",
+        )
+    )
+
+
+def _oidc_base_url_from_well_known_url(well_known_url: str) -> Optional[str]:
+    parsed = urllib.parse.urlparse(well_known_url)
+    marker = "/.well-known/openid-configuration"
+    if marker not in parsed.path:
+        return None
+    realm_path = parsed.path.split(marker, 1)[0]
+    return urllib.parse.urlunparse(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            f"{realm_path}/protocol/openid-connect",
+            "",
+            "",
+            "",
+        )
+    )
+
+
+def _local_oidc_base_url_candidates(api_root: str, oidc_base_url: str) -> list[str]:
+    candidates = [oidc_base_url]
+    parsed_root = urllib.parse.urlparse(api_root)
+    parsed_oidc = urllib.parse.urlparse(oidc_base_url)
+
+    if not _is_local_host(parsed_root.hostname):
+        return candidates
+    if _is_local_host(parsed_oidc.hostname):
+        return candidates
+
+    ports = []
+    for port in (parsed_oidc.port, parsed_root.port, 8082, 8081):
+        if port and port not in ports:
+            ports.append(port)
+
+    scheme = parsed_root.scheme or parsed_oidc.scheme or "http"
+    host = parsed_root.hostname or "localhost"
+    for port in ports:
+        local_candidate = urllib.parse.urlunparse(
+            (
+                scheme,
+                f"{host}:{port}",
+                parsed_oidc.path,
+                "",
+                "",
+                "",
+            )
+        )
+        if local_candidate not in candidates:
+            candidates.append(local_candidate)
+    return candidates
+
+
+def _select_reachable_oidc_discovery(
+    api_root: str,
+    discovery_url: str,
+    verify: Optional[str] = None,
+) -> Dict[str, Any]:
+    import requests
+
+    base_url = _oidc_base_url_from_well_known_url(discovery_url)
+    candidates = [discovery_url]
+    if base_url:
+        candidates = [
+            _well_known_url_from_oidc_base_url(candidate) or discovery_url
+            for candidate in _local_oidc_base_url_candidates(api_root, base_url)
+        ]
+
+    for candidate in candidates:
+        try:
+            response = requests.get(
+                candidate,
+                verify=_verify_setting(verify),
+                timeout=10,
+            )
+            response.raise_for_status()
+            payload = response.json()
+        except (requests.RequestException, ValueError):
+            continue
+
+        if (
+            isinstance(payload, dict)
+            and payload.get("authorization_endpoint")
+            and payload.get("token_endpoint")
+        ):
+            return payload
+    raise AuthError(
+        "OpenID discovery document was not reachable from any candidate URL."
+    )
+
+
 def _load_oidc_cache() -> Dict[str, str]:
     cache_file = _oidc_cache_file()
     if not cache_file.exists():
@@ -198,10 +315,10 @@ def _save_oidc_cache(entries: Dict[str, str]) -> None:
         f.write("\n")
 
 
-def discover_oidc_base_url(
+def discover_oidc_configuration(
     api_root: str,
     verify: Optional[str] = None,
-) -> str:
+) -> Dict[str, str]:
     import requests
 
     normalized_root = _normalize_api_root(api_root)
@@ -216,23 +333,67 @@ def discover_oidc_base_url(
         response.raise_for_status()
         document = response.json()
         oidc_base_url = _extract_oidc_base_url_from_openapi(document)
+        discovery_url = _well_known_url_from_oidc_base_url(oidc_base_url)
+        if not discovery_url:
+            raise AuthError(
+                "Could not derive an OpenID discovery URL from CDA metadata."
+            )
+        discovery = _select_reachable_oidc_discovery(
+            normalized_root,
+            discovery_url,
+            verify=verify,
+        )
+        discovered_base_url = _realm_base_from_url(
+            str(discovery.get("authorization_endpoint", ""))
+        )
+        if not discovered_base_url:
+            issuer = discovery.get("issuer")
+            if isinstance(issuer, str) and issuer:
+                discovered_base_url = _oidc_base_url_from_well_known_url(
+                    issuer.rstrip("/") + "/.well-known/openid-configuration"
+                )
+        if not discovered_base_url:
+            discovered_base_url = _oidc_base_url_from_well_known_url(discovery_url)
+        if not discovered_base_url:
+            discovered_base_url = oidc_base_url
         cache[normalized_root] = oidc_base_url
         _save_oidc_cache(cache)
-        return oidc_base_url
+        return {
+            "oidc_base_url": discovered_base_url,
+            "authorization_endpoint": discovery["authorization_endpoint"],
+            "token_endpoint": discovery["token_endpoint"],
+        }
     except requests.RequestException as e:
         cached = cache.get(normalized_root)
         if cached:
-            return cached
+            return {
+                "oidc_base_url": cached,
+                "authorization_endpoint": f"{cached}/auth",
+                "token_endpoint": f"{cached}/token",
+            }
         raise AuthError(
             f"Could not retrieve CDA OpenAPI spec from {_swagger_docs_url(normalized_root)}: {e}"
         ) from e
     except ValueError as e:
         cached = cache.get(normalized_root)
         if cached:
-            return cached
+            return {
+                "oidc_base_url": cached,
+                "authorization_endpoint": f"{cached}/auth",
+                "token_endpoint": f"{cached}/token",
+            }
         raise AuthError(
             f"CDA OpenAPI spec at {_swagger_docs_url(normalized_root)} was not valid JSON."
         ) from e
+
+
+def discover_oidc_base_url(
+    api_root: str,
+    verify: Optional[str] = None,
+) -> str:
+    return discover_oidc_configuration(api_root=api_root, verify=verify)[
+        "oidc_base_url"
+    ]
 
 
 def token_expiry_text(token: Dict[str, Any]) -> Optional[str]:
@@ -281,6 +442,8 @@ def save_login(
         "saved_at": dt.datetime.now(tz=dt.timezone.utc).isoformat(),
         "client_id": config.client_id,
         "oidc_base_url": config.oidc_base_url,
+        "authorization_endpoint": config.authorization_endpoint,
+        "token_endpoint": config.token_endpoint,
         "provider": config.provider,
         "scope": config.scope,
         "redirect_uri": config.redirect_uri,
@@ -516,6 +679,8 @@ def refresh_saved_login(
         "config": OIDCLoginConfig(
             client_id=saved["client_id"],
             oidc_base_url=saved["oidc_base_url"],
+            authorization_endpoint_url=saved.get("authorization_endpoint"),
+            token_endpoint_url=saved.get("token_endpoint"),
             provider=saved["provider"],
             scope=saved["scope"],
             redirect_host=urllib.parse.urlparse(saved["redirect_uri"]).hostname
