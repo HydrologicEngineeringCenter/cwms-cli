@@ -116,7 +116,13 @@ def get_saved_login_token(
     token_file: Optional[Union[str, Path]] = None,
     provider: str = "federation-eams",
 ) -> Optional[str]:
-    from cwmscli.utils.auth import AuthError, default_token_file, load_saved_login
+    from cwmscli.utils.auth import (
+        AuthError,
+        default_token_file,
+        load_saved_login,
+        refresh_saved_login,
+        save_login,
+    )
 
     candidate = Path(token_file) if token_file else default_token_file(provider)
     try:
@@ -137,11 +143,22 @@ def get_saved_login_token(
     if expires_at is not None:
         try:
             if float(expires_at) <= time.time():
-                py_logging.info(
-                    "Ignoring expired saved login token at %s; falling back to API key if available",
-                    candidate,
-                )
-                return None
+                py_logging.info("Refreshing expired saved login token at %s", candidate)
+                try:
+                    refreshed = refresh_saved_login(token_file=candidate)
+                    save_login(
+                        token_file=candidate,
+                        config=refreshed["config"],
+                        token=refreshed["token"],
+                    )
+                except AuthError as error:
+                    py_logging.warning(
+                        "Could not refresh saved login at %s: %s. Falling back to API key if available.",
+                        candidate,
+                        error,
+                    )
+                    return None
+                return refreshed["token"].get("access_token")
         except (TypeError, ValueError, OSError):
             py_logging.warning(
                 "Ignoring saved login at %s: invalid token expiration value %r",
