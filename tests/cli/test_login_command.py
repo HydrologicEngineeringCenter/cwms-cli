@@ -59,8 +59,12 @@ def test_login_defaults_can_start_and_prompt(monkeypatch):
         "cwmscli.utils.auth.default_token_file", fake_default_token_file
     )
     monkeypatch.setattr(
-        "cwmscli.utils.auth.discover_oidc_base_url",
-        lambda api_root, verify=None: DEFAULT_OIDC_BASE_URL,
+        "cwmscli.utils.auth.discover_oidc_configuration",
+        lambda api_root, verify=None: {
+            "oidc_base_url": DEFAULT_OIDC_BASE_URL,
+            "authorization_endpoint": f"{DEFAULT_OIDC_BASE_URL}/auth",
+            "token_endpoint": f"{DEFAULT_OIDC_BASE_URL}/token",
+        },
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.login_with_browser", fake_login_with_browser
@@ -137,8 +141,12 @@ def test_login_debug_output_includes_saved_session_details(monkeypatch):
         "cwmscli.utils.auth.default_token_file", fake_default_token_file
     )
     monkeypatch.setattr(
-        "cwmscli.utils.auth.discover_oidc_base_url",
-        lambda api_root, verify=None: DEFAULT_OIDC_BASE_URL,
+        "cwmscli.utils.auth.discover_oidc_configuration",
+        lambda api_root, verify=None: {
+            "oidc_base_url": DEFAULT_OIDC_BASE_URL,
+            "authorization_endpoint": f"{DEFAULT_OIDC_BASE_URL}/auth",
+            "token_endpoint": f"{DEFAULT_OIDC_BASE_URL}/token",
+        },
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.login_with_browser", fake_login_with_browser
@@ -214,8 +222,12 @@ def test_login_saves_selected_fallback_callback_port(monkeypatch):
         "cwmscli.utils.auth.default_token_file", fake_default_token_file
     )
     monkeypatch.setattr(
-        "cwmscli.utils.auth.discover_oidc_base_url",
-        lambda api_root, verify=None: DEFAULT_OIDC_BASE_URL,
+        "cwmscli.utils.auth.discover_oidc_configuration",
+        lambda api_root, verify=None: {
+            "oidc_base_url": DEFAULT_OIDC_BASE_URL,
+            "authorization_endpoint": f"{DEFAULT_OIDC_BASE_URL}/auth",
+            "token_endpoint": f"{DEFAULT_OIDC_BASE_URL}/token",
+        },
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.login_with_browser", fake_login_with_browser
@@ -244,7 +256,7 @@ def test_login_shows_actionable_message_when_callback_port_is_in_use(monkeypatch
         config, launch_browser=True, authorization_url_callback=None
     ):
         raise CallbackBindError(
-            "Could not listen on http://127.0.0.1:5555 through http://127.0.0.1:5558 because those ports are already in use. "
+            "Could not listen on http://localhost:5555 through http://localhost:5558 because those ports are already in use. "
             "Another `cwms-cli login` instance may still be running. Stop it before continuing, "
             "or try a different callback port with --redirect-port, for example "
             "`cwms-cli login --redirect-port 5559`."
@@ -255,8 +267,12 @@ def test_login_shows_actionable_message_when_callback_port_is_in_use(monkeypatch
     )
     monkeypatch.setattr("cwmscli.utils.deps.importlib.metadata.version", fake_version)
     monkeypatch.setattr(
-        "cwmscli.utils.auth.discover_oidc_base_url",
-        lambda api_root, verify=None: DEFAULT_OIDC_BASE_URL,
+        "cwmscli.utils.auth.discover_oidc_configuration",
+        lambda api_root, verify=None: {
+            "oidc_base_url": DEFAULT_OIDC_BASE_URL,
+            "authorization_endpoint": f"{DEFAULT_OIDC_BASE_URL}/auth",
+            "token_endpoint": f"{DEFAULT_OIDC_BASE_URL}/token",
+        },
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.login_with_browser", fake_login_with_browser
@@ -284,10 +300,14 @@ def test_login_discovers_oidc_config_from_api_root(monkeypatch):
     def fake_default_token_file(provider):
         return Path(f"/tmp/{provider}.json")
 
-    def fake_discover_oidc_base_url(api_root, verify=None):
+    def fake_discover_oidc_configuration(api_root, verify=None):
         saved["api_root"] = api_root
         saved["verify"] = verify
-        return "https://identityc.sec.usace.army.mil/auth/realms/cwbi/protocol/openid-connect"
+        return {
+            "oidc_base_url": "https://identityc.sec.usace.army.mil/auth/realms/cwbi/protocol/openid-connect",
+            "authorization_endpoint": "https://identityc.sec.usace.army.mil/auth/realms/cwbi/protocol/openid-connect/auth",
+            "token_endpoint": "https://identityc.sec.usace.army.mil/auth/realms/cwbi/protocol/openid-connect/token",
+        }
 
     def fake_login_with_browser(
         config, launch_browser=True, authorization_url_callback=None
@@ -310,7 +330,8 @@ def test_login_discovers_oidc_config_from_api_root(monkeypatch):
         "cwmscli.utils.auth.default_token_file", fake_default_token_file
     )
     monkeypatch.setattr(
-        "cwmscli.utils.auth.discover_oidc_base_url", fake_discover_oidc_base_url
+        "cwmscli.utils.auth.discover_oidc_configuration",
+        fake_discover_oidc_configuration,
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.login_with_browser", fake_login_with_browser

@@ -10,6 +10,7 @@ from cwmscli.utils.auth import (
     _extract_oidc_base_url_from_openapi,
     _receive_callback,
     discover_oidc_base_url,
+    discover_oidc_configuration,
     login_with_browser,
 )
 
@@ -61,7 +62,7 @@ def test_login_with_browser_includes_pkce_parameters(monkeypatch):
         "grant_type": "authorization_code",
         "client_id": "cwms",
         "code": "auth-code",
-        "redirect_uri": "http://127.0.0.1:5555",
+        "redirect_uri": "http://localhost:5555",
         "code_verifier": "verifier-token",
     }
 
@@ -160,4 +161,140 @@ def test_discover_oidc_base_url_uses_cache_on_request_failure(monkeypatch, tmp_p
     assert (
         discover_oidc_base_url("https://example.test/cwms-data")
         == "https://cached.example/auth/realms/cwbi/protocol/openid-connect"
+    )
+
+
+def test_discover_oidc_configuration_uses_discovery_document(monkeypatch, tmp_path):
+    monkeypatch.setattr(
+        "cwmscli.utils.auth._oidc_cache_file", lambda: tmp_path / "oidc-cache.json"
+    )
+
+    swagger_document = {
+        "components": {
+            "securitySchemes": {
+                "OpenIDConnect": {
+                    "type": "openIdConnect",
+                    "openIdConnectUrl": "http://auth:8081/auth/realms/cwms/.well-known/openid-configuration",
+                }
+            }
+        }
+    }
+
+    class FakeResponse:
+        def __init__(self, payload, status_code=200):
+            self._payload = payload
+            self.status_code = status_code
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise FakeRequests.RequestException(f"HTTP {self.status_code}")
+
+        def json(self):
+            return self._payload
+
+    class FakeRequests:
+        class RequestException(Exception):
+            pass
+
+        @staticmethod
+        def get(url, verify=True, timeout=30):
+            if url == "http://localhost:8081/cwms-data/swagger-docs":
+                return FakeResponse(swagger_document)
+            if (
+                url
+                == "http://auth:8081/auth/realms/cwms/.well-known/openid-configuration"
+            ):
+                raise FakeRequests.RequestException("unreachable")
+            if (
+                url
+                == "http://localhost:8081/auth/realms/cwms/.well-known/openid-configuration"
+            ):
+                raise FakeRequests.RequestException("still unreachable")
+            if (
+                url
+                == "http://localhost:8082/auth/realms/cwms/.well-known/openid-configuration"
+            ):
+                return FakeResponse(
+                    {
+                        "issuer": "http://localhost:8082/auth/realms/cwms",
+                        "authorization_endpoint": "http://localhost:8082/auth/realms/cwms/protocol/openid-connect/auth",
+                        "token_endpoint": "http://localhost:8082/auth/realms/cwms/protocol/openid-connect/token",
+                    }
+                )
+            raise AssertionError(f"Unexpected URL: {url}")
+
+    monkeypatch.setitem(__import__("sys").modules, "requests", FakeRequests)
+
+    assert discover_oidc_configuration("http://localhost:8081/cwms-data") == {
+        "oidc_base_url": "http://localhost:8082/auth/realms/cwms/protocol/openid-connect",
+        "authorization_endpoint": "http://localhost:8082/auth/realms/cwms/protocol/openid-connect/auth",
+        "token_endpoint": "http://localhost:8082/auth/realms/cwms/protocol/openid-connect/token",
+    }
+
+
+def test_discover_oidc_base_url_prefers_reachable_localhost_oidc_endpoint(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(
+        "cwmscli.utils.auth._oidc_cache_file", lambda: tmp_path / "oidc-cache.json"
+    )
+
+    swagger_document = {
+        "components": {
+            "securitySchemes": {
+                "OpenIDConnect": {
+                    "type": "openIdConnect",
+                    "openIdConnectUrl": "http://auth:8081/auth/realms/cwms/.well-known/openid-configuration",
+                }
+            }
+        }
+    }
+
+    class FakeResponse:
+        def __init__(self, payload, status_code=200):
+            self._payload = payload
+            self.status_code = status_code
+
+        def raise_for_status(self):
+            if self.status_code >= 400:
+                raise FakeRequests.RequestException(f"HTTP {self.status_code}")
+
+        def json(self):
+            return self._payload
+
+    class FakeRequests:
+        class RequestException(Exception):
+            pass
+
+        @staticmethod
+        def get(url, verify=True, timeout=30):
+            if url == "http://localhost:8081/cwms-data/swagger-docs":
+                return FakeResponse(swagger_document)
+            if (
+                url
+                == "http://auth:8081/auth/realms/cwms/.well-known/openid-configuration"
+            ):
+                raise FakeRequests.RequestException("unreachable")
+            if (
+                url
+                == "http://localhost:8081/auth/realms/cwms/.well-known/openid-configuration"
+            ):
+                raise FakeRequests.RequestException("still unreachable")
+            if (
+                url
+                == "http://localhost:8082/auth/realms/cwms/.well-known/openid-configuration"
+            ):
+                return FakeResponse(
+                    {
+                        "authorization_endpoint": "http://localhost:8082/auth/realms/cwms/protocol/openid-connect/auth",
+                        "token_endpoint": "http://localhost:8082/auth/realms/cwms/protocol/openid-connect/token",
+                    }
+                )
+            raise AssertionError(f"Unexpected URL: {url}")
+
+    monkeypatch.setitem(__import__("sys").modules, "requests", FakeRequests)
+
+    assert (
+        discover_oidc_base_url("http://localhost:8081/cwms-data")
+        == "http://localhost:8082/auth/realms/cwms/protocol/openid-connect"
     )
