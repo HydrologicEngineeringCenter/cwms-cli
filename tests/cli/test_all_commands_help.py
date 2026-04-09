@@ -5,6 +5,7 @@ import pytest
 from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
+from cwmscli.ownership import format_command_maintainers
 from cwmscli.utils.click_help import DOCS_BASE_URL
 from cwmscli.utils.version import get_cwms_cli_version
 
@@ -67,6 +68,7 @@ def test_root_help(runner):
     assert "Usage:" in result.output
     assert f"Version: {get_cwms_cli_version()}" in result.output
     assert f"Docs: {DOCS_BASE_URL}/cli.html" in result.output
+    assert f"Maintainers: {format_command_maintainers('cwms-cli')}" in result.output
 
 
 def test_root_version_flag(runner):
@@ -129,6 +131,8 @@ def test_every_command_has_help(runner, path, command):
     assert result.exit_code == 0, f"Failed on: {' '.join(args)}"
     assert "Usage:" in result.output
     assert f"Version: {get_cwms_cli_version()}" in result.output
+    command_path = " ".join(("cwms-cli",) + path)
+    assert f"Maintainers: {format_command_maintainers(command_path)}" in result.output
     if len(path) == 1:
         page_map = {
             "blob": f"{DOCS_BASE_URL}/cli/blob.html",
