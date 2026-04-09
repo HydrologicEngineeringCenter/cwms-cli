@@ -17,8 +17,6 @@ def c(text: str, color: str, bright: bool = False) -> str:
     # Find the color in Fore and apply it to the text, then reset the style at the end
     if hasattr(Fore, color.upper()):
         color = getattr(Fore, color.upper())
-    else:
-        color = ""
     return f"{color}{b}{text}{Style.RESET_ALL}"
 
 

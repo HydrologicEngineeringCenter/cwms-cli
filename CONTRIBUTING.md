@@ -15,6 +15,14 @@ Once you have the repository on your system you can proceed:
 3. `python -m pip install -e .` - This adds cwms-cli and it's commands to your local path allowing you to live develop cwms-cli as a package and test the CLI functions on your system.
 4. Run `cwms-cli` to confirm everything installed!
 
+## Ownership Metadata
+
+Ownership metadata is centralized in [maintainers.toml](/maintainers.toml).
+
+- Run `python scripts/sync_ownership.py` after editing `maintainers.toml` to regenerate `.github/CODEOWNERS` and synced package authors in [pyproject.toml](/pyproject.toml).
+- Run `python scripts/sync_ownership.py --check` to verify the generated ownership files are current.
+- The local `pre-commit` hook will check this if you installed it, but GitHub Actions is the enforcement point for contributors who do not have hooks installed.
+
 ## Running Tests
 
 To run tests you can run: `poetry run pytest`
