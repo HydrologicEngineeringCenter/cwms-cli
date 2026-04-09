@@ -5,6 +5,7 @@ from typing import Optional
 
 import click
 
+from cwmscli.ownership import get_command_maintainers, get_core_maintainer_emails
 from cwmscli.utils import colors
 from cwmscli.utils.version import get_cwms_cli_version
 
@@ -42,6 +43,9 @@ def _docs_url_for_context(ctx: click.Context) -> Optional[str]:
     command = (ctx.info_name or getattr(ctx.command, "name", None) or "").strip()
     page_map = {
         "blob": "blob",
+        "update": "update",
+        "users": "users",
+        "version": "version",
     }
     # Link to dedicated pages that are created in \docs
     if command in page_map:
@@ -66,6 +70,32 @@ def _render_shell_completion_line(ctx: click.Context) -> Optional[str]:
     )
 
 
+def _command_path(ctx: click.Context) -> str:
+    names: list[str] = []
+    cur: Optional[click.Context] = ctx
+    while cur is not None:
+        name = (cur.info_name or getattr(cur.command, "name", None) or "").strip()
+        if name:
+            if cur.parent is None:
+                name = "cwms-cli"
+            names.append(name)
+        cur = cur.parent
+    names.reverse()
+    return " ".join(names)
+
+
+def _render_maintainers_line(ctx: click.Context) -> str:
+    command_path = _command_path(ctx)
+    core_emails = get_core_maintainer_emails()
+    rendered = []
+    for person in get_command_maintainers(command_path):
+        name = person["name"]
+        if person["email"] in core_emails:
+            name = colors.c(name, "blue", bright=True)
+        rendered.append(name)
+    return f"Maintainers: {', '.join(rendered)}"
+
+
 def _inject_help_header(help_text: str, ctx: click.Context) -> str:
     lines = help_text.splitlines()
     if not lines:
@@ -78,18 +108,31 @@ def _inject_help_header(help_text: str, ctx: click.Context) -> str:
     version_line = _render_version_line(ctx)
     docs_line = _render_docs_line(ctx)
     shell_completion_line = _render_shell_completion_line(ctx)
+    maintainers_line = _render_maintainers_line(ctx)
     if lines[0].startswith("Usage:"):
         lines.insert(1, version_line)
         if docs_line is not None:
             lines.insert(2, docs_line)
+            lines.insert(3, maintainers_line)
+        else:
+            lines.insert(2, maintainers_line)
         if shell_completion_line is not None:
-            lines.insert(3 if docs_line is not None else 2, shell_completion_line)
+            insert_at = 3 if docs_line is not None else 2
+            if docs_line is not None:
+                insert_at += 1
+            lines.insert(insert_at, shell_completion_line)
     else:
         lines.insert(0, version_line)
         if docs_line is not None:
             lines.insert(1, docs_line)
+            lines.insert(2, maintainers_line)
+        else:
+            lines.insert(1, maintainers_line)
         if shell_completion_line is not None:
-            lines.insert(2 if docs_line is not None else 1, shell_completion_line)
+            insert_at = 2 if docs_line is not None else 1
+            if docs_line is not None:
+                insert_at += 1
+            lines.insert(insert_at, shell_completion_line)
     return "\n".join(lines)
 
 

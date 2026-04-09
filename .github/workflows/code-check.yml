@@ -22,4 +22,7 @@ jobs:
           poetry config virtualenvs.create false
           poetry install --no-interaction
 
+      - name: Verify generated ownership files
+        run: poetry run python scripts/sync_ownership.py --check
+
       - uses: pre-commit/action@v3.0.1

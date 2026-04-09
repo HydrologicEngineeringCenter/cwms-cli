@@ -3,7 +3,7 @@ import math
 import re
 from collections import Counter
 from datetime import datetime, timedelta, timezone
-from typing import List, Sequence
+from typing import List, Optional, Sequence, Union
 
 from cwmscli.utils.intervals import ALL_INTERVAL_PARAMETERS
 
@@ -149,7 +149,7 @@ def round_datetime_to_interval(dt: datetime, interval_parameter: str) -> datetim
     return upper_dt if dt >= midpoint else lower_dt
 
 
-def _normalize_date_formats(date_format: str | Sequence[str] | None) -> list[str]:
+def _normalize_date_formats(date_format: Union[str, Sequence[str], None]) -> list[str]:
     if not date_format:
         return []
     if isinstance(date_format, str):
@@ -160,7 +160,7 @@ def _normalize_date_formats(date_format: str | Sequence[str] | None) -> list[str
 
 
 def parse_date(
-    date, tz_str="UTC", date_format: str | Sequence[str] | None = None
+    date, tz_str="UTC", date_format: Union[str, Sequence[str], None] = None
 ) -> datetime:
     """Handle all date types seen in hydropower files
     NOTE: TimeZone naive - assumes all timestamps are in the same timezone

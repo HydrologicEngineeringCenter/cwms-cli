@@ -36,6 +36,5 @@ jobs:
         if: matrix.python-version == '3.9'
         run: poetry run python scripts/smoke_test_cli.py
 
-      - name: Run full test suite (Python >= 3.10)
-        if: matrix.python-version != '3.9'
+      - name: Run full test suite
         run: poetry run pytest -q

@@ -1,6 +1,8 @@
 Blob commands
 =============
 
+.. include:: ../_generated/maintainers/blob.inc
+
 Use ``cwms-cli blob`` to upload, download, delete, update, and list CWMS blobs.
 
 Quick reference
@@ -9,6 +11,7 @@ Quick reference
 - ``blob upload`` supports single-file upload and directory upload.
 - ``blob download`` writes the returned blob content to disk using the server media type when possible.
 - ``blob list`` and ``blob download`` send an API key if one is configured, unless ``--anonymous`` is used.
+- ``blob list --limit`` caps displayed rows, and sets the blob endpoint request page size unless ``--page-size`` is provided to override the fetch size.
 - Directory upload stops before sending anything if generated blob IDs would collide.
 - ``blob upload --overwrite``: To replace existing blobs.
 
@@ -56,6 +59,25 @@ Examples:
 
    # Anonymous list
    cwms-cli blob list --office SWT --api-root http://localhost:8082/cwms-data --anonymous
+
+List pagination
+---------------
+
+``cwms-cli blob list`` reads from the CDA blob endpoint, which defaults to a page size of 100 unless a different ``page_size`` is requested.
+
+- ``--limit`` caps how many rows cwms-cli prints or writes.
+- When ``--limit`` is set, cwms-cli also uses that value as the blob endpoint request ``page_size``.
+- Use ``--page-size`` to override the request size explicitly, especially if you want to fetch more rows than you plan to display.
+
+Examples:
+
+.. code-block:: bash
+
+   # Fetch and show up to 250 rows
+   cwms-cli blob list --office SWT --limit 250
+
+   # Fetch 500 rows from CDA but only show the first 50 locally
+   cwms-cli blob list --office SWT --limit 50 --page-size 500
 
 .. _blob-upload-modes:
 

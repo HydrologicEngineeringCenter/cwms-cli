@@ -42,6 +42,16 @@ office_option = click.option(
     callback=to_uppercase,
     help="Office to grab data for",
 )
+office_option_notrequired = click.option(
+    "-o",
+    "--office",
+    default=None,
+    required=False,
+    envvar="OFFICE",
+    type=str,
+    callback=to_uppercase,
+    help="Office to grab data for",
+)
 api_root_option = click.option(
     "-a",
     "--api-root",
@@ -82,17 +92,18 @@ log_level_option = click.option(
     envvar="LOG_LEVEL",
     callback=_set_log_level,
     expose_value=False,  # Callback will set the log level of all methods
-    is_eager=True,  # Run before other commands (to cover any logging statements)
+    # Run before other commands (to cover any logging statements)
+    is_eager=True,
     help="Set logging verbosity (overrides default INFO).",
 )
 
 
 def get_api_key(api_key: str, api_key_loc: str) -> str:
-    if api_key is not None:
-        return api_key
-    elif api_key_loc is not None:
+    if api_key_loc is not None:
         with open(api_key_loc, "r") as f:
             return f.readline().strip()
+    elif api_key is not None:
+        return api_key
     else:
         raise Exception(
             "must add a value to either --api-key(-k) or --api-key-loc(-kl)"

@@ -1,11 +1,27 @@
+import importlib.metadata
+import sys
+
 import pytest
 from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
+from cwmscli.ownership import format_command_maintainers
 from cwmscli.utils.click_help import DOCS_BASE_URL, SHELL_COMPLETION_DOCS_URL
 from cwmscli.utils.version import get_cwms_cli_version
 
-## Expectations
+
+@pytest.fixture(autouse=True)
+def ensure_cwms_for_help(monkeypatch):
+    class _FakeCwms:
+        class api:
+            class ApiError(Exception):
+                pass
+
+    monkeypatch.setitem(sys.modules, "cwms", _FakeCwms)
+    monkeypatch.setattr(importlib.metadata, "version", lambda pkg: "1.0.7")
+
+
+# Expectations
 # - The help commands should run without requiring an import
 # - Help text should include "Usage: <command> <subcommand> --help"
 # - Every command and subcommand should be tested for help text to ensure help renders as expected and no early import errors occur
@@ -32,6 +48,19 @@ def runner():
     return CliRunner()
 
 
+def help_args_for_path(path):
+    args = list(path) + ["--help"]
+    # Some Click versions require parent-group required options to be present
+    # even when help is requested on a nested subcommand.
+    if len(path) >= 3 and path[:2] == ("users", "roles"):
+        return [
+            *path[:2],  # 'users', 'roles'
+            *path[2:],  # 'add' or 'delete'
+            "--help",
+        ]
+    return args
+
+
 def test_root_help(runner):
     """Top-level CLI should have working help."""
     result = runner.invoke(cli, ["--help"])
@@ -40,6 +69,7 @@ def test_root_help(runner):
     assert f"Version: {get_cwms_cli_version()}" in result.output
     assert f"Docs: {DOCS_BASE_URL}/cli.html" in result.output
     assert f"Shell completion: {SHELL_COMPLETION_DOCS_URL}" in result.output
+    assert f"Maintainers: {format_command_maintainers('cwms-cli')}" in result.output
 
 
 def test_root_version_flag(runner):
@@ -97,14 +127,18 @@ def test_every_command_has_help(runner, path, command):
     Run through every command and subcommand, ensuring that the help page renders.
     This ensures that no early import errors occur in any command.
     """
-    args = list(path) + ["--help"]
+    args = help_args_for_path(path)
     result = runner.invoke(cli, args)
     assert result.exit_code == 0, f"Failed on: {' '.join(args)}"
     assert "Usage:" in result.output
     assert f"Version: {get_cwms_cli_version()}" in result.output
+    command_path = " ".join(("cwms-cli",) + path)
+    assert f"Maintainers: {format_command_maintainers(command_path)}" in result.output
     if len(path) == 1:
         page_map = {
             "blob": f"{DOCS_BASE_URL}/cli/blob.html",
+            "update": f"{DOCS_BASE_URL}/cli/update.html",
+            "users": f"{DOCS_BASE_URL}/cli/users.html",
         }
         expected_docs = page_map.get(
             path[0], f"{DOCS_BASE_URL}/cli.html#cwms-cli-{path[0]}"
