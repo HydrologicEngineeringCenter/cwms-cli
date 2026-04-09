@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.5.0](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.4.0...v0.5.0) (2026-04-09)
+
+
+### Features
+
+* Centralized maintainer ownership for CLI help and docs           ([#180](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/180)) ([ba722a1](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/ba722a13dfe835ebb67ee0916d6d0b42f9a5de62))
+* Enhancements/clob ([#73](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/73)) ([29f43dc](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/29f43dcd5371bc97089064424769df20979092b0))
+* Timeseries Loader ([#137](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/137)) ([9a120e3](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/9a120e378049eebcd2c3bfd9e57748ae171a767c))
+
+
+### Bug Fixes
+
+* 184 blob list   limit doesnt work ([#188](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/188)) ([f1b631b](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/f1b631b94e94e80703b1f2d5c05f35126b32c4cc))
+* removed | operators ([#191](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/191)) ([8092c4b](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/8092c4b9ef1fbe6fab7cbc71cddc25f75aaf720d))
+
 ## [0.4.0](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.3.8...v0.4.0) (2026-04-02)
 
 
