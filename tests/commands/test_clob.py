@@ -207,7 +207,8 @@ def test_list_cmd_initializes_session_with_api_key(monkeypatch):
             return None
 
         @staticmethod
-        def get_clobs(office_id, clob_id_like):
+        def get_clobs(office_id, clob_id_like, page_size=None):
+            calls.append(("get_clobs", office_id, clob_id_like, page_size))
             return pd.DataFrame([{"id": "TEST_CLOB", "description": "x"}])
 
     monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
@@ -219,13 +220,86 @@ def test_list_cmd_initializes_session_with_api_key(monkeypatch):
         sort_by=[],
         desc=False,
         limit=None,
+        page_size=None,
         to_csv=None,
         office="SWT",
         api_root="https://example.test/",
         api_key="apikey 123",
     )
 
-    assert calls == [("init_session", "https://example.test/", "apikey 123")]
+    assert calls == [
+        ("init_session", "https://example.test/", "apikey 123"),
+        ("get_clobs", "SWT", "TEST_.*", None),
+    ]
+
+
+def test_list_cmd_uses_limit_as_fetch_page_size(monkeypatch):
+    calls = []
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key):
+            return None
+
+        @staticmethod
+        def get_clobs(office_id, clob_id_like, page_size=None):
+            calls.append((office_id, clob_id_like, page_size))
+            return pd.DataFrame(
+                [
+                    {"id": "A", "description": "x"},
+                    {"id": "B", "description": "y"},
+                ]
+            )
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+    monkeypatch.setattr("cwmscli.commands.clob.cwms", FakeCwms)
+
+    list_cmd(
+        clob_id_like="TEST_.*",
+        columns=[],
+        sort_by=[],
+        desc=False,
+        limit=25,
+        page_size=None,
+        to_csv=None,
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="apikey 123",
+    )
+
+    assert calls == [("SWT", "TEST_.*", 25)]
+
+
+def test_list_cmd_page_size_overrides_limit_for_fetch(monkeypatch):
+    calls = []
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key):
+            return None
+
+        @staticmethod
+        def get_clobs(office_id, clob_id_like, page_size=None):
+            calls.append((office_id, clob_id_like, page_size))
+            return pd.DataFrame([{"id": "A", "description": "x"}])
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+    monkeypatch.setattr("cwmscli.commands.clob.cwms", FakeCwms)
+
+    list_cmd(
+        clob_id_like="TEST_.*",
+        columns=[],
+        sort_by=[],
+        desc=False,
+        limit=25,
+        page_size=200,
+        to_csv=None,
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="apikey 123",
+    )
+
+    assert calls == [("SWT", "TEST_.*", 200)]
 
 
 def test_list_cmd_anonymous_skips_api_key(monkeypatch):
@@ -238,7 +312,8 @@ def test_list_cmd_anonymous_skips_api_key(monkeypatch):
             return None
 
         @staticmethod
-        def get_clobs(office_id, clob_id_like):
+        def get_clobs(office_id, clob_id_like, page_size=None):
+            calls.append(("get_clobs", office_id, clob_id_like, page_size))
             return pd.DataFrame([{"id": "TEST_CLOB", "description": "x"}])
 
     monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
@@ -250,6 +325,7 @@ def test_list_cmd_anonymous_skips_api_key(monkeypatch):
         sort_by=[],
         desc=False,
         limit=None,
+        page_size=None,
         to_csv=None,
         office="SWT",
         api_root="https://example.test/",
@@ -257,7 +333,10 @@ def test_list_cmd_anonymous_skips_api_key(monkeypatch):
         anonymous=True,
     )
 
-    assert calls == [("init_session", "https://example.test/", None)]
+    assert calls == [
+        ("init_session", "https://example.test/", None),
+        ("get_clobs", "SWT", "TEST_.*", None),
+    ]
 
 
 def test_delete_cmd_uses_query_override_for_special_char_ids(monkeypatch):

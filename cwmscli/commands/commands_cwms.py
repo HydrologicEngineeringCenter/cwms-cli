@@ -556,6 +556,12 @@ def update_cmd(**kwargs):
 )
 @click.option("--limit", type=int, default=None, help="Max rows to show.")
 @click.option(
+    "--page-size",
+    type=int,
+    default=None,
+    help="Max rows to request from the clob endpoint. Defaults to --limit when set.",
+)
+@click.option(
     "--to-csv",
     type=click.Path(dir_okay=False, writable=True, path_type=str),
     help="If set, write results to this CSV file.",

@@ -31,6 +31,8 @@ Quick reference
 - ``clob download`` writes the returned clob text to disk.
 - ``clob list`` and ``clob download`` send an API key if one is configured,
   unless ``--anonymous`` is used.
+- ``clob list --limit`` caps displayed rows, and sets the clob endpoint
+  request page size unless ``--page-size`` is provided to override the fetch size.
 - ``clob upload --overwrite`` replaces an existing clob.
 - ``clob update`` supports partial updates and ``--ignore-nulls`` behavior.
 
@@ -87,6 +89,28 @@ Examples:
 
    # Anonymous list
    cwms-cli clob list --office SWT --api-root http://localhost:8082/cwms-data --anonymous
+
+List pagination
+---------------
+
+``cwms-cli clob list`` can cap the local output and also control how many rows
+the CDA clob endpoint returns for the request.
+
+- ``--limit`` caps how many rows cwms-cli prints or writes.
+- When ``--limit`` is set, cwms-cli also uses that value as the clob endpoint
+  request ``page_size``.
+- Use ``--page-size`` to override the request size explicitly, especially if
+  you want to fetch more rows than you plan to display.
+
+Examples:
+
+.. code-block:: bash
+
+   # Fetch and show up to 250 rows
+   cwms-cli clob list --office SWT --limit 250
+
+   # Fetch 500 rows from CDA but only show the first 50 locally
+   cwms-cli clob list --office SWT --limit 50 --page-size 500
 
 .. _clob-overwrite-flag:
 
