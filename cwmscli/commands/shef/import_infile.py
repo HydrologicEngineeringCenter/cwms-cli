@@ -70,8 +70,7 @@ try:
     import cwms.api as cwms_api
 except ImportError:
     sys.exit(
-        "ERROR: cwms-python is not installed.\n"
-        "       Run:  pip install cwms-python"
+        "ERROR: cwms-python is not installed.\n" "       Run:  pip install cwms-python"
     )
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)-8s %(message)s")
@@ -88,17 +87,22 @@ DEFAULT_CSV_PATH = Path(__file__).parent.parent / "utils" / "shef_parameters.csv
 # Allow optional leading ~ in any part after the location
 # (e.g., ~15Minutes, ~1Day)
 TSID_RE = re.compile(
-    r"^[A-Za-z0-9][A-Za-z0-9_\-]*"               # location (no ~)
-    r"(?:\.~?[A-Za-z0-9][A-Za-z0-9_\-]*){5}$"    # 5 more parts, ~ optional
+    r"^[A-Za-z0-9][A-Za-z0-9_\-]*"  # location (no ~)
+    r"(?:\.~?[A-Za-z0-9][A-Za-z0-9_\-]*){5}$"  # 5 more parts, ~ optional
 )
 
 # Map CWMS duration unit suffixes to SHEF numeric duration base values
 _CWMS_DUR_BASES = {
-    "Minute": 0, "Minutes": 0,
-    "Hour": 1000, "Hours": 1000,
-    "Day": 2000, "Days": 2000,
-    "Month": 3000, "Months": 3000,
-    "Year": 4000, "Years": 4000,
+    "Minute": 0,
+    "Minutes": 0,
+    "Hour": 1000,
+    "Hours": 1000,
+    "Day": 2000,
+    "Days": 2000,
+    "Month": 3000,
+    "Months": 3000,
+    "Year": 4000,
+    "Years": 4000,
 }
 
 
@@ -123,8 +127,8 @@ def _parse_shef_parameters_csv(
     path: Path,
 ) -> tuple[list[tuple[str, str]], dict[str, str]]:
     """Parse shef_parameters.csv and return:
-      - mappings: (c_part, pe_code) tuples for PE resolution
-      - pe_units: {pe_code: unit} for default units (skips 'n/a')
+    - mappings: (c_part, pe_code) tuples for PE resolution
+    - pe_units: {pe_code: unit} for default units (skips 'n/a')
     """
     mappings: list[tuple[str, str]] = []
     pe_units: dict[str, str] = {}
@@ -150,6 +154,7 @@ def _parse_shef_parameters_csv(
 # .in file parser
 # ---------------------------------------------------------------------------
 
+
 def parse_in_file(
     path: Path,
     csv_path: Optional[Path] = None,
@@ -172,6 +177,7 @@ def parse_in_file(
 
 
 # ---- INI parser -----------------------------------------------------------
+
 
 def _try_ini_parse(text: str) -> tuple[dict, list[dict]]:
     """Try parsing with configparser after light normalisation."""
@@ -241,6 +247,7 @@ def _try_ini_parse(text: str) -> tuple[dict, list[dict]]:
 
 # ---- Raw line scanner -----------------------------------------------------
 
+
 def _raw_scan(text: str) -> tuple[dict, list[dict]]:
     """Line-by-line fallback when there are no INI section headers."""
     header: dict = {}
@@ -269,6 +276,7 @@ def _raw_scan(text: str) -> tuple[dict, list[dict]]:
 
 # ---- Single-line entry parser ---------------------------------------------
 
+
 def _parse_entry_line(line: str) -> Optional[dict]:
     """
     Parse one timeseries entry from a single text line.
@@ -294,10 +302,10 @@ def _parse_entry_line(line: str) -> Optional[dict]:
     )
     if m:
         return {
-            "tsid":      m.group("tsid"),
-            "shef_loc":  m.group("loc"),
-            "pe_code":   m.group("pe"),
-            "duration":  m.group("dur"),
+            "tsid": m.group("tsid"),
+            "shef_loc": m.group("loc"),
+            "pe_code": m.group("pe"),
+            "duration": m.group("dur"),
             "send_code": m.group("send"),
         }
 
@@ -321,17 +329,18 @@ def _parts_to_entry(parts: list[str]) -> Optional[dict]:
         return None
     for i, part in enumerate(parts):
         if TSID_RE.match(part):
-            rest = parts[i + 1:]
+            rest = parts[i + 1 :]
             if len(rest) >= 4:
                 return {
-                    "tsid":      part,
-                    "shef_loc":  rest[0],
-                    "pe_code":   rest[1],
-                    "duration":  rest[2],
+                    "tsid": part,
+                    "shef_loc": rest[0],
+                    "pe_code": rest[1],
+                    "duration": rest[2],
                     "send_code": rest[3],
                 }
             break
     return None
+
 
 def _resolve_pe_code(
     parameter: str,
@@ -343,10 +352,11 @@ def _resolve_pe_code(
     First match wins — list more-specific rules first in the .in file.
     """
     for pattern, code in pe_mappings:
-        base = re.sub(r"\.\*$|\*$", "", pattern)   # strip trailing .* or *
+        base = re.sub(r"\.\*$|\*$", "", pattern)  # strip trailing .* or *
         if parameter == base or parameter.startswith(base + "."):
             return code
     return None
+
 
 def _contextual_parse(
     text: str,
@@ -377,8 +387,14 @@ def _contextual_parse(
 
     # ---- Single-pass contextual scan -------------------------------------
     HEADER_KEYWORDS = {
-        "debug", "type", "delimiter", "timewindow",
-        "revised", "system", "tzone", "db",
+        "debug",
+        "type",
+        "delimiter",
+        "timewindow",
+        "revised",
+        "system",
+        "tzone",
+        "db",
     }
 
     header: dict = {}
@@ -386,7 +402,7 @@ def _contextual_parse(
 
     current_send_code = "ZZZ"
     current_shef_loc: Optional[str] = None
-    location_map: dict[str, str] = {}   # cwms_location_name -> shef_id
+    location_map: dict[str, str] = {}  # cwms_location_name -> shef_id
 
     for raw in text.splitlines():
         s = raw.strip()
@@ -442,10 +458,10 @@ def _contextual_parse(
         if not TSID_RE.match(tsid_str):
             continue
 
-        cwms_parts     = tsid_str.split(".")
-        cwms_location  = cwms_parts[0]
+        cwms_parts = tsid_str.split(".")
+        cwms_location = cwms_parts[0]
         cwms_parameter = cwms_parts[1]
-        cwms_duration  = cwms_parts[4]
+        cwms_duration = cwms_parts[4]
 
         # Resolve SHEF location
         #   1. Exact match in location_map
@@ -459,9 +475,9 @@ def _contextual_parse(
         if not shef_loc:
             best = max(
                 (
-                    k for k in location_map
-                    if cwms_location == k
-                    or cwms_location.startswith(k + "-")
+                    k
+                    for k in location_map
+                    if cwms_location == k or cwms_location.startswith(k + "-")
                 ),
                 key=len,
                 default=None,
@@ -470,7 +486,7 @@ def _contextual_parse(
                 mapped_value = location_map[best]
                 # If this was a prefix match (not exact), preserve the sublocation suffix
                 if cwms_location != best and cwms_location.startswith(best + "-"):
-                    sublocation = cwms_location[len(best):]  # e.g., "-Powerhouse"
+                    sublocation = cwms_location[len(best) :]  # e.g., "-Powerhouse"
                     shef_loc = mapped_value + sublocation
                 else:
                     shef_loc = mapped_value
@@ -486,7 +502,8 @@ def _contextual_parse(
         if not pe_code:
             log.warning(
                 "No PE mapping for parameter '%s' (TSID: %s) — skipping.",
-                cwms_parameter, tsid_str,
+                cwms_parameter,
+                tsid_str,
             )
             continue
 
@@ -496,10 +513,10 @@ def _contextual_parse(
             units = pe_units[pe_code]
 
         entry = {
-            "tsid":      tsid_str,
-            "shef_loc":  shef_loc,
-            "pe_code":   pe_code,
-            "duration":  str(duration_value),
+            "tsid": tsid_str,
+            "shef_loc": shef_loc,
+            "pe_code": pe_code,
+            "duration": str(duration_value),
             "send_code": current_send_code,
         }
         if units:
@@ -508,9 +525,11 @@ def _contextual_parse(
 
     return header, entries
 
+
 # ---------------------------------------------------------------------------
 # Alias builder
 # ---------------------------------------------------------------------------
+
 
 def build_alias(entry: dict) -> str:
     """Return SHEF alias string: SHEF_LOC.PE_CODE.SEND_CODE.DURATION[:Units=U]."""
@@ -527,6 +546,7 @@ def build_alias(entry: dict) -> str:
 # CWMS group JSON builder
 # ---------------------------------------------------------------------------
 
+
 def build_group_json(
     entries: list[dict],
     group_id: str,
@@ -537,10 +557,10 @@ def build_group_json(
     df = pd.DataFrame(
         [
             {
-                "office-id":     office_id,
+                "office-id": office_id,
                 "timeseries-id": e["tsid"],
-                "alias-id":      build_alias(e),
-                "attribute":     i,
+                "alias-id": build_alias(e),
+                "attribute": i,
             }
             for i, e in enumerate(entries)
         ]
@@ -558,6 +578,7 @@ def build_group_json(
 # Store / update via cwms-python
 # ---------------------------------------------------------------------------
 
+
 def store_group(
     group_json: dict,
     group_id: str,
@@ -572,7 +593,8 @@ def store_group(
     except Exception as exc:
         log.warning(
             "store_timeseries_groups raised %s: %s — retrying with update ...",
-            type(exc).__name__, exc,
+            type(exc).__name__,
+            exc,
         )
 
     # Fallback: update, replacing all assigned timeseries
@@ -588,6 +610,7 @@ def store_group(
 # ---------------------------------------------------------------------------
 # Importable function for CLI integration
 # ---------------------------------------------------------------------------
+
 
 def import_shef_infile(
     in_file: str,
@@ -681,6 +704,7 @@ def import_shef_infile(
 # CLI
 # ---------------------------------------------------------------------------
 
+
 def _build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         description=(
@@ -692,19 +716,27 @@ def _build_parser() -> argparse.ArgumentParser:
         epilog=__doc__,
     )
     p.add_argument(
-        "--in-file", required=True, type=Path, metavar="PATH",
+        "--in-file",
+        required=True,
+        type=Path,
+        metavar="PATH",
         help="Path to the exportShef .in configuration file.",
     )
     p.add_argument(
-        "--group-name", required=True, metavar="NAME",
+        "--group-name",
+        required=True,
+        metavar="NAME",
         help='CWMS timeseries group name (e.g. "Lock_Dam LD1-10").',
     )
     p.add_argument(
-        "--office", required=True, metavar="OFFICE_ID",
+        "--office",
+        required=True,
+        metavar="OFFICE_ID",
         help="CWMS office ID (e.g. MVP).",
     )
     p.add_argument(
-        "--api-root", metavar="URL",
+        "--api-root",
+        metavar="URL",
         help=(
             "CWMS Data API root URL "
             "(e.g. https://your-cwms-host/cwms-data). "
@@ -712,15 +744,19 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
-        "--api-key", metavar="KEY",
+        "--api-key",
+        metavar="KEY",
         help="API key for authentication ('apikey ...' prefix optional).",
     )
     p.add_argument(
-        "--token", metavar="TOKEN",
+        "--token",
+        metavar="TOKEN",
         help="Keycloak bearer token (takes precedence over --api-key).",
     )
     p.add_argument(
-        "--category", default=DEFAULT_CATEGORY, metavar="CAT",
+        "--category",
+        default=DEFAULT_CATEGORY,
+        metavar="CAT",
         help=(
             f'Timeseries category ID. Default: "{DEFAULT_CATEGORY}". '
             "The category must already exist in the CWMS database, "
@@ -728,25 +764,32 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
-        "--fail-if-exists", action="store_true", default=False,
+        "--fail-if-exists",
+        action="store_true",
+        default=False,
         help=(
             "Fail if the timeseries group already exists. "
             "Default: silently update the existing group."
         ),
     )
     p.add_argument(
-        "--dry-run", action="store_true",
+        "--dry-run",
+        action="store_true",
         help=(
             "Parse the .in file and print the JSON payload "
             "without connecting to the CWMS API."
         ),
     )
     p.add_argument(
-        "--output-json", type=Path, metavar="FILE",
+        "--output-json",
+        type=Path,
+        metavar="FILE",
         help="Write the JSON payload to this file (in addition to posting).",
     )
     p.add_argument(
-        "--shef-params", type=Path, metavar="CSV",
+        "--shef-params",
+        type=Path,
+        metavar="CSV",
         default=DEFAULT_CSV_PATH,
         help=(
             "Path to shef_parameters.csv for default PE mappings. "
@@ -754,7 +797,9 @@ def _build_parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
-        "--verbose", "-v", action="store_true",
+        "--verbose",
+        "-v",
+        action="store_true",
         help="Enable DEBUG-level log output.",
     )
     return p
@@ -802,9 +847,7 @@ def main(argv: Optional[list] = None) -> int:
         log.info("  %-60s  alias=%s", e["tsid"], build_alias(e))
 
     # ---- Build JSON payload ----------------------------------------------
-    group_json = build_group_json(
-        entries, args.group_name, args.office, args.category
-    )
+    group_json = build_group_json(entries, args.group_name, args.office, args.category)
 
     # ---- Optional: write JSON to file ------------------------------------
     if args.output_json:
@@ -836,11 +879,12 @@ def main(argv: Optional[list] = None) -> int:
 
     log.info(
         "Done.\n  Group    : %s\n  Category : %s\n  Office   : %s\n  Entries  : %d",
-        args.group_name, args.category, args.office, len(entries),
+        args.group_name,
+        args.category,
+        args.office,
+        len(entries),
     )
     return 0
-
-
 
 
 if __name__ == "__main__":

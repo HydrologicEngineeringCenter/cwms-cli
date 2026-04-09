@@ -102,7 +102,9 @@ def shef_import_crit(filename, office, api_root, api_key, api_key_loc):
 @common_api_options
 @api_key_loc_option
 @requires(reqs.cwms)
-def shef_import_infile(filename, group_name, category, office, api_root, api_key, api_key_loc):
+def shef_import_infile(
+    filename, group_name, category, office, api_root, api_key, api_key_loc
+):
     from cwmscli.commands.shef.import_infile import import_shef_infile
     from cwmscli.utils import get_api_key
 
