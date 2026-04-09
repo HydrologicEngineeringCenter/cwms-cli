@@ -5,7 +5,7 @@
 cwms = {
     "module": "cwms",
     "package": "cwms-python",
-    "version": "1.0.1",
+    "version": "1.0.7",
     "desc": "CWMS REST API Python client",
     "link": "https://github.com/HydrologicEngineeringCenter/cwms-python",
 }

@@ -1,13 +1,18 @@
-# Confirm the docs build works on PRs touching docs or code
-name: ReadTheDocs/Sphinx Validation
+name: Docs Validation
+
 on:
   pull_request:
     paths: ["docs/**", "cwmscli/**", "pyproject.toml"]
   push:
     branches: [main]
     paths: ["docs/**", "cwmscli/**", "pyproject.toml"]
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
 jobs:
-  build:
+  html:
+    if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6

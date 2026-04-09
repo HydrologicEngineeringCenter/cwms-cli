@@ -11,6 +11,10 @@ Shared options
 - ``--api-root`` or ``CDA_API_ROOT``
 - ``--api-key`` or ``CDA_API_KEY``
 
+Some commands also expose ``--api-key-loc`` / ``-kl`` to read the API key from
+the first line of a file instead of passing the key inline. This is currently
+available on the USGS subcommands and ``shefcritimport``.
+
 These are the standard API inputs used by commands such as ``csv2cwms``.
 
 Environment setup
@@ -49,6 +53,9 @@ Notes
 - ``--office`` uses the ``OFFICE`` environment variable.
 - ``--api-root`` uses the ``CDA_API_ROOT`` environment variable.
 - ``--api-key`` uses the ``CDA_API_KEY`` environment variable.
+- When ``--api-key-loc`` is provided for a command that supports it, the key
+  read from that file takes precedence over ``--api-key`` and over a
+  ``CDA_API_KEY`` value coming from the environment.
 - For CDA-backed regex filters such as ``--like``, ``--location-kind-like``, and ``--timeseries-id-regex``, see the :doc:`CWMS Data API regular expression guide <cda_regex>`.
 - Commands may still expose additional non-API options such as config files,
   timezone selection, or dry-run behavior.

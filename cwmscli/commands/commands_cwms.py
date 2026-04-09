@@ -1,14 +1,31 @@
+import os
 import subprocess
 import sys
 import textwrap
+from typing import Optional
 
 import click
 
 from cwmscli import requirements as reqs
 from cwmscli.callbacks import csv_to_list
 from cwmscli.commands import csv2cwms
-from cwmscli.utils import api_key_loc_option, common_api_options, to_uppercase
+from cwmscli.utils import (
+    api_key_loc_option,
+    api_key_option,
+    api_root_option,
+    colors,
+    common_api_options,
+    get_api_key,
+    office_option,
+    office_option_notrequired,
+    to_uppercase,
+)
 from cwmscli.utils.deps import requires
+from cwmscli.utils.update import (
+    build_update_package_spec,
+    launch_windows_update,
+    looks_like_missing_version,
+)
 from cwmscli.utils.version import get_cwms_cli_version
 
 
@@ -86,7 +103,16 @@ def csv2cwms_cmd(**kwargs):
     csv2_main(**kwargs)
 
 
-@click.command("update", help="Update cwms-cli to the latest version using pip.")
+@click.command(
+    "update",
+    help="Update cwms-cli with pip, optionally targeting a specific version.",
+)
+@click.option(
+    "--target-version",
+    "target_version",
+    metavar="VERSION",
+    help="Install a specific cwms-cli version instead of the latest release.",
+)
 @click.option(
     "--pre",
     is_flag=True,
@@ -100,32 +126,76 @@ def csv2cwms_cmd(**kwargs):
     default=False,
     help="Skip confirmation prompt and run update immediately.",
 )
-def update_cli_cmd(pre: bool, yes: bool) -> None:
+def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
     current_version = get_cwms_cli_version()
-    click.echo(f"Current cwms-cli version: {current_version}")
+    package_spec = build_update_package_spec(target_version)
 
-    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "cwms-cli"]
+    click.echo(
+        "Current cwms-cli version: " f"{colors.c(current_version, 'cyan', bright=True)}"
+    )
+    if target_version:
+        click.echo(
+            "Requested cwms-cli version: "
+            f"{colors.c(target_version, 'cyan', bright=True)}"
+        )
+    else:
+        click.echo("Requested cwms-cli version: latest available release")
+
+    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", package_spec]
     if pre:
         cmd.append("--pre")
 
     if not yes:
         proceed = click.confirm("Proceed with updating cwms-cli via pip?", default=True)
         if not proceed:
-            click.echo("Update canceled.")
+            click.echo(colors.warn("Update canceled."))
             return
 
     click.echo(f"Running: {' '.join(cmd)}")
+    if os.name == "nt":
+        try:
+            script_path = launch_windows_update(cmd)
+        except OSError as e:
+            raise click.ClickException(
+                f"Unable to launch Windows update process: {e}"
+            ) from e
+        click.echo(
+            colors.ok(
+                "Opened a separate command window to complete the update after "
+                "cwms-cli exits."
+            )
+        )
+        click.echo(f"Update helper script: {script_path}")
+        return
+
     try:
-        result = subprocess.run(cmd, check=False)
+        result = subprocess.run(
+            cmd,
+            check=False,
+            capture_output=True,
+            text=True,
+        )
     except OSError as e:
         raise click.ClickException(f"Unable to run pip update command: {e}") from e
 
+    if result.stdout:
+        click.echo(result.stdout, nl=False)
+    if result.stderr:
+        click.echo(result.stderr, err=True, nl=False)
+
     if result.returncode != 0:
+        pip_output = "\n".join(part for part in [result.stdout, result.stderr] if part)
+        if target_version and looks_like_missing_version(pip_output, package_spec):
+            raise click.ClickException(
+                colors.err(
+                    f"Requested cwms-cli version '{target_version}' was not found."
+                )
+            )
         raise click.ClickException(
-            "cwms-cli update failed. Please review pip output above."
+            colors.err("cwms-cli update failed. Please review pip output above.")
         )
 
-    click.echo("Update complete. Run `cwms-cli --version` to verify.")
+    click.echo(colors.ok("Update complete. Run `cwms-cli --version` to verify."))
 
 
 # region Blob
@@ -318,6 +388,12 @@ def update_cmd(**kwargs):
 )
 @click.option("--limit", type=int, default=None, help="Max rows to show.")
 @click.option(
+    "--page-size",
+    type=int,
+    default=None,
+    help="Max rows to request from the blob endpoint. Defaults to --limit if set, otherwise no pagination (all results in one page).",
+)
+@click.option(
     "--to-csv",
     type=click.Path(dir_okay=False, writable=True, path_type=str),
     help="If set, write results to this CSV file.",
@@ -333,3 +409,314 @@ def list_cmd(**kwargs):
     from cwmscli.commands.blob import list_cmd
 
     list_cmd(**kwargs)
+
+
+# endregion
+
+
+# region Clob
+# ================================================================================
+#  CLOB
+# ================================================================================
+@click.group(
+    "clob",
+    help="Manage CWMS Clobs (upload, download, delete, update, list)",
+    epilog=textwrap.dedent(
+        """
+    Example Usage:\n
+    - Download a clob by id to your local filesystem\n
+    - Update a clob's name/description/mime-type\n
+    - Bulk list clobs for an office  
+"""
+    ),
+)
+@requires(reqs.cwms)
+def clob_group():
+    pass
+
+
+# ================================================================================
+#       Upload
+# ================================================================================
+@clob_group.command("upload", help="Upload a file as a clob")
+@click.option(
+    "--input-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
+    help="Path to the file to upload.",
+)
+@click.option("--clob-id", required=True, type=str, help="Clob ID to create.")
+@click.option("--description", default=None, help="Optional description JSON or text.")
+@click.option(
+    "--overwrite/--no-overwrite",
+    default=False,
+    show_default=True,
+    help="If true, replace existing clob.",
+)
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@common_api_options
+def clob_upload(**kwargs):
+    from cwmscli.commands.clob import upload_cmd
+
+    upload_cmd(**kwargs)
+
+
+# ================================================================================
+#       Download
+# ================================================================================
+@clob_group.command("download", help="Download a clob by ID")
+# TODO: test XML
+@click.option("--clob-id", required=True, type=str, help="Clob ID to download.")
+@click.option(
+    "--dest",
+    default=None,
+    help="Destination file path. Defaults to clob-id.",
+)
+@click.option(
+    "--anonymous",
+    is_flag=True,
+    help="Do not send credentials for this read request, even if they are configured.",
+)
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@common_api_options
+def clob_download(**kwargs):
+    from cwmscli.commands.clob import download_cmd
+
+    download_cmd(**kwargs)
+
+
+# ================================================================================
+#       Delete
+# ================================================================================
+@clob_group.command("delete", help="Delete a clob by ID")
+@click.option("--clob-id", required=True, type=str, help="Clob ID to delete.")
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@common_api_options
+def delete_cmd(**kwargs):
+    from cwmscli.commands.clob import delete_cmd
+
+    delete_cmd(**kwargs)
+
+
+# ================================================================================
+#       Update
+# ================================================================================
+@clob_group.command("update", help="Update/patch a clob by ID")
+@click.option("--clob-id", required=True, type=str, help="Clob ID to update.")
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@click.option(
+    "--description",
+    default=None,
+    help="New description JSON or text.",
+)
+@click.option(
+    "--input-file",
+    required=False,
+    type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
+    help="Optional file content to upload with update.",
+)
+@click.option(
+    "--ignore-nulls/--no-ignore-nulls",
+    default=True,
+    show_default=True,
+    help="If true, null and empty fields in the provided clob will be ignored and the existing value of those fields left in place.",
+)
+@common_api_options
+def update_cmd(**kwargs):
+    from cwmscli.commands.clob import update_cmd
+
+    update_cmd(**kwargs)
+
+
+# ================================================================================
+#       List
+# ================================================================================
+@clob_group.command("list", help="List clobs with optional filters and sorting")
+# TODO: Add link to regex docs when new CWMS-DATA site is deployed to PROD
+@click.option(
+    "--clob-id-like", help="LIKE filter for clob ID (e.g., ``*PNG``)."
+)  # Escape the wildcard/asterisk for RTD generation with double backticks
+@click.option(
+    "--columns",
+    multiple=True,
+    callback=csv_to_list,
+    help="Columns to show (repeat or comma-separate).",
+)
+@click.option(
+    "--sort-by",
+    multiple=True,
+    callback=csv_to_list,
+    help="Columns to sort by (repeat or comma-separate).",
+)
+@click.option(
+    "--desc/--asc",
+    default=False,
+    show_default=True,
+    help="Sort descending instead of ascending.",
+)
+@click.option("--limit", type=int, default=None, help="Max rows to show.")
+@click.option(
+    "--page-size",
+    type=int,
+    default=None,
+    help="Max rows to request from the clob endpoint. Defaults to --limit when set.",
+)
+@click.option(
+    "--to-csv",
+    type=click.Path(dir_okay=False, writable=True, path_type=str),
+    help="If set, write results to this CSV file.",
+)
+@click.option(
+    "--anonymous",
+    is_flag=True,
+    help="Do not send credentials for this read request, even if they are configured.",
+)
+@common_api_options
+def list_cmd(**kwargs):
+    from cwmscli.commands.clob import list_cmd
+
+    list_cmd(**kwargs)
+
+
+# endregion
+# ================================================================================
+#       USERS
+# ================================================================================
+user_name_option = click.option(
+    "-u",
+    "--user-name",
+    type=str,
+    default=None,
+    required=True,
+    help="Existing user name.",
+)
+
+
+@click.group(
+    "users",
+    help="Manage CWMS users and user-management roles",
+)
+def users_group():
+    pass
+
+
+@users_group.command(
+    "user-ids",
+    help="List all available user IDs for an office or lookup using like filter",
+)
+@office_option_notrequired
+@api_root_option
+@api_key_option
+@api_key_loc_option
+@click.option(
+    "-ul",
+    "--username-like",
+    type=str,
+    default=None,
+    help="Enter any part of a user name to filter user id listing. Case-insensitive.",
+)
+@requires(reqs.cwms)
+def users_user_ids(office, api_root, api_key, api_key_loc, username_like):
+    from cwmscli.commands.users import list_user_ids
+
+    list_user_ids(
+        office=office,
+        api_root=api_root,
+        api_key=api_key,
+        api_key_loc=api_key_loc,
+        username_like=username_like,
+    )
+
+
+@click.group(
+    "roles",
+    help="Manage CWMS users and user-management roles",
+)
+def roles_group():
+    pass
+
+
+@roles_group.command(
+    "list-all",
+    help="List assignable CWMS user-management roles",
+)
+@api_root_option
+@api_key_option
+@api_key_loc_option
+@requires(reqs.cwms)
+def users_roles_list_all(api_root, api_key, api_key_loc):
+    from cwmscli.commands.users import list_roles
+
+    list_roles(api_root=api_root, api_key=api_key, api_key_loc=api_key_loc)
+
+
+@roles_group.command("list-user", help="List roles for a specific user and office")
+@user_name_option
+@office_option_notrequired
+@api_root_option
+@api_key_option
+@api_key_loc_option
+@requires(reqs.cwms)
+def users_roles_list_user(user_name, office, api_root, api_key, api_key_loc):
+    from cwmscli.commands.users import list_user_roles
+
+    list_user_roles(
+        user_name=user_name,
+        office=office,
+        api_root=api_root,
+        api_key=api_key,
+        api_key_loc=api_key_loc,
+    )
+
+
+@roles_group.command("add", help="Add one or more roles to an existing user")
+@common_api_options
+@api_key_loc_option
+@user_name_option
+@click.option(
+    "--roles",
+    multiple=True,
+    default=None,
+    callback=csv_to_list,
+    help="enter admin, readonly, readwrite, or individual role name(s) to add. Repeat the option or pass a comma/pipe-separated list.",
+)
+@requires(reqs.cwms)
+def users_roles_add(office, api_root, api_key, api_key_loc, user_name, roles):
+    from cwmscli.commands.users import add_roles
+
+    add_roles(
+        user_name=user_name,
+        roles=roles,
+        office=office,
+        api_root=api_root,
+        api_key=api_key,
+        api_key_loc=api_key_loc,
+    )
+
+
+@roles_group.command("delete", help="Remove one or more roles from an existing user")
+@common_api_options
+@api_key_loc_option
+@user_name_option
+@click.option(
+    "--roles",
+    multiple=True,
+    default=None,
+    callback=csv_to_list,
+    help="enter 'all' to delete all roles, or admin, readonly, readwrite, or individual role name(s) to delete. Repeat the option or pass a comma/pipe-separated list.",
+)
+@requires(reqs.cwms)
+def users_roles_delete(office, api_root, api_key, api_key_loc, user_name, roles):
+    from cwmscli.commands.users import delete_roles
+
+    delete_roles(
+        user_name=user_name,
+        roles=roles,
+        office=office,
+        api_root=api_root,
+        api_key=api_key,
+        api_key_loc=api_key_loc,
+    )
+
+
+users_group.add_command(roles_group)

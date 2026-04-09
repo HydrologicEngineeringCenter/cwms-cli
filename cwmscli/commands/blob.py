@@ -7,7 +7,7 @@ import os
 import re
 import sys
 from collections import defaultdict
-from typing import Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple, Union
 
 from cwmscli.utils import colors, get_api_key, log_scoped_read_hint
 from cwmscli.utils.click_help import DOCS_BASE_URL
@@ -64,12 +64,12 @@ def _looks_like_base64(raw: str) -> bool:
 
 
 def _save_blob_content(
-    content: bytes | str,
+    content: Union[bytes, str],
     dest: str,
     media_type_hint: Optional[str] = None,
 ) -> str:
     media_type = media_type_hint
-    data: bytes | str = content
+    data: Union[bytes, str] = content
 
     if isinstance(content, str):
         m = DATA_URL_RE.match(content.strip())
@@ -131,6 +131,11 @@ def _resolve_optional_api_key(api_key: Optional[str], anonymous: bool) -> Option
     if anonymous or not api_key:
         return None
     return get_api_key(api_key, None)
+
+
+def _response_status_code(exc: BaseException) -> Optional[int]:
+    response = getattr(exc, "response", None)
+    return getattr(response, "status_code", None)
 
 
 def store_blob(**kwargs):
@@ -255,12 +260,19 @@ def list_blobs(
     sort_by: Optional[Sequence[str]] = None,
     ascending: bool = True,
     limit: Optional[int] = None,
+    page_size: Optional[int] = None,
 ):
     logging.info(f"Listing blobs for office: {office!r}...")
     import cwms
     import pandas as pd
 
-    result = cwms.get_blobs(office_id=office, blob_id_like=blob_id_like)
+    # Use page size if it's provided per #184
+    fetch_page_size = page_size if page_size is not None else limit
+    result = cwms.get_blobs(
+        office_id=office,
+        blob_id_like=blob_id_like,
+        page_size=fetch_page_size,
+    )
 
     # Accept either a DataFrame or a JSON/dict-like response
     if isinstance(result, pd.DataFrame):
@@ -597,6 +609,7 @@ def download_cmd(
 
 def delete_cmd(blob_id: str, office: str, api_root: str, api_key: str, dry_run: bool):
     import cwms
+    import requests
 
     if dry_run:
         logging.info(
@@ -604,7 +617,17 @@ def delete_cmd(blob_id: str, office: str, api_root: str, api_key: str, dry_run: 
         )
         return
     cwms.init_session(api_root=api_root, api_key=api_key)
-    cwms.delete_blob(office_id=office, blob_id=blob_id)
+    try:
+        cwms.delete_blob(office_id=office, blob_id=blob_id)
+    except requests.HTTPError as e:
+        if _response_status_code(e) == 404:
+            logging.info(
+                "Blob %s was already absent in office %s. Nothing to delete.",
+                blob_id,
+                office,
+            )
+            return
+        raise
     logging.info(f"Deleted blob: {blob_id} for office: {office}")
 
 
@@ -662,6 +685,7 @@ def list_cmd(
     sort_by: list[str],
     desc: bool,
     limit: int,
+    page_size: int,
     to_csv: str,
     office: str,
     api_root: str,
@@ -681,6 +705,7 @@ def list_cmd(
             sort_by=sort_by,
             ascending=not desc,
             limit=limit,
+            page_size=page_size,
         )
     except Exception:
         log_scoped_read_hint(
@@ -697,4 +722,12 @@ def list_cmd(
     else:
         # Friendly console preview
         with pd.option_context("display.max_rows", 500, "display.max_columns", None):
-            logging.info(df.to_string(index=False))
+            # Left-align all columns
+            logging.info(
+                "\n"
+                + df.apply(
+                    lambda s: (s := s.astype(str).str.strip()).str.ljust(
+                        s.str.len().max()
+                    )
+                ).to_string(index=False, justify="left")
+            )

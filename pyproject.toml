@@ -2,7 +2,7 @@
 name = "cwms-cli"
 repository = "https://github.com/HydrologicEngineeringCenter/cwms-cli"
 
-version = "0.3.6"
+version = "0.4.0"
 
 
 packages = [
@@ -18,7 +18,7 @@ authors = ["Eric Novotny <eric.v.novotny@usace.army.mil>", "Charles Graham <char
 python = "^3.9"
 click = "^8.1.8"
 hecdss  = { version = ">=0.1.24", optional = true }  # Via https://github.com/HydrologicEngineeringCenter/hec-python-library/blob/main/hec/shared.py#L9-10
-cwms-python = { version = ">=1.0.1", optional = true}
+cwms-python = { version = ">=1.0.7", optional = true}
 colorama = "^0.4.6"
 
 [tool.poetry.group.dev.dependencies]
@@ -30,6 +30,10 @@ pytest = "^8.3.5"
 #pytest-cov = "^4.1.0"
 #pandas-stubs = "^2.2.1.240316"
 yamlfix = "^1.16.0"
+pandas = "^2.1.3"
+cwms-python = "^1.0.7"
+hecdss = "^0.1.24"
+
 
 [build-system]
 requires = ["poetry-core"]
