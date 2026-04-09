@@ -6,7 +6,7 @@ from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
 from cwmscli.ownership import format_command_maintainers
-from cwmscli.utils.click_help import DOCS_BASE_URL
+from cwmscli.utils.click_help import DOCS_BASE_URL, SHELL_COMPLETION_DOCS_URL
 from cwmscli.utils.version import get_cwms_cli_version
 
 
@@ -68,6 +68,7 @@ def test_root_help(runner):
     assert "Usage:" in result.output
     assert f"Version: {get_cwms_cli_version()}" in result.output
     assert f"Docs: {DOCS_BASE_URL}/cli.html" in result.output
+    assert f"Shell completion: {SHELL_COMPLETION_DOCS_URL}" in result.output
     assert f"Maintainers: {format_command_maintainers('cwms-cli')}" in result.output
 
 
@@ -143,5 +144,7 @@ def test_every_command_has_help(runner, path, command):
             path[0], f"{DOCS_BASE_URL}/cli.html#cwms-cli-{path[0]}"
         )
         assert f"Docs: {expected_docs}" in result.output
+        assert "Shell completion:" not in result.output
     else:
         assert "Docs:" not in result.output
+        assert "Shell completion:" not in result.output
