@@ -722,4 +722,12 @@ def list_cmd(
     else:
         # Friendly console preview
         with pd.option_context("display.max_rows", 500, "display.max_columns", None):
-            logging.info(df.to_string(index=False))
+            # Left-align all columns
+            logging.info(
+                "\n"
+                + df.apply(
+                    lambda s: (s := s.astype(str).str.strip()).str.ljust(
+                        s.str.len().max()
+                    )
+                ).to_string(index=False, justify="left")
+            )
