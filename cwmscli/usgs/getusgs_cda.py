@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 import requests
 
-from cwmscli.utils import colors
+from cwmscli.utils import colors, init_cwms_session
 
 
 def _log_error_and_exit(
@@ -47,8 +47,7 @@ def getusgs_cda(
     api_key: str,
     backfill_tsids: list = None,
 ):
-    api_key = "apikey " + api_key
-    cwms.api.init_session(api_root=api_root, api_key=api_key)
+    init_cwms_session(cwms, api_root=api_root, api_key="apikey " + api_key)
     logging.info(f"CDA connection: {api_root}")
     logging.info(
         f"Data will be grabbed and stored from USGS for past {days_back} days for office: {office_id}"

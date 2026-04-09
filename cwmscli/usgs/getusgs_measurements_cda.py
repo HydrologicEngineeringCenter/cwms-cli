@@ -10,6 +10,8 @@ import pytz
 import requests
 from dataretrieval import nwis
 
+from cwmscli.utils import init_cwms_session
+
 # --- Constants ---
 CWMS_MISSING_VALUE = -340282346638528859811704183484516925440
 
@@ -76,8 +78,7 @@ def getusgs_measurement_cda(
     backfill_list: list = None,
     backfill_group: bool = False,
 ):
-    apiKey = "apikey " + api_key
-    api = cwms.api.init_session(api_root=api_root, api_key=apiKey)
+    api = init_cwms_session(cwms, api_root=api_root, api_key="apikey " + api_key)
 
     logging.info("Fetching CWMS location groups...")
     try:

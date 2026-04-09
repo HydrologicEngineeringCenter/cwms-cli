@@ -1,7 +1,9 @@
+import logging
 import os
 import subprocess
 import sys
 import textwrap
+from pathlib import Path
 from typing import Optional
 
 import click
@@ -20,6 +22,7 @@ from cwmscli.utils import (
     office_option_notrequired,
     to_uppercase,
 )
+from cwmscli.utils.auth import DEFAULT_REDIRECT_HOST, DEFAULT_REDIRECT_PORT
 from cwmscli.utils.deps import requires
 from cwmscli.utils.update import (
     build_update_package_spec,
@@ -27,6 +30,208 @@ from cwmscli.utils.update import (
     looks_like_missing_version,
 )
 from cwmscli.utils.version import get_cwms_cli_version
+
+
+@click.command(
+    "login",
+    help="Authenticate with CWBI OIDC using PKCE and save tokens for reuse.",
+)
+@click.option(
+    "--provider",
+    type=click.Choice(["federation-eams", "login.gov"], case_sensitive=False),
+    default="federation-eams",
+    show_default=True,
+    help="Identity provider hint to send to Keycloak.",
+)
+@click.option(
+    "--client-id",
+    default="cwms",
+    show_default=True,
+    help="OIDC client ID.",
+)
+@click.option(
+    "-a",
+    "--api-root",
+    default="https://cwms-data.usace.army.mil/cwms-data",
+    envvar="CDA_API_ROOT",
+    show_default=True,
+    help="CDA API root used to discover the OpenID Connect configuration.",
+)
+@click.option(
+    "--oidc-base-url",
+    default=None,
+    show_default=True,
+    hidden=True,
+    help="Override the discovered OIDC realm base URL ending in /protocol/openid-connect.",
+)
+@click.option(
+    "--scope",
+    default="openid profile",
+    show_default=True,
+    help="OIDC scopes to request.",
+)
+@click.option(
+    "--redirect-host",
+    default=DEFAULT_REDIRECT_HOST,
+    show_default=True,
+    help="Local host for the login callback listener.",
+)
+@click.option(
+    "--redirect-port",
+    default=DEFAULT_REDIRECT_PORT,
+    type=int,
+    show_default=True,
+    help="Local port for the login callback listener.",
+)
+@click.option(
+    "--token-file",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Path to save the login session JSON. Defaults to a provider-specific file under ~/.config/cwms-cli/auth/.",
+)
+@click.option(
+    "--refresh",
+    "refresh_only",
+    is_flag=True,
+    default=False,
+    help="Refresh an existing saved session instead of opening a new browser login.",
+)
+@click.option(
+    "--no-browser",
+    is_flag=True,
+    default=False,
+    help="Print the authorization URL instead of trying to open a browser automatically.",
+)
+@click.option(
+    "--timeout",
+    default=30,
+    type=int,
+    show_default=True,
+    help="Seconds to wait for the local login callback.",
+)
+@click.option(
+    "--ca-bundle",
+    type=click.Path(exists=True, dir_okay=False, resolve_path=True, path_type=Path),
+    default=None,
+    help="CA bundle to use for TLS verification.",
+)
+@requires(reqs.requests)
+def login_cmd(
+    provider: str,
+    client_id: str,
+    api_root: str,
+    oidc_base_url: Optional[str],
+    scope: str,
+    redirect_host: str,
+    redirect_port: int,
+    token_file: Path,
+    refresh_only: bool,
+    no_browser: bool,
+    timeout: int,
+    ca_bundle: Path,
+):
+    from cwmscli.utils.auth import (
+        DEFAULT_CDA_API_ROOT,
+        AuthError,
+        CallbackBindError,
+        LoginTimeoutError,
+        OIDCLoginConfig,
+        default_token_file,
+        discover_oidc_base_url,
+        discover_oidc_configuration,
+        login_with_browser,
+        refresh_saved_login,
+        refresh_token_expiry_text,
+        save_login,
+        token_expiry_text,
+    )
+    from cwmscli.utils.colors import c, err
+
+    provider = provider.lower()
+    token_file = token_file or default_token_file(provider)
+    verify = str(ca_bundle) if ca_bundle else None
+    api_root = (api_root or DEFAULT_CDA_API_ROOT).rstrip("/")
+    action = (
+        "refreshed your saved sign-in for" if refresh_only else "authenticated against"
+    )
+
+    try:
+        if refresh_only:
+            result = refresh_saved_login(token_file=token_file, verify=verify)
+            config = result["config"]
+            token = result["token"]
+        else:
+            discovered_oidc = (
+                {
+                    "oidc_base_url": oidc_base_url.rstrip("/"),
+                    "authorization_endpoint": f"{oidc_base_url.rstrip('/')}/auth",
+                    "token_endpoint": f"{oidc_base_url.rstrip('/')}/token",
+                }
+                if oidc_base_url
+                else discover_oidc_configuration(
+                    api_root=api_root,
+                    verify=verify,
+                )
+            )
+            config = OIDCLoginConfig(
+                client_id=client_id,
+                oidc_base_url=discovered_oidc["oidc_base_url"].rstrip("/"),
+                authorization_endpoint_url=discovered_oidc["authorization_endpoint"],
+                token_endpoint_url=discovered_oidc["token_endpoint"],
+                redirect_host=redirect_host,
+                redirect_port=redirect_port,
+                scope=scope,
+                provider=provider,
+                timeout_seconds=timeout,
+                verify=verify,
+            )
+            auth_url_shown = False
+
+            def show_auth_url(url: str) -> None:
+                nonlocal auth_url_shown
+                click.echo("Visit this URL to authenticate:")
+                click.echo(url)
+                auth_url_shown = True
+
+            result = login_with_browser(
+                config=config,
+                launch_browser=not no_browser,
+                authorization_url_callback=show_auth_url if no_browser else None,
+            )
+            config = result.get("config", config)
+            if (not auth_url_shown) and (not result["browser_opened"]):
+                click.echo("Visit this URL to authenticate:")
+                click.echo(result["authorization_url"])
+            token = result["token"]
+
+        save_login(token_file=token_file, config=config, token=token)
+    except LoginTimeoutError as e:
+        click.echo(err(f"ALERT: {e}"), err=True)
+        raise click.exceptions.Exit(1) from e
+    except CallbackBindError as e:
+        click.echo(err(f"ALERT: {e}"), err=True)
+        raise click.exceptions.Exit(1) from e
+    except AuthError as e:
+        raise click.ClickException(str(e)) from e
+    except OSError as e:
+        raise click.ClickException(f"Login setup failed: {e}") from e
+
+    click.echo(f"You have successfully {action} CWBI.")
+    refresh_expiry = refresh_token_expiry_text(token)
+    if refresh_expiry:
+        click.echo(
+            c(
+                f"Your refresh session is good until {refresh_expiry}.",
+                "blue",
+                bright=True,
+            )
+        )
+    logging.debug("Saved login session to %s", token_file)
+    expiry = token_expiry_text(token)
+    if expiry:
+        logging.debug("Access token expires at %s", expiry)
+    if token.get("refresh_token"):
+        logging.debug("A refresh token is available for future reuse.")
 
 
 @click.command(

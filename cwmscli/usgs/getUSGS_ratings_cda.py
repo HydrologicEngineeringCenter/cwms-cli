@@ -9,6 +9,8 @@ import pandas as pd
 import requests
 from dataretrieval import nwis
 
+from cwmscli.utils import init_cwms_session
+
 
 def getusgs_rating_cda(
     api_root: str,
@@ -17,8 +19,7 @@ def getusgs_rating_cda(
     days_back: float = 1,
     rating_subset: list = None,
 ):
-    api_key = "apikey " + api_key
-    cwms.api.init_session(api_root=api_root, api_key=api_key)
+    init_cwms_session(cwms, api_root=api_root, api_key="apikey " + api_key)
     logging.info(f"CDA connection: {api_root}")
     logging.info(
         f"Updated Ratings will be obtained from the USGS for the past {days_back} days"

@@ -97,7 +97,7 @@ def shared_source_target_options(f):
     f = click.option(
         "--target-api-key",
         envvar="CDA_API_KEY",
-        help="Target API key (if required by the target CDA).",
+        help="Target API key used when no saved cwms-cli login token is available.",
     )(f)
     f = click.option(
         "--dry-run/--no-dry-run",

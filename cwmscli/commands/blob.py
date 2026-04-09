@@ -9,7 +9,7 @@ import sys
 from collections import defaultdict
 from typing import Optional, Sequence, Tuple, Union
 
-from cwmscli.utils import colors, get_api_key, log_scoped_read_hint
+from cwmscli.utils import colors, get_api_key, init_cwms_session, log_scoped_read_hint
 from cwmscli.utils.click_help import DOCS_BASE_URL
 from cwmscli.utils.deps import requires
 
@@ -131,6 +131,18 @@ def _resolve_optional_api_key(api_key: Optional[str], anonymous: bool) -> Option
     if anonymous or not api_key:
         return None
     return get_api_key(api_key, None)
+
+
+def _resolve_credential_kind(api_key: Optional[str], anonymous: bool) -> Optional[str]:
+    if anonymous:
+        return None
+    from cwmscli.utils import get_saved_login_token
+
+    if get_saved_login_token():
+        return "token"
+    if _resolve_optional_api_key(api_key, anonymous):
+        return "api_key"
+    return None
 
 
 def _response_status_code(exc: BaseException) -> Optional[int]:
@@ -411,7 +423,7 @@ def upload_cmd(
     import cwms
     import requests
 
-    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
+    init_cwms_session(cwms, api_root=api_root, api_key=api_key)
 
     using_single = bool(input_file)
     using_multi = bool(input_dir)
@@ -570,8 +582,8 @@ def download_cmd(
             f"DRY RUN: would GET {api_root} blob with blob-id={blob_id} office={office}."
         )
         return
-    resolved_api_key = _resolve_optional_api_key(api_key, anonymous)
-    cwms.init_session(api_root=api_root, api_key=resolved_api_key)
+    credential_kind = _resolve_credential_kind(api_key, anonymous)
+    init_cwms_session(cwms, api_root=api_root, api_key=api_key, anonymous=anonymous)
     bid = blob_id.upper()
     logging.debug(f"Office={office} BlobID={bid}")
 
@@ -588,7 +600,7 @@ def download_cmd(
         detail = getattr(e.response, "text", "") or str(e)
         logging.error(f"Failed to download (HTTP): {detail}")
         log_scoped_read_hint(
-            api_key=resolved_api_key,
+            credential_kind=credential_kind,
             anonymous=anonymous,
             office=office,
             action="download",
@@ -598,7 +610,7 @@ def download_cmd(
     except Exception as e:
         logging.error(f"Failed to download: {e}")
         log_scoped_read_hint(
-            api_key=resolved_api_key,
+            credential_kind=credential_kind,
             anonymous=anonymous,
             office=office,
             action="download",
@@ -616,7 +628,7 @@ def delete_cmd(blob_id: str, office: str, api_root: str, api_key: str, dry_run: 
             f"DRY RUN: would DELETE {api_root} blob with blob-id={blob_id} office={office}"
         )
         return
-    cwms.init_session(api_root=api_root, api_key=api_key)
+    init_cwms_session(cwms, api_root=api_root, api_key=api_key)
     try:
         cwms.delete_blob(office_id=office, blob_id=blob_id)
     except requests.HTTPError as e:
@@ -649,7 +661,7 @@ def update_cmd(
             f"DRY RUN: would PATCH {api_root} blob with blob-id={blob_id} office={office}"
         )
         return
-    cwms.init_session(api_root=api_root, api_key=api_key)
+    init_cwms_session(cwms, api_root=api_root, api_key=api_key)
     file_data = None
     if input_file:
         try:
@@ -695,8 +707,8 @@ def list_cmd(
     import cwms
     import pandas as pd
 
-    resolved_api_key = _resolve_optional_api_key(api_key, anonymous)
-    cwms.init_session(api_root=api_root, api_key=resolved_api_key)
+    credential_kind = _resolve_credential_kind(api_key, anonymous)
+    init_cwms_session(cwms, api_root=api_root, api_key=api_key, anonymous=anonymous)
     try:
         df = list_blobs(
             office=office,
@@ -709,7 +721,7 @@ def list_cmd(
         )
     except Exception:
         log_scoped_read_hint(
-            api_key=resolved_api_key,
+            credential_kind=credential_kind,
             anonymous=anonymous,
             office=office,
             action="list",

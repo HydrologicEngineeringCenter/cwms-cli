@@ -1,6 +1,5 @@
-# A file containing shared minimum version requirements for dependencies
-# used by the `@requires` decorator in `cwmscli.utils.deps`.
-
+# Shared minimum version requirements for optional dependencies used by
+# the `@requires` decorator in `cwmscli.utils.deps`.
 
 cwms = {
     "module": "cwms",
