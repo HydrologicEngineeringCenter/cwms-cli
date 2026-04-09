@@ -29,8 +29,23 @@ from cwmscli.utils.update import (
 from cwmscli.utils.version import get_cwms_cli_version
 
 
-@click.command(
-    "shefcritimport",
+# region SHEF
+# ================================================================================
+#  SHEF
+# ================================================================================
+@click.group(
+    "shef",
+    help="Manage SHEF file imports (crit files, .in configuration files)",
+)
+def shef_group():
+    pass
+
+
+# ================================================================================
+#       Import Crit File
+# ================================================================================
+@shef_group.command(
+    "import_crit",
     help="Import SHEF crit file into timeseries group for SHEF file processing",
 )
 @click.option(
@@ -43,8 +58,8 @@ from cwmscli.utils.version import get_cwms_cli_version
 @common_api_options
 @api_key_loc_option
 @requires(reqs.cwms)
-def shefcritimport(filename, office, api_root, api_key, api_key_loc):
-    from cwmscli.commands.shef_critfile_import import import_shef_critfile
+def shef_import_crit(filename, office, api_root, api_key, api_key_loc):
+    from cwmscli.commands.shef.import_critfile import import_shef_critfile
     from cwmscli.utils import get_api_key
 
     api_key = get_api_key(api_key, api_key_loc)
@@ -54,6 +69,55 @@ def shefcritimport(filename, office, api_root, api_key, api_key_loc):
         api_root=api_root,
         api_key=api_key,
     )
+
+
+# ================================================================================
+#       Import .in File
+# ================================================================================
+@shef_group.command(
+    "import_infile",
+    help="Import SHEF .in file into timeseries group for SHEF file processing",
+)
+@click.option(
+    "-f",
+    "--filename",
+    required=True,
+    type=str,
+    help="filename of SHEF .in file to be processed",
+)
+@click.option(
+    "-g",
+    "--group-name",
+    required=True,
+    type=str,
+    help="CWMS timeseries group name",
+)
+@click.option(
+    "--category",
+    type=str,
+    default="SHEF Export",
+    show_default=True,
+    help="Timeseries category ID",
+)
+@common_api_options
+@api_key_loc_option
+@requires(reqs.cwms)
+def shef_import_infile(filename, group_name, category, office, api_root, api_key, api_key_loc):
+    from cwmscli.commands.shef.import_infile import import_shef_infile
+    from cwmscli.utils import get_api_key
+
+    api_key = get_api_key(api_key, api_key_loc)
+    import_shef_infile(
+        in_file=filename,
+        group_name=group_name,
+        office_id=office,
+        api_root=api_root,
+        api_key=api_key,
+        category_id=category,
+    )
+
+
+# endregion
 
 
 @click.command("csv2cwms", help="Store CSV TimeSeries data to CWMS using a config file")
