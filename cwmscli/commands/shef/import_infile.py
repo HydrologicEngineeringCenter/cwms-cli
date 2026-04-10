@@ -65,7 +65,7 @@ log = logging.getLogger(__name__)
 # Constants
 # ---------------------------------------------------------------------------
 DEFAULT_CATEGORY = "SHEF Export"
-DEFAULT_CSV_PATH = Path(__file__).parent.parent / "utils" / "shef_parameters.csv"
+DEFAULT_CSV_PATH = Path(__file__).parent / "shef_parameters.csv"
 
 # A CWMS TSID always has exactly 6 dot-separated parts:
 #   Location . Parameter . ParameterType . Interval . Duration . Version
@@ -401,10 +401,14 @@ def _contextual_parse(
             log.debug("Send code → %s", current_send_code)
             continue
 
-        # PE pattern = CODE  (positional — update mappings in place)
-        m = re.match(r"^PE\s+(\S+)\s*=\s*(\S+)\s*$", s, re.IGNORECASE)
+        # PE pattern = CODE[;units=UNIT]  (positional — update mappings in place)
+        m = re.match(
+            r"^PE\s+(\S+)\s*=\s*([A-Za-z0-9]+)(?:[;:]units=(\S+))?\s*$",
+            s,
+            re.IGNORECASE,
+        )
         if m:
-            pat, code = m.group(1), m.group(2)
+            pat, code, pe_unit = m.group(1), m.group(2), m.group(3)
             # Replace if same pattern already exists, otherwise prepend
             replaced = False
             for i, (existing_pat, _) in enumerate(pe_mappings):
@@ -414,7 +418,14 @@ def _contextual_parse(
                     break
             if not replaced:
                 pe_mappings.insert(0, (pat, code))
-            log.debug("PE mapping: %s → %s", pat, code)
+            if pe_unit:
+                pe_units[code] = pe_unit
+            log.debug(
+                "PE mapping: %s → %s%s",
+                pat,
+                code,
+                f" (units={pe_unit})" if pe_unit else "",
+            )
             continue
 
         # LOCATION cwms_loc = shef_id
@@ -601,12 +612,13 @@ def import_shef_infile(
     in_file: str,
     group_name: str,
     office_id: str,
-    api_root: str,
+    api_root: Optional[str] = None,
     api_key: Optional[str] = None,
     token: Optional[str] = None,
     category_id: str = DEFAULT_CATEGORY,
     fail_if_exists: bool = False,
     shef_params: Optional[Path] = None,
+    dry_run: bool = False,
 ) -> None:
     """
     Import a SHEF .in file and create/update a CWMS timeseries group.
@@ -619,8 +631,8 @@ def import_shef_infile(
         CWMS timeseries group name.
     office_id : str
         CWMS office ID.
-    api_root : str
-        CWMS Data API root URL.
+    api_root : str, optional
+        CWMS Data API root URL. Required unless dry_run is True.
     api_key : str, optional
         API key for authentication.
     token : str, optional
@@ -631,6 +643,8 @@ def import_shef_infile(
         Fail if the group already exists. Default: False.
     shef_params : Path, optional
         Path to shef_parameters.csv. Default: bundled CSV in utils.
+    dry_run : bool, optional
+        Parse the .in file and print the JSON payload without posting to the API.
 
     Returns
     -------
@@ -639,6 +653,10 @@ def import_shef_infile(
     in_path = Path(in_file)
     if not in_path.exists():
         log.error("File not found: %s", in_path)
+        return
+
+    if not dry_run and not api_root:
+        log.error("api_root is required unless dry_run is True.")
         return
 
     if shef_params is None:
@@ -663,6 +681,14 @@ def import_shef_infile(
 
     # Build JSON payload
     group_json = build_group_json(entries, group_name, office_id, category_id)
+
+    if dry_run:
+        import json
+
+        print("\n--- DRY RUN: CWMS JSON payload ---")
+        print(json.dumps(group_json, indent=2))
+        print("\n--- Dry run complete. Nothing was posted to the API. ---")
+        return
 
     # Connect to CWMS Data API
     log.info("Connecting to API: %s", api_root)

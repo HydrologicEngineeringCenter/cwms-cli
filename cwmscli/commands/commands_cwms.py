@@ -99,11 +99,17 @@ def shef_import_crit(filename, office, api_root, api_key, api_key_loc):
     show_default=True,
     help="Timeseries category ID",
 )
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Parse the .in file and print the JSON payload without posting to the API.",
+)
 @common_api_options
 @api_key_loc_option
 @requires(reqs.cwms)
 def shef_import_infile(
-    filename, group_name, category, office, api_root, api_key, api_key_loc
+    filename, group_name, category, dry_run, office, api_root, api_key, api_key_loc
 ):
     from cwmscli.commands.shef.import_infile import import_shef_infile
     from cwmscli.utils import get_api_key
@@ -116,6 +122,7 @@ def shef_import_infile(
         api_root=api_root,
         api_key=api_key,
         category_id=category,
+        dry_run=dry_run,
     )
 
 
