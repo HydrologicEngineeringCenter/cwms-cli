@@ -9,6 +9,7 @@ from cwmscli.commands.blob import (
     _find_blob_id_collisions,
     _list_matching_files,
     _save_blob_content,
+    delete_cmd,
     download_cmd,
     list_cmd,
     upload_cmd,
@@ -356,6 +357,52 @@ def test_list_cmd_page_size_overrides_limit_for_fetch(monkeypatch):
     )
 
     assert calls == [("SWT", "TEST_.*", 200)]
+
+
+def test_delete_cmd_uses_query_override_for_special_char_ids(monkeypatch):
+    calls = []
+
+    class FakeApi:
+        @staticmethod
+        def delete(endpoint, params=None):
+            calls.append(("api.delete", endpoint, params))
+
+    class FakeCwms:
+        api = FakeApi
+
+        @staticmethod
+        def init_session(api_root, api_key):
+            calls.append(("init_session", api_root, api_key))
+            return None
+
+        @staticmethod
+        def delete_blob(office_id, blob_id):
+            calls.append(("delete_blob", office_id, blob_id))
+
+    class FakeHTTPError(Exception):
+        pass
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=FakeHTTPError)
+    )
+
+    delete_cmd(
+        blob_id="path/id",
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="apikey 123",
+        dry_run=False,
+    )
+
+    assert calls == [
+        ("init_session", "https://example.test/", "apikey 123"),
+        (
+            "api.delete",
+            "blobs/ignored",
+            {"office": "SWT", "blob-id": "PATH/ID"},
+        ),
+    ]
 
 
 def test_download_cmd_anonymous_skips_api_key(tmp_path, monkeypatch):
