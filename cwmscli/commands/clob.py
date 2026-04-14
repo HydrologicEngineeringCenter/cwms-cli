@@ -29,6 +29,16 @@ def _write_clob_content(content: str, dest: str) -> str:
     return dest
 
 
+def _default_download_dest(clob_id: str) -> str:
+    target = clob_id.lstrip("/\\")
+    if not target:
+        raise ValueError(
+            "Clob ID must include a non-root destination name. "
+            "Pass --dest explicitly if needed."
+        )
+    return target
+
+
 def _clob_endpoint_id(clob_id: str) -> tuple[str, Optional[str]]:
     normalized = clob_id.upper()
     if has_invalid_chars(normalized):
@@ -198,7 +208,7 @@ def download_cmd(
                 content = str(payload)
         else:
             content = _get_special_clob_text(office=office, clob_id=query_id)
-        target = dest or bid
+        target = dest or _default_download_dest(bid)
         _write_clob_content(content, target)
         logging.info(f"Downloaded clob to: {target}")
     except requests.HTTPError as e:
