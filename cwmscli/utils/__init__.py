@@ -1,4 +1,5 @@
 import logging as py_logging
+import re
 from typing import Optional
 
 import click
@@ -157,6 +158,50 @@ def format_local_download_error(error: Exception, docs_url: str) -> str:
             )
         return message
     return f"{colors.c('Failed to download:', 'red', bright=True)} {error}"
+
+
+def validate_default_download_dest(
+    raw_id: str,
+    *,
+    resource_name: str,
+    docs_url: str = "",
+) -> str:
+    if raw_id is None:
+        raise ValueError(
+            f"{resource_name} ID must include a non-root destination name. "
+            f"Pass --dest explicitly if needed."
+        )
+
+    if raw_id.startswith("//") or raw_id.startswith("\\\\"):
+        raise ValueError(
+            f"{resource_name} ID must resolve to a relative local path. "
+            f"Pass --dest explicitly if needed."
+        )
+
+    target = raw_id.lstrip("/\\")
+    if not target:
+        message = (
+            f"{resource_name} ID must include a non-root destination name. "
+            f"Pass --dest explicitly if needed."
+        )
+        if docs_url:
+            message = f"{message} Docs: {docs_url}"
+        raise ValueError(message)
+
+    if re.match(r"^[A-Za-z]:", target):
+        raise ValueError(
+            f"{resource_name} ID must resolve to a relative local path. "
+            f"Pass --dest explicitly if needed."
+        )
+
+    parts = re.split(r"[\\/]", target)
+    if any(part in {"", ".", ".."} for part in parts):
+        raise ValueError(
+            f"{resource_name} ID must resolve to a relative local path. "
+            f"Pass --dest explicitly if needed."
+        )
+
+    return target
 
 
 def common_api_options(f):

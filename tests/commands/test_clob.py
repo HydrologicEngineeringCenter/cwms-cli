@@ -1,6 +1,6 @@
+import logging
 import sys
 import types
-import logging
 
 import pandas as pd
 import pytest
@@ -275,7 +275,9 @@ def test_download_cmd_local_error_skips_scope_hint(monkeypatch, caplog):
     )
     monkeypatch.setattr(
         "cwmscli.commands.clob.log_scoped_read_hint",
-        lambda **kwargs: (_ for _ in ()).throw(AssertionError("scope hint should not run")),
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("scope hint should not run")
+        ),
     )
     monkeypatch.setattr(
         "cwmscli.commands.clob._write_clob_content",

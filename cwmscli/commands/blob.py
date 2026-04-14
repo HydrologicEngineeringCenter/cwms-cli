@@ -14,6 +14,7 @@ from cwmscli.utils import (
     format_local_download_error,
     get_api_key,
     log_scoped_read_hint,
+    validate_default_download_dest,
 )
 from cwmscli.utils.click_help import DOCS_BASE_URL
 from cwmscli.utils.deps import requires
@@ -109,13 +110,11 @@ def _save_blob_content(
 
 
 def _default_download_dest(blob_id: str) -> str:
-    target = blob_id.lstrip("/\\")
-    if not target:
-        raise ValueError(
-            f"Blob ID must include a non-root destination name. "
-            f"Pass --dest explicitly if needed. Docs: {BLOB_DOCS_URL}"
-        )
-    return target
+    return validate_default_download_dest(
+        blob_id,
+        resource_name="Blob",
+        docs_url=BLOB_DOCS_URL,
+    )
 
 
 def _blob_media_type(cwms_module, office: str, blob_id: str) -> Optional[str]:

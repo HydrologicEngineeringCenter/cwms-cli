@@ -14,6 +14,7 @@ from cwmscli.utils import (
     get_api_key,
     has_invalid_chars,
     log_scoped_read_hint,
+    validate_default_download_dest,
 )
 
 
@@ -35,13 +36,7 @@ def _write_clob_content(content: str, dest: str) -> str:
 
 
 def _default_download_dest(clob_id: str) -> str:
-    target = clob_id.lstrip("/\\")
-    if not target:
-        raise ValueError(
-            "Clob ID must include a non-root destination name. "
-            "Pass --dest explicitly if needed."
-        )
-    return target
+    return validate_default_download_dest(clob_id, resource_name="Clob")
 
 
 def _clob_endpoint_id(clob_id: str) -> tuple[str, Optional[str]]:

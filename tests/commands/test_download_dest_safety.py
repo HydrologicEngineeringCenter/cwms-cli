@@ -3,7 +3,6 @@ import pytest
 from cwmscli.commands.blob import _default_download_dest as blob_default_download_dest
 from cwmscli.commands.clob import _default_download_dest as clob_default_download_dest
 
-
 SAFE_CASES = [
     ("REPORTS/REL-BLB", "REPORTS/REL-BLB"),
     ("REPORTS\\REL-BLB", "REPORTS\\REL-BLB"),
