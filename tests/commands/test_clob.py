@@ -1,7 +1,9 @@
 import sys
 import types
+import logging
 
 import pandas as pd
+import pytest
 
 from cwmscli.commands import commands_cwms
 from cwmscli.commands.clob import (
@@ -247,6 +249,57 @@ def test_download_cmd_anonymous_skips_api_key(tmp_path, monkeypatch):
     )
 
     assert calls == [("init_session", "https://example.test/", None)]
+
+
+def test_download_cmd_local_error_skips_scope_hint(monkeypatch, caplog):
+    class FakeClobResponse:
+        json = {"value": "retrieved clob text"}
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key):
+            return None
+
+        @staticmethod
+        def get_clob(office_id, clob_id):
+            return FakeClobResponse()
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+    monkeypatch.setattr("cwmscli.commands.clob.cwms", FakeCwms)
+
+    class FakeHTTPError(Exception):
+        pass
+
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=FakeHTTPError)
+    )
+    monkeypatch.setattr(
+        "cwmscli.commands.clob.requests",
+        types.SimpleNamespace(HTTPError=FakeHTTPError),
+    )
+    monkeypatch.setattr(
+        "cwmscli.commands.clob.log_scoped_read_hint",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("scope hint should not run")),
+    )
+    monkeypatch.setattr(
+        "cwmscli.commands.clob._write_clob_content",
+        lambda *args, **kwargs: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+
+    with caplog.at_level(logging.ERROR), pytest.raises(SystemExit) as exc:
+        download_cmd(
+            clob_id="test_clob",
+            dest="downloaded.txt",
+            office="SWT",
+            api_root="https://example.test/",
+            api_key="apikey 123",
+            dry_run=False,
+        )
+
+    assert exc.value.code == 1
+    assert "pass --dest explicitly" in caplog.text
+    assert "/cli/blob.html" not in caplog.text
+
 
 def test_list_cmd_initializes_session_with_api_key(monkeypatch):
     calls = []

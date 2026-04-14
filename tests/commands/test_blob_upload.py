@@ -1,5 +1,6 @@
 import sys
 import types
+import logging
 
 import pandas as pd
 import pytest
@@ -310,6 +311,57 @@ def test_download_cmd_initializes_session_with_api_key(tmp_path, monkeypatch):
     )
 
     assert calls == [("init_session", "https://example.test/", "apikey 123")]
+
+
+def test_download_cmd_local_error_skips_scope_hint_and_logs_docs(monkeypatch, caplog):
+    class FakeBlobListing:
+        df = pd.DataFrame(
+            [{"id": "TEST_TXT", "media-type-id": "text/plain", "description": "x"}]
+        )
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key=None):
+            return None
+
+        @staticmethod
+        def get_blob(office_id, blob_id):
+            return "retrieved text"
+
+        @staticmethod
+        def get_blobs(office_id, blob_id_like):
+            return FakeBlobListing()
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+
+    class FakeHTTPError(Exception):
+        pass
+
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=FakeHTTPError)
+    )
+    monkeypatch.setattr(
+        "cwmscli.commands.blob.log_scoped_read_hint",
+        lambda **kwargs: (_ for _ in ()).throw(AssertionError("scope hint should not run")),
+    )
+    monkeypatch.setattr(
+        "cwmscli.commands.blob._save_blob_content",
+        lambda *args, **kwargs: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+
+    with caplog.at_level(logging.ERROR), pytest.raises(SystemExit) as exc:
+        download_cmd(
+            blob_id="test_txt",
+            dest="downloaded",
+            office="SWT",
+            api_root="https://example.test/",
+            api_key="apikey 123",
+            dry_run=False,
+        )
+
+    assert exc.value.code == 1
+    assert "pass --dest explicitly" in caplog.text
+    assert "/cli/blob.html" in caplog.text
 
 
 def test_list_cmd_initializes_session_with_api_key(monkeypatch):

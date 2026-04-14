@@ -9,7 +9,12 @@ import sys
 from collections import defaultdict
 from typing import Optional, Sequence, Tuple, Union
 
-from cwmscli.utils import colors, get_api_key, log_scoped_read_hint
+from cwmscli.utils import (
+    colors,
+    format_local_download_error,
+    get_api_key,
+    log_scoped_read_hint,
+)
 from cwmscli.utils.click_help import DOCS_BASE_URL
 from cwmscli.utils.deps import requires
 
@@ -606,14 +611,7 @@ def download_cmd(
         )
         sys.exit(1)
     except Exception as e:
-        logging.error(f"Failed to download: {e}")
-        log_scoped_read_hint(
-            api_key=resolved_api_key,
-            anonymous=anonymous,
-            office=office,
-            action="download",
-            resource="blob content",
-        )
+        logging.error(format_local_download_error(e, BLOB_DOCS_URL))
         sys.exit(1)
 
 

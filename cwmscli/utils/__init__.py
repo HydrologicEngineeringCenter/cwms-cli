@@ -143,6 +143,18 @@ def log_scoped_read_hint(
     )
 
 
+def format_local_download_error(error: Exception, docs_url: str) -> str:
+    if isinstance(error, (OSError, ValueError)):
+        message = (
+            f"Failed to download: {error}. "
+            f"If this is a local destination/path issue, pass --dest explicitly."
+        )
+        if docs_url:
+            message = f"{message} Docs: {docs_url}"
+        return message
+    return f"Failed to download: {error}"
+
+
 def common_api_options(f):
     f = log_level_option(f)
     f = office_option(f)

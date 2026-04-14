@@ -9,7 +9,12 @@ import pandas as pd
 import requests
 from cwms import api as cwms_api
 
-from cwmscli.utils import get_api_key, has_invalid_chars, log_scoped_read_hint
+from cwmscli.utils import (
+    format_local_download_error,
+    get_api_key,
+    has_invalid_chars,
+    log_scoped_read_hint,
+)
 
 
 def _join_api_url(api_root: str, path: str) -> str:
@@ -223,14 +228,7 @@ def download_cmd(
         )
         sys.exit(1)
     except Exception as e:
-        logging.error(f"Failed to download: {e}")
-        log_scoped_read_hint(
-            api_key=resolved_api_key,
-            anonymous=anonymous,
-            office=office,
-            action="download",
-            resource="clob content",
-        )
+        logging.error(format_local_download_error(e, ""))
         sys.exit(1)
 
 
