@@ -98,21 +98,17 @@ def test_download_cmd_uses_default_dest_and_writes_text(tmp_path, monkeypatch):
 def test_download_cmd_default_dest_stays_relative_for_leading_slash_id(
     tmp_path, monkeypatch
 ):
-    class FakeClobResponse:
-        json = {"value": "retrieved clob text"}
-
     class FakeCwms:
         @staticmethod
         def init_session(api_root, api_key):
             return None
 
-        @staticmethod
-        def get_clob(office_id, clob_id):
-            assert clob_id == "/REPORTS/REL-CLOB"
-            return FakeClobResponse()
-
     monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
     monkeypatch.setattr("cwmscli.commands.clob.cwms", FakeCwms)
+    monkeypatch.setattr(
+        "cwmscli.commands.clob._get_special_clob_text",
+        lambda office, clob_id: "retrieved clob text",
+    )
 
     class FakeHTTPError(Exception):
         pass
