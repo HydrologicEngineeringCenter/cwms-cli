@@ -103,6 +103,16 @@ def _save_blob_content(
     return dest
 
 
+def _default_download_dest(blob_id: str) -> str:
+    target = blob_id.lstrip("/\\")
+    if not target:
+        raise ValueError(
+            f"Blob ID must include a non-root destination name. "
+            f"Pass --dest explicitly if needed. Docs: {BLOB_DOCS_URL}"
+        )
+    return target
+
+
 def _blob_media_type(cwms_module, office: str, blob_id: str) -> Optional[str]:
     try:
         result = cwms_module.get_blobs(office_id=office, blob_id_like=blob_id)
@@ -577,7 +587,7 @@ def download_cmd(
 
     try:
         blob_content = cwms.get_blob(office_id=office, blob_id=bid)
-        target = dest or bid
+        target = dest or _default_download_dest(bid)
         _save_blob_content(
             blob_content,
             dest=target,

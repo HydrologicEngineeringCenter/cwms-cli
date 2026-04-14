@@ -6,6 +6,7 @@ import pytest
 
 from cwmscli.commands.blob import (
     _blob_id_for_path,
+    _default_download_dest,
     _find_blob_id_collisions,
     _list_matching_files,
     _save_blob_content,
@@ -160,6 +161,11 @@ def test_save_blob_content_writes_raw_text(tmp_path):
     assert dest.read_text(encoding="utf-8") == "plain text payload"
 
 
+def test_default_download_dest_strips_leading_path_separators():
+    assert _default_download_dest("/REPORTS/REL-BLB") == "REPORTS/REL-BLB"
+    assert _default_download_dest("\\REPORTS\\REL-BLB") == "REPORTS\\REL-BLB"
+
+
 def test_download_cmd_uses_media_type_to_write_text(tmp_path, monkeypatch):
     dest = tmp_path / "downloaded"
 
@@ -204,6 +210,60 @@ def test_download_cmd_uses_media_type_to_write_text(tmp_path, monkeypatch):
     )
 
     saved = tmp_path / "downloaded.txt"
+    assert saved.exists()
+    assert saved.read_text(encoding="utf-8") == "retrieved text"
+
+
+def test_download_cmd_default_dest_stays_relative_for_leading_slash_id(
+    tmp_path, monkeypatch
+):
+    class FakeBlobListing:
+        df = pd.DataFrame(
+            [
+                {
+                    "id": "/REPORTS/REL-BLB",
+                    "media-type-id": "text/plain",
+                    "description": "x",
+                }
+            ]
+        )
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key=None):
+            return None
+
+        @staticmethod
+        def get_blob(office_id, blob_id):
+            assert blob_id == "/REPORTS/REL-BLB"
+            return "retrieved text"
+
+        @staticmethod
+        def get_blobs(office_id, blob_id_like):
+            assert blob_id_like == "/REPORTS/REL-BLB"
+            return FakeBlobListing()
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+
+    class FakeHTTPError(Exception):
+        pass
+
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=FakeHTTPError)
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    download_cmd(
+        blob_id="/reports/rel-blb",
+        dest=None,
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="x",
+        dry_run=False,
+    )
+
+    saved = tmp_path / "REPORTS" / "REL-BLB.txt"
     assert saved.exists()
     assert saved.read_text(encoding="utf-8") == "retrieved text"
 
