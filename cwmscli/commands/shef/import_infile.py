@@ -333,12 +333,12 @@ def _resolve_pe_code(
 ) -> Optional[str]:
     """
     Match a CWMS parameter name against ordered PE rules.
-    Pattern 'Flow-Out.*' matches 'Flow-Out' or 'Flow-Out.something'.
+    Pattern 'Flow-Out.*' matches 'Flow-Out' or anything starting with 'Flow-Out'.
     First match wins — list more-specific rules first in the .in file.
     """
     for pattern, code in pe_mappings:
         base = re.sub(r"\.\*$|\*$", "", pattern)  # strip trailing .* or *
-        if parameter == base or parameter.startswith(base + "."):
+        if parameter == base or parameter.startswith(base):
             return code
     return None
 
@@ -450,7 +450,7 @@ def _contextual_parse(
         units_match = re.search(r";units=(\S+)", s, re.IGNORECASE)
         if units_match:
             units = units_match.group(1)
-        tsid_str = re.sub(r"\s*;.*$", "", s).strip()
+        tsid_str = re.sub(r"\s*[;:].*$", "", s).strip()
         if not TSID_RE.match(tsid_str):
             continue
 
@@ -466,14 +466,17 @@ def _contextual_parse(
         #      Preserves sublocation suffix: if LOCATION LockDam_02=HSTM5
         #      is set and cwms_location=LockDam_02-Powerhouse, then
         #      shef_loc becomes HSTM5-Powerhouse
-        #   3. Fall back to most-recently-set current_shef_loc
+        #   3. Handle wildcard * at end of key (e.g., LockDam_08*=GENW3 matches LockDam_08-Tailwater)
+        #   4. Fall back to most-recently-set current_shef_loc
         shef_loc = location_map.get(cwms_location)
         if not shef_loc:
             best = max(
                 (
                     k
                     for k in location_map
-                    if cwms_location == k or cwms_location.startswith(k + "-")
+                    if cwms_location == k
+                    or cwms_location.startswith(k + "-")
+                    or (k.endswith("*") and cwms_location.startswith(k[:-1]))
                 ),
                 key=len,
                 default=None,
@@ -482,7 +485,7 @@ def _contextual_parse(
                 mapped_value = location_map[best]
                 # If this was a prefix match (not exact), preserve the sublocation suffix
                 if cwms_location != best and cwms_location.startswith(best + "-"):
-                    sublocation = cwms_location[len(best) :]  # e.g., "-Powerhouse"
+                    sublocation = cwms_location[len(best) :]
                     shef_loc = mapped_value + sublocation
                 else:
                     shef_loc = mapped_value
@@ -565,7 +568,7 @@ def build_group_json(
         data=df,
         group_id=group_id,
         group_office_id=office_id,
-        category_office_id=office_id,
+        category_office_id="CWMS",
         category_id=category_id,
     )
 

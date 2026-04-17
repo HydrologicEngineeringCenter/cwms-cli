@@ -39,6 +39,18 @@ hecdss = "^0.1.24"
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
+[tool.pytest.ini_options]
+# Organize test output by test file
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short -ra"
+# Group tests by module for clearer output
+markers = [
+    "unit: unit tests",
+    "integration: integration tests",
+    "cli: CLI command tests",
+]
+
 [tool.isort]
 profile = "black"
 
