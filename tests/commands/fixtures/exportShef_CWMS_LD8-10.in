@@ -1,0 +1,55 @@
+DEBUG 3
+TYPE .E
+DELIMITER "/"
+SYSTEM ENGLISH
+TZONE Z
+DB LOCAL
+
+TIMEWINDOW T-15D T+4D
+TS * =FZ
+PE Elev.*=HT
+LOCATION LockDam_08*=GENW3
+LOCATION LockDam_09*=LYNW3
+LOCATION LockDam_10*=GTTI4
+
+LockDam_08-Tailwater.Elev.Inst.12Hours.0.Fcst-CEMVP-CWMS:NoFuturePrecip;units=ft
+LockDam_09-Tailwater.Elev.Inst.12Hours.0.Fcst-CEMVP-CWMS:NoFuturePrecip;units=ft
+LockDam_10-Tailwater.Elev.Inst.12Hours.0.Fcst-CEMVP-CWMS:NoFuturePrecip;units=ft
+
+PE Elev.*=HP
+LockDam_08.Elev.Inst.12Hours.0.Fcst-CEMVP-CWMS:NoFuturePrecip;units=ft
+LockDam_09.Elev.Inst.12Hours.0.Fcst-CEMVP-CWMS:NoFuturePrecip;units=ft
+LockDam_10.Elev.Inst.12Hours.0.Fcst-CEMVP-CWMS:NoFuturePrecip;units=ft
+
+PE Flow.*=QR
+LockDam_08.Flow.Inst.12Hours.0.Fcst-CEMVP-CWMS:NoFuturePrecip;units=cfs
+LockDam_09.Flow.Inst.12Hours.0.Fcst-CEMVP-CWMS:NoFuturePrecip;units=cfs
+LockDam_10.Flow.Inst.12Hours.0.Fcst-CEMVP-CWMS:NoFuturePrecip;units=cfs
+
+TS * =FF
+PE Elev.*=HT
+LockDam_08-Tailwater.Elev.Inst.12Hours.0.Fcst-CEMVP-CWMS:120HoursQPF;units=ft
+LockDam_09-Tailwater.Elev.Inst.12Hours.0.Fcst-CEMVP-CWMS:120HoursQPF;units=ft
+LockDam_10-Tailwater.Elev.Inst.12Hours.0.Fcst-CEMVP-CWMS:120HoursQPF;units=ft
+
+PE Elev.*=HP
+LockDam_08.Elev.Inst.12Hours.0.Fcst-CEMVP-CWMS:120HoursQPF;units=ft
+LockDam_09.Elev.Inst.12Hours.0.Fcst-CEMVP-CWMS:120HoursQPF;units=ft
+LockDam_10.Elev.Inst.12Hours.0.Fcst-CEMVP-CWMS:120HoursQPF;units=ft
+
+PE Flow.*=QR
+LockDam_08.Flow.Inst.12Hours.0.Fcst-CEMVP-CWMS:120HoursQPF;units=cfs
+LockDam_09.Flow.Inst.12Hours.0.Fcst-CEMVP-CWMS:120HoursQPF;units=cfs
+LockDam_10.Flow.Inst.12Hours.0.Fcst-CEMVP-CWMS:120HoursQPF;units=cfs
+
+TYPE .E
+TIMEWINDOW T-15D T
+TS * =FE
+PE Opening.* = YR
+LockDam_08-RollerGates.Opening-Normal.Inst.15Minutes.0.comp;units=ft
+LockDam_09-RollerGates.Opening-Normal.Inst.15Minutes.0.comp;units=ft
+LockDam_10-RollerGates.Opening-Normal.Inst.15Minutes.0.comp;units=ft
+PE Opening.* = YT
+LockDam_08-TainterGates.Opening-Normal.Inst.15Minutes.0.comp;units=ft
+LockDam_09-TainterGates.Opening-Normal.Inst.15Minutes.0.comp;units=ft
+LockDam_10-TainterGates.Opening-Normal.Inst.15Minutes.0.comp;units=ft
