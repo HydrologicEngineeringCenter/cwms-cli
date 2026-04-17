@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.5.0...v0.6.0) (2026-04-17)
+
+
+### Features
+
+* Add shef in file export, update shef command ([#196](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/196)) ([4b3e0bf](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/4b3e0bf5e40490689446722db73a0923f8ad0fa4))
+
 ## [0.5.0](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.4.0...v0.5.0) (2026-04-09)
 
 
