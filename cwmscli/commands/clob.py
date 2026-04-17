@@ -9,7 +9,13 @@ import pandas as pd
 import requests
 from cwms import api as cwms_api
 
-from cwmscli.utils import get_api_key, has_invalid_chars, log_scoped_read_hint
+from cwmscli.utils import (
+    format_local_download_error,
+    get_api_key,
+    has_invalid_chars,
+    log_scoped_read_hint,
+    validate_default_download_dest,
+)
 
 
 def _join_api_url(api_root: str, path: str) -> str:
@@ -27,6 +33,10 @@ def _write_clob_content(content: str, dest: str) -> str:
     with open(dest, "w", encoding="utf-8", newline="") as f:
         f.write(content)
     return dest
+
+
+def _default_download_dest(clob_id: str) -> str:
+    return validate_default_download_dest(clob_id, resource_name="Clob")
 
 
 def _clob_endpoint_id(clob_id: str) -> tuple[str, Optional[str]]:
@@ -198,7 +208,7 @@ def download_cmd(
                 content = str(payload)
         else:
             content = _get_special_clob_text(office=office, clob_id=query_id)
-        target = dest or bid
+        target = dest or _default_download_dest(bid)
         _write_clob_content(content, target)
         logging.info(f"Downloaded clob to: {target}")
     except requests.HTTPError as e:
@@ -213,14 +223,7 @@ def download_cmd(
         )
         sys.exit(1)
     except Exception as e:
-        logging.error(f"Failed to download: {e}")
-        log_scoped_read_hint(
-            api_key=resolved_api_key,
-            anonymous=anonymous,
-            office=office,
-            action="download",
-            resource="clob content",
-        )
+        logging.error(format_local_download_error(e, ""))
         sys.exit(1)
 
 

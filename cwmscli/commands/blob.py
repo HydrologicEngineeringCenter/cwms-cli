@@ -9,7 +9,13 @@ import sys
 from collections import defaultdict
 from typing import Optional, Sequence, Tuple, Union
 
-from cwmscli.utils import colors, get_api_key, log_scoped_read_hint
+from cwmscli.utils import (
+    colors,
+    format_local_download_error,
+    get_api_key,
+    log_scoped_read_hint,
+    validate_default_download_dest,
+)
 from cwmscli.utils.click_help import DOCS_BASE_URL
 from cwmscli.utils.deps import requires
 
@@ -101,6 +107,14 @@ def _save_blob_content(
     with open(dest, write_type, encoding=encoding, newline=newline) as f:
         f.write(data)
     return dest
+
+
+def _default_download_dest(blob_id: str) -> str:
+    return validate_default_download_dest(
+        blob_id,
+        resource_name="Blob",
+        docs_url=BLOB_DOCS_URL,
+    )
 
 
 def _blob_media_type(cwms_module, office: str, blob_id: str) -> Optional[str]:
@@ -577,7 +591,7 @@ def download_cmd(
 
     try:
         blob_content = cwms.get_blob(office_id=office, blob_id=bid)
-        target = dest or bid
+        target = dest or _default_download_dest(bid)
         _save_blob_content(
             blob_content,
             dest=target,
@@ -596,14 +610,7 @@ def download_cmd(
         )
         sys.exit(1)
     except Exception as e:
-        logging.error(f"Failed to download: {e}")
-        log_scoped_read_hint(
-            api_key=resolved_api_key,
-            anonymous=anonymous,
-            office=office,
-            action="download",
-            resource="blob content",
-        )
+        logging.error(format_local_download_error(e, BLOB_DOCS_URL))
         sys.exit(1)
 
 
