@@ -1,0 +1,51 @@
+#stopStream and startStream for this criteria file to put in memory
+#
+# The criteria file is grouped by NESDIS Transmit ID
+# Each platform has a header description with a name and short description.
+#
+# SHEFIT criteria for a data path:
+# NESDISID.SHEFCODE.RZZ.INTERVAL=location.parameter.parameter-type.interval.duration.version
+#
+# INTERVAL is one of the following and must match 'interval':
+#  0 is Instantaneous data
+#  0015 is 15 minute data
+#  0030 is 30 minute data
+#  1001 is Hourly data
+#  1006 is Six hour data
+#
+#############################################################################################
+#
+# Souris River near Sherwood, ND
+# 2024-10-22 moved to cell modem?
+1636FAA0.VB.RZZ.0015=Sherwood.Volt.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=volt
+1636FAA0.H2.RZZ.0015=Sherwood.Stage.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=ft
+1636FAA0.TW.RZZ.0015=Sherwood.Temp-Water.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=C
+#1636FAA0.H2.RZZ.0015=Sherwood.Stage-Sensor2.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=ft
+#
+# Sheyenne River at Valley City, ND
+#
+163EE3A2.VB.RZZ.0015=VCRN8.Volt.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=volt
+#163EE3A2.HG.RZZ.0015=VCRN8.Stage.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=ft
+163EE3A2.H3.RZZ.0015=VCRN8.Stage.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=ft
+#
+# Mississippi River near Willow Beach, MN
+#
+17023384.HG.RZZ.0015=WILM5.Stage.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=ft
+#17023384.H2.RZZ.0015=WILM5.Stage-Sensor02.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=ft
+17023384.VB.RZZ.1001=WILM5.Volt.Inst.1Hour.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=volt
+#
+# Red River of the North at Drayton, ND
+#
+#1711701E.HG.RZZ.0015=DRTN8.Stage.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=ft
+1711701E.H2.RZZ.0015=DRTN8.Stage.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=ft
+1711701E.VB.RZZ.0015=DRTN8.Volt.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=volt
+#
+# Mississippi River at Lock & Dam 06
+#
+CE1690E0.HG.RZZ.0015=LockDam_06.Stage.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=ft
+CE1690E0.HW.RZZ.0015=LockDam_06-Tailwater.Stage.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=ft
+CE1690E0.UD.RZZ.0015=LockDam_06.Dir-Wind.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=deg
+CE1690E0.US.RZZ.0015=LockDam_06.Speed-Wind.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=mph
+CE1690E0.TA.RZZ.0015=LockDam_06.Temp-Air.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=F
+CE1690E0.TW.RZZ.0015=LockDam_06.Temp-Water.Inst.15Minutes.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=F
+CE1690E0.VB.RZZ.1001=LockDam_06.Volt.Inst.1Hour.0.CEMVP-GOES-Raw;TZ=UTC;DLTime=false;Units=volt
