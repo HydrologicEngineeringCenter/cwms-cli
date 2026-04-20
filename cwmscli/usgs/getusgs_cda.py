@@ -134,6 +134,9 @@ def get_USGS_params():
     return USGS_Params
 
 
+_USGS_PARAMS = get_USGS_params()
+
+
 def get_CMWS_TS_Loc_Data(office):
     """
     get time series group and location alias information and combine into singe dataframe
@@ -143,8 +146,8 @@ def get_CMWS_TS_Loc_Data(office):
     def find_usgsparam(attribute, param):
         if attribute > 0:
             usgs_param = str(attribute).split(".")[0]
-        elif param in USGS_Params.index:
-            usgs_param = USGS_Params.at[param, "USGS_PARAMETER"]
+        elif param in _USGS_PARAMS.index:
+            usgs_param = _USGS_PARAMS.at[param, "USGS_PARAMETER"]
         else:
             usgs_param = "Not Found"
         return usgs_param
@@ -236,7 +239,6 @@ def get_CMWS_TS_Loc_Data(office):
             [USGS_ts[USGS_ts["USGS_St_Num"].notnull()], USGS_ts_base], axis=0
         )
 
-    USGS_Params = get_USGS_params()
     # this code fills in the USGS_Params field with values in the Time Series Group Attribute if it exists.  If it does not exist it
     # grabs the default USGS paramter for the coresponding CWMS parameter
     USGS_ts.attribute = USGS_ts.apply(
@@ -269,6 +271,7 @@ def getUSGS_ts(sites, startDT, endDT, access=None):
         # "modifiedSince": "PT6H",
         "siteStatus": "active",
     }
+    query_dict = {k: v for k, v in query_dict.items() if v is not None}
 
     r = requests.get(base_url, params=query_dict).json()
 
@@ -414,3 +417,76 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
     logging.info(
         f"The following ts_ids errored because multiple method TSID were present for the USGS station. A USGS method TSID needs to be defined in the time series group in CWMS or an incorrect TSID is defined. {mult_ids}"
     )
+
+
+_OGC_BASE_URL = "https://api.waterdata.usgs.gov/ogcapi/v0/collections/continuous"
+
+
+def getUSGS_ts_ogc(sites, startDT, endDT, access=None):
+    """Fetch USGS instantaneous values from the OGC API endpoint.
+
+    Produces the same DataFrame structure as getUSGS_ts() so CWMS_writeData() works unchanged.
+
+    TODO: fill in OGC response parsing once sample JSON is available.
+    """
+    raise NotImplementedError(
+        "getUSGS_ts_ogc() is not yet implemented. "
+        "OGC API response parsing is pending. Use 'usgs timeseries' for the legacy endpoint."
+    )
+
+
+def getusgs_cda_ogc(
+    api_root: str,
+    office_id: str,
+    days_back: float,
+    api_key: str,
+    backfill_tsids: list = None,
+):
+    """Fetch USGS time series data using the new OGC API and store into CWMS.
+
+    This is the OGC API variant of getusgs_cda(). The shared data fetching and writing
+    logic (get_CMWS_TS_Loc_Data, CWMS_writeData) is reused unchanged.
+    """
+    api_key = "apikey " + api_key
+    cwms.api.init_session(api_root=api_root, api_key=api_key)
+    logging.info(f"CDA connection: {api_root}")
+    logging.info(
+        f"Data will be grabbed and stored from USGS OGC API for past {days_back} days for office: {office_id}"
+    )
+    execution_date = datetime.now()
+
+    USGS_ts = get_CMWS_TS_Loc_Data(office_id)
+
+    if backfill_tsids:
+        USGS_ts = USGS_ts[USGS_ts["timeseries-id"].isin(backfill_tsids)]
+
+    if len(USGS_ts) > 0:
+        sites = USGS_ts[USGS_ts["USGS_Method_TS"].isna()].USGS_St_Num.unique()
+        method_sites = USGS_ts[USGS_ts["USGS_Method_TS"].notna()].USGS_St_Num.unique()
+        logging.info(f"Execution date {execution_date}")
+
+        tw_delta = -timedelta(days_back)
+        startDT = execution_date + tw_delta
+        endDT = execution_date + timedelta(hours=2)
+
+        logging.info(f"Grabbing data from USGS OGC API between {startDT} and {endDT}")
+
+        USGS_data = pd.DataFrame()
+        USGS_data_method = pd.DataFrame()
+
+        if len(sites) > 0:
+            USGS_data = getUSGS_ts_ogc(sites, startDT, endDT)
+        if len(method_sites) > 0:
+            USGS_data_method = getUSGS_ts_ogc(method_sites, startDT, endDT, 3)
+
+        CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back)
+    else:
+        if backfill_tsids:
+            _log_error_and_exit(
+                f"The following backfill time series ids were not present in the USGS time series or location alias groups: {backfill_tsids}"
+            )
+        else:
+            _log_error_and_exit(
+                f"No eligible USGS time series were found for office {office_id}.",
+                "Confirm that time series exist in Data Acquisition / USGS TS Data Acquisition and that matching entries exist in Agency Aliases / USGS Station Number.",
+            )

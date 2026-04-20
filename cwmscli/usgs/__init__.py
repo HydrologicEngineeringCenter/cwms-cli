@@ -60,6 +60,41 @@ def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc, backfi
     )
 
 
+@usgs_group.command(
+    "timeseries-v2",
+    help="Get USGS timeseries values using the new OGC API and store into CWMS database",
+)
+@office_option
+@days_back_option
+@api_root_option
+@api_key_option
+@api_key_loc_option
+@click.option(
+    "-b",
+    "--backfill",
+    default=None,
+    type=str,
+    help='Backfill timeseries ids, use list of timeseries ids (e.g. "ts_id1, ts_id2") to attempt to backfill a subset of timeseries with USGS data',
+)
+@requires(reqs.cwms, reqs.requests)
+def getusgs_timeseries_v2(office, days_back, api_root, api_key, api_key_loc, backfill):
+    from cwmscli.usgs.getusgs_cda import getusgs_cda_ogc
+
+    if backfill is not None:
+        backfill_list = [item.strip() for item in backfill.split(",") if item.strip()]
+    else:
+        backfill_list = None
+
+    api_key = get_api_key(api_key, api_key_loc)
+    getusgs_cda_ogc(
+        api_root=api_root,
+        office_id=office,
+        days_back=days_back,
+        api_key=api_key,
+        backfill_tsids=backfill_list,
+    )
+
+
 @usgs_group.command("ratings", help="Get USGS ratings and store into CWMS database")
 @office_option
 @days_back_option
