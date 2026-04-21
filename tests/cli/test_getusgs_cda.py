@@ -427,6 +427,56 @@ class TestGetUSGS_ts:
         assert captured_params["sites"] == "04213152,04213160,04213300"
 
 
+class TestReplaceTS_Version:
+    def test_replaces_version_component(self):
+        """Test that version component is replaced correctly."""
+        ts_id = "DWGN8.Stage.Inst.~15Minutes.0.Raw-USGS"
+        backfill_version = "Rev-USGS"
+
+        result = getusgs_cda_module._replace_ts_version(ts_id, backfill_version)
+
+        assert result == "DWGN8.Stage.Inst.~15Minutes.0.Rev-USGS"
+
+    def test_handles_simple_version(self):
+        """Test with simple version string."""
+        ts_id = "LOC.Flow.Inst.~15Minutes.0.Raw"
+        backfill_version = "Test"
+
+        result = getusgs_cda_module._replace_ts_version(ts_id, backfill_version)
+
+        assert result == "LOC.Flow.Inst.~15Minutes.0.Test"
+
+    def test_handles_version_with_multiple_dashes(self):
+        """Test with version containing dashes."""
+        ts_id = "LOC.Stage.Inst.~15Minutes.0.Rev-USGS-v2"
+        backfill_version = "New-Rev-USGS"
+
+        result = getusgs_cda_module._replace_ts_version(ts_id, backfill_version)
+
+        assert result == "LOC.Stage.Inst.~15Minutes.0.New-Rev-USGS"
+
+    def test_handles_ts_id_without_dots(self):
+        """Test with TS ID that has no dots."""
+        ts_id = "SimpleID"
+        backfill_version = "NewVersion"
+
+        result = getusgs_cda_module._replace_ts_version(ts_id, backfill_version)
+
+        # If no dot found, function returns original ts_id
+        assert result == "SimpleID"
+
+    def test_preserves_location_and_parameters(self):
+        """Test that location and parameter parts are preserved."""
+        ts_id = "MyLocation-Base.Parameter.Type.Interval.Season.OldVersion"
+        backfill_version = "NewVersion"
+
+        result = getusgs_cda_module._replace_ts_version(ts_id, backfill_version)
+
+        # Everything before the last dot should be preserved
+        assert result.startswith("MyLocation-Base.Parameter.Type.Interval.Season.")
+        assert result.endswith("NewVersion")
+
+
 class TestCWMS_writeData:
     def test_logs_success_when_data_written(self, monkeypatch, caplog):
         """Test that success is logged when data is written."""
@@ -568,3 +618,113 @@ class TestCWMS_writeData:
         # Check that both records were processed
         assert "04213152.00060" in caplog.text
         assert "04213160.00065" in caplog.text
+
+    def test_applies_backfill_version_when_provided(self, monkeypatch):
+        """Test that backfill_version is applied to ts_id when writing data."""
+        mock_store = Mock(return_value=None)
+        captured_ts_id = {}
+
+        def capture_ts_id(data, ts_id=None, units=None, office_id=None):
+            captured_ts_id["ts_id"] = ts_id
+            return {"success": True}
+
+        monkeypatch.setattr(getusgs_cda_module.cwms, "store_timeseries", mock_store)
+        monkeypatch.setattr(
+            getusgs_cda_module.cwms, "timeseries_df_to_json", capture_ts_id
+        )
+
+        usgs_ts = pd.DataFrame(
+            {
+                "timeseries-id": ["LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"],
+                "office-id": ["MVP"],
+                "USGS_St_Num": ["04213152"],
+                "USGS_PARAMETER": ["00060"],
+                "USGS_Method_TS": [np.nan],
+            }
+        )
+
+        usgs_data = pd.DataFrame(
+            index=["04213152.00060"],
+            data={
+                "values": [
+                    [
+                        {
+                            "value": [
+                                {
+                                    "dateTime": "2024-01-01",
+                                    "value": "100",
+                                    "qualifiers": "0",
+                                }
+                            ]
+                        }
+                    ]
+                ],
+                "variable": [{"noDataValue": "-999999", "unit": {"unitCode": "ft3/s"}}],
+            },
+        )
+
+        usgs_data_method = pd.DataFrame()
+
+        getusgs_cda_module.CWMS_writeData(
+            usgs_ts,
+            usgs_data,
+            usgs_data_method,
+            days_back=30,
+            backfill_version="Rev-USGS",
+        )
+
+        # Verify that the ts_id passed to timeseries_df_to_json has the new version
+        assert captured_ts_id["ts_id"] == "LOC1.Flow.Inst.~15Minutes.0.Rev-USGS"
+
+    def test_uses_original_ts_id_without_backfill_version(self, monkeypatch):
+        """Test that original ts_id is used when backfill_version is not provided."""
+        mock_store = Mock(return_value=None)
+        captured_ts_id = {}
+
+        def capture_ts_id(data, ts_id=None, units=None, office_id=None):
+            captured_ts_id["ts_id"] = ts_id
+            return {"success": True}
+
+        monkeypatch.setattr(getusgs_cda_module.cwms, "store_timeseries", mock_store)
+        monkeypatch.setattr(
+            getusgs_cda_module.cwms, "timeseries_df_to_json", capture_ts_id
+        )
+
+        usgs_ts = pd.DataFrame(
+            {
+                "timeseries-id": ["LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"],
+                "office-id": ["MVP"],
+                "USGS_St_Num": ["04213152"],
+                "USGS_PARAMETER": ["00060"],
+                "USGS_Method_TS": [np.nan],
+            }
+        )
+
+        usgs_data = pd.DataFrame(
+            index=["04213152.00060"],
+            data={
+                "values": [
+                    [
+                        {
+                            "value": [
+                                {
+                                    "dateTime": "2024-01-01",
+                                    "value": "100",
+                                    "qualifiers": "0",
+                                }
+                            ]
+                        }
+                    ]
+                ],
+                "variable": [{"noDataValue": "-999999", "unit": {"unitCode": "ft3/s"}}],
+            },
+        )
+
+        usgs_data_method = pd.DataFrame()
+
+        getusgs_cda_module.CWMS_writeData(
+            usgs_ts, usgs_data, usgs_data_method, days_back=30
+        )
+
+        # Verify that the original ts_id is used
+        assert captured_ts_id["ts_id"] == "LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"

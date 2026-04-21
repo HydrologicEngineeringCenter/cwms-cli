@@ -46,6 +46,7 @@ def getusgs_cda(
     days_back: float,
     api_key: str,
     backfill_tsids: list = None,
+    backfill_version: str = None,
 ):
     api_key = "apikey " + api_key
     cwms.api.init_session(api_root=api_root, api_key=api_key)
@@ -88,7 +89,9 @@ def getusgs_cda(
         if len(method_sites) > 0:
             USGS_data_method = getUSGS_ts(method_sites, startDT, endDT, 3)
 
-        CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back)
+        CWMS_writeData(
+            USGS_ts, USGS_data, USGS_data_method, days_back, backfill_version
+        )
     else:
         if backfill_tsids:
             _log_error_and_exit(
@@ -288,7 +291,21 @@ def getUSGS_ts(sites, startDT, endDT, access=None):
     return USGS_data
 
 
-def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
+def _replace_ts_version(ts_id: str, backfill_version: str) -> str:
+    """Replace the version component of a timeseries ID.
+
+    The last dot-separated component is the version (e.g., Raw-USGS, Rev-USGS).
+    This function replaces it with the provided backfill_version.
+    """
+    parts = ts_id.rsplit(".", 1)
+    if len(parts) == 2:
+        return f"{parts[0]}.{backfill_version}"
+    return ts_id
+
+
+def CWMS_writeData(
+    USGS_ts, USGS_data, USGS_data_method, days_back, backfill_version=None
+):
     # lists to hold time series that fail
     # noData -> usgs location and parameter were present in USGS api but the values were empty
     # NotinAPI -> usgs location and parameter were not retrieved from USGS api
@@ -374,10 +391,20 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
                         office = row["office-id"]
                         values["quality-code"] = 0
 
+                        # apply backfill_version if provided
+                        store_ts_id = (
+                            _replace_ts_version(ts_id, backfill_version)
+                            if backfill_version
+                            else ts_id
+                        )
+
                         # write values to CWMS database
                         try:
                             data = cwms.timeseries_df_to_json(
-                                data=values, ts_id=ts_id, units=units, office_id=office
+                                data=values,
+                                ts_id=store_ts_id,
+                                units=units,
+                                office_id=office,
                             )
                             if days_back < 365:
                                 cwms.store_timeseries(data)
@@ -386,13 +413,13 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
                                     data, max_workers=30, chunk_size=30 * 24 * 4
                                 )
                             logging.info(
-                                f"SUCCESS Data stored in CWMS database for -->  {ts_id},{USGS_Id_param}"
+                                f"SUCCESS Data stored in CWMS database for -->  {store_ts_id},{USGS_Id_param}"
                             )
                             saved = saved + 1
                         except Exception as error:
                             storErr.append([ts_id, USGS_Id_param, error])
                             logging.error(
-                                f"FAIL Data could not be stored to CWMS database for -->  {ts_id},{USGS_Id_param} CDA error = {error}"
+                                f"FAIL Data could not be stored to CWMS database for -->  {store_ts_id},{USGS_Id_param} CDA error = {error}"
                             )
             except Exception as error:
                 logging.error(
@@ -441,6 +468,7 @@ def getusgs_cda_ogc(
     days_back: float,
     api_key: str,
     backfill_tsids: list = None,
+    backfill_version: str = None,
 ):
     """Fetch USGS time series data using the new OGC API and store into CWMS.
 
@@ -479,7 +507,9 @@ def getusgs_cda_ogc(
         if len(method_sites) > 0:
             USGS_data_method = getUSGS_ts_ogc(method_sites, startDT, endDT, 3)
 
-        CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back)
+        CWMS_writeData(
+            USGS_ts, USGS_data, USGS_data_method, days_back, backfill_version
+        )
     else:
         if backfill_tsids:
             _log_error_and_exit(
