@@ -427,6 +427,130 @@ class TestGetUSGS_ts:
         assert captured_params["sites"] == "04213152,04213160,04213300"
 
 
+class TestValidateBackfillVersionTimeseries:
+    def test_warns_when_timeseries_missing(self, monkeypatch, caplog):
+        """Test that warning is logged when backfill timeseries don't exist."""
+        mock_response = Mock()
+        mock_response.df = pd.DataFrame(
+            {"timeseries-id": ["LOC1.Flow.Inst.~15Minutes.0.Rev-USGS"]}
+        )
+
+        monkeypatch.setattr(
+            getusgs_cda_module.cwms,
+            "get_timeseries_identifiers",
+            lambda office_id, timeseries_id_regex: mock_response,
+        )
+
+        usgs_ts = pd.DataFrame(
+            {
+                "timeseries-id": [
+                    "LOC1.Flow.Inst.~15Minutes.0.Raw-USGS",
+                    "LOC2.Stage.Inst.~15Minutes.0.Raw-USGS",
+                ],
+                "office-id": ["MVP", "MVP"],
+            }
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = getusgs_cda_module._validate_backfill_version_timeseries(
+                usgs_ts, "Rev-USGS", "MVP"
+            )
+
+        assert "do not exist in CWMS" in caplog.text
+        # LOC2 should be removed, only LOC1 remains
+        assert len(result) == 1
+        assert result["timeseries-id"].iloc[0] == "LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"
+
+    def test_no_warning_when_all_timeseries_exist(self, monkeypatch, caplog):
+        """Test that no warning is logged when all backfill timeseries exist."""
+        mock_response = Mock()
+        mock_response.df = pd.DataFrame(
+            {
+                "timeseries-id": [
+                    "LOC1.Flow.Inst.~15Minutes.0.Rev-USGS",
+                    "LOC2.Stage.Inst.~15Minutes.0.Rev-USGS",
+                ]
+            }
+        )
+
+        monkeypatch.setattr(
+            getusgs_cda_module.cwms,
+            "get_timeseries_identifiers",
+            lambda office_id, timeseries_id_regex: mock_response,
+        )
+
+        usgs_ts = pd.DataFrame(
+            {
+                "timeseries-id": [
+                    "LOC1.Flow.Inst.~15Minutes.0.Raw-USGS",
+                    "LOC2.Stage.Inst.~15Minutes.0.Raw-USGS",
+                ],
+                "office-id": ["MVP", "MVP"],
+            }
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = getusgs_cda_module._validate_backfill_version_timeseries(
+                usgs_ts, "Rev-USGS", "MVP"
+            )
+
+        assert "do not exist in CWMS" not in caplog.text
+        # All timeseries should remain
+        assert len(result) == 2
+
+    def test_skips_validation_when_backfill_version_none(self, monkeypatch, caplog):
+        """Test that validation is skipped when backfill_version is None."""
+        mock_get_ts = Mock()
+        monkeypatch.setattr(
+            getusgs_cda_module.cwms,
+            "get_timeseries_identifiers",
+            mock_get_ts,
+        )
+
+        usgs_ts = pd.DataFrame(
+            {
+                "timeseries-id": ["LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"],
+                "office-id": ["MVP"],
+            }
+        )
+
+        result = getusgs_cda_module._validate_backfill_version_timeseries(
+            usgs_ts, None, "MVP"
+        )
+
+        # Should not call get_timeseries_identifiers
+        mock_get_ts.assert_not_called()
+        # Should return unchanged dataframe
+        pd.testing.assert_frame_equal(result, usgs_ts)
+
+    def test_handles_empty_response(self, monkeypatch, caplog):
+        """Test that missing timeseries are detected with empty response."""
+        mock_response = Mock()
+        mock_response.df = pd.DataFrame()
+
+        monkeypatch.setattr(
+            getusgs_cda_module.cwms,
+            "get_timeseries_identifiers",
+            lambda office_id, timeseries_id_regex: mock_response,
+        )
+
+        usgs_ts = pd.DataFrame(
+            {
+                "timeseries-id": ["LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"],
+                "office-id": ["MVP"],
+            }
+        )
+
+        with caplog.at_level(logging.WARNING):
+            result = getusgs_cda_module._validate_backfill_version_timeseries(
+                usgs_ts, "Rev-USGS", "MVP"
+            )
+
+        assert "do not exist in CWMS" in caplog.text
+        # All timeseries should be removed
+        assert len(result) == 0
+
+
 class TestReplaceTS_Version:
     def test_replaces_version_component(self):
         """Test that version component is replaced correctly."""

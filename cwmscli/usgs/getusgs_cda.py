@@ -61,6 +61,10 @@ def getusgs_cda(
     if backfill_tsids:
         USGS_ts = USGS_ts[USGS_ts["timeseries-id"].isin(backfill_tsids)]
 
+    USGS_ts = _validate_backfill_version_timeseries(
+        USGS_ts, backfill_version, office_id
+    )
+
     if len(USGS_ts) > 0:
         # grab all of the unique USGS stations numbers to be sent to USGS api
         sites = USGS_ts[USGS_ts["USGS_Method_TS"].isna()].USGS_St_Num.unique()
@@ -303,6 +307,48 @@ def _replace_ts_version(ts_id: str, backfill_version: str) -> str:
     return ts_id
 
 
+def _validate_backfill_version_timeseries(
+    usgs_ts: pd.DataFrame, backfill_version: str, office_id: str
+) -> pd.DataFrame:
+    """Validate that all timeseries with backfill_version exist in CWMS.
+
+    Returns dataframe with missing backfill_version timeseries removed.
+    """
+    if backfill_version is None:
+        return usgs_ts
+
+    try:
+        pattern = f".*\\.{backfill_version}$"
+        response = cwms.get_timeseries_identifiers(
+            office_id=office_id, timeseries_id_regex=pattern
+        )
+
+        existing_ts = set()
+        if response.df is not None and not response.df.empty:
+            existing_ts = set(response.df["timeseries-id"].values)
+
+        missing_ts = []
+        missing_original_ts = []
+        for ts_id in usgs_ts["timeseries-id"].unique():
+            new_ts_id = _replace_ts_version(ts_id, backfill_version)
+            if new_ts_id not in existing_ts:
+                missing_ts.append(new_ts_id)
+                missing_original_ts.append(ts_id)
+
+        if missing_ts:
+            logging.warning(
+                f"The following timeseries with backfill_version '{backfill_version}' do not exist in CWMS and will be skipped: {missing_ts}"
+            )
+            usgs_ts = usgs_ts[~usgs_ts["timeseries-id"].isin(missing_original_ts)]
+
+    except Exception as e:
+        logging.warning(
+            f"Could not verify timeseries with backfill_version for office {office_id}: {e}"
+        )
+
+    return usgs_ts
+
+
 def CWMS_writeData(
     USGS_ts, USGS_data, USGS_data_method, days_back, backfill_version=None
 ):
@@ -487,6 +533,10 @@ def getusgs_cda_ogc(
 
     if backfill_tsids:
         USGS_ts = USGS_ts[USGS_ts["timeseries-id"].isin(backfill_tsids)]
+
+    USGS_ts = _validate_backfill_version_timeseries(
+        USGS_ts, backfill_version, office_id
+    )
 
     if len(USGS_ts) > 0:
         sites = USGS_ts[USGS_ts["USGS_Method_TS"].isna()].USGS_St_Num.unique()
