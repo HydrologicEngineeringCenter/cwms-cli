@@ -9,7 +9,13 @@ import sys
 from collections import defaultdict
 from typing import Optional, Sequence, Tuple, Union
 
-from cwmscli.utils import colors, get_api_key, init_cwms_session, log_scoped_read_hint
+from cwmscli.utils import (
+    colors,
+    get_api_key,
+    has_invalid_chars,
+    init_cwms_session,
+    log_scoped_read_hint,
+)
 from cwmscli.utils.click_help import DOCS_BASE_URL
 from cwmscli.utils.deps import requires
 
@@ -148,6 +154,13 @@ def _resolve_credential_kind(api_key: Optional[str], anonymous: bool) -> Optiona
 def _response_status_code(exc: BaseException) -> Optional[int]:
     response = getattr(exc, "response", None)
     return getattr(response, "status_code", None)
+
+
+def _blob_endpoint_id(blob_id: str) -> tuple[str, Optional[str]]:
+    normalized = blob_id.upper()
+    if has_invalid_chars(normalized):
+        return "ignored", normalized
+    return normalized, None
 
 
 def store_blob(**kwargs):
@@ -629,18 +642,26 @@ def delete_cmd(blob_id: str, office: str, api_root: str, api_key: str, dry_run: 
         )
         return
     init_cwms_session(cwms, api_root=api_root, api_key=api_key)
+    bid = blob_id.upper()
+    path_id, query_id = _blob_endpoint_id(bid)
     try:
-        cwms.delete_blob(office_id=office, blob_id=blob_id)
+        if query_id is None:
+            cwms.delete_blob(office_id=office, blob_id=bid)
+        else:
+            cwms.api.delete(
+                f"blobs/{path_id}",
+                params={"office": office, "blob-id": query_id},
+            )
     except requests.HTTPError as e:
         if _response_status_code(e) == 404:
             logging.info(
                 "Blob %s was already absent in office %s. Nothing to delete.",
-                blob_id,
+                bid,
                 office,
             )
             return
         raise
-    logging.info(f"Deleted blob: {blob_id} for office: {office}")
+    logging.info(f"Deleted blob: {bid} for office: {office}")
 
 
 def update_cmd(

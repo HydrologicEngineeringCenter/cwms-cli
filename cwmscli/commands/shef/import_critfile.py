@@ -18,6 +18,7 @@ def import_shef_critfile(
     group_office_id: str = "CWMS",
     category_office_id: str = "CWMS",
     replace_assigned_ts: bool = False,
+    dry_run: bool = False,
 ) -> None:
     """
     Processes a .crit file and saves the information to the SHEF Data Acquisition time series group.
@@ -36,18 +37,40 @@ def import_shef_critfile(
         The specified office group associated with the timeseries data. Defaults to "CWMS".
     replace_assigned_ts : bool, optional
         Specifies whether to unassign all existing time series before assigning new time series specified in the content body. Default is False.
+    dry_run : bool, optional
+        Parse the .crit file and print the JSON payload without posting to the API. Default is False.
 
     Returns
     -------
     None
     """
 
-    init_cwms_session(cwms, api_root=api_root, api_key="apikey " + api_key)
-    logging.info(f"CDA connection: {api_root}")
+    if not dry_run:
+        init_cwms_session(cwms, api_root=api_root, api_key="apikey " + api_key)
+        logging.info(f"CDA connection: {api_root}")
 
     # Parse the file and get the parsed data
     parsed_data = parse_crit_file(file_path)
     logging.info("CRIT file has been parsed")
+    logging.info(f"Found {len(parsed_data)} timeseries entries:")
+    for data in parsed_data:
+        logging.info(f"  {data['Timeseries ID']} --> alias={data['Alias']}")
+
+    if not parsed_data:
+        logging.error("No timeseries entries found in the CRIT file")
+        return
+
+    if dry_run:
+        logging.info(
+            f"\n--- DRY RUN: The following timeseries entries will be added to {group_id} ---"
+        )
+        for data in parsed_data:
+            logging.info(
+                f"  timeseries-id: {data['Timeseries ID']}, alias-id: {data['Alias']}"
+            )
+        logging.info(f"--- Dry run complete. Nothing was posted to the API. ---\n")
+        return
+
     # df = pd.DataFrame()
     logging.info(f"Saving Timeseries IDs to group: {group_id}")
     for data in parsed_data:

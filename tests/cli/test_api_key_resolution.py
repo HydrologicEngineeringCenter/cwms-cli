@@ -71,7 +71,7 @@ def test_usgs_timeseries_api_key_loc_overrides_env(monkeypatch, tmp_path):
 
 def test_shefcritimport_api_key_loc_overrides_env(monkeypatch, tmp_path):
     captured = {}
-    fake_module = types.ModuleType("cwmscli.commands.shef_critfile_import")
+    fake_module = types.ModuleType("cwmscli.commands.shef.import_critfile")
 
     def fake_import_shef_critfile(**kwargs):
         captured.update(kwargs)
@@ -85,16 +85,60 @@ def test_shefcritimport_api_key_loc_overrides_env(monkeypatch, tmp_path):
     utils = _reload_utils()
 
     monkeypatch.setitem(
-        sys.modules, "cwmscli.commands.shef_critfile_import", fake_module
+        sys.modules, "cwmscli.commands.shef.import_critfile", fake_module
     )
     monkeypatch.setattr(deps.importlib, "import_module", lambda name: object())
     monkeypatch.setattr(deps.importlib.metadata, "version", lambda name: "999.0.0")
     monkeypatch.setattr(commands_cwms, "get_api_key", utils.get_api_key, raising=False)
     result = CliRunner().invoke(
-        commands_cwms.shefcritimport,
+        cli,
         [
+            "shef",
+            "import_crit",
             "-f",
             str(shef_file),
+            "-o",
+            "spl",
+            "-a",
+            "https://example.test/cda/",
+            "--api-key-loc",
+            str(key_file),
+        ],
+        env={"CDA_API_KEY": "env-key"},
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured["api_key"] == "file-key"
+
+
+def test_shefinfile_import_api_key_loc_overrides_env(monkeypatch, tmp_path):
+    captured = {}
+    fake_module = types.ModuleType("cwmscli.commands.shef.import_infile")
+
+    def fake_import_shef_infile(**kwargs):
+        captured.update(kwargs)
+
+    fake_module.import_shef_infile = fake_import_shef_infile
+
+    key_file = tmp_path / "cda_api_key.txt"
+    key_file.write_text("file-key\n", encoding="utf-8")
+    in_file = tmp_path / "sample.in"
+    in_file.write_text("sample\n", encoding="utf-8")
+    utils = _reload_utils()
+
+    monkeypatch.setitem(sys.modules, "cwmscli.commands.shef.import_infile", fake_module)
+    monkeypatch.setattr(deps.importlib, "import_module", lambda name: object())
+    monkeypatch.setattr(deps.importlib.metadata, "version", lambda name: "999.0.0")
+    monkeypatch.setattr(commands_cwms, "get_api_key", utils.get_api_key, raising=False)
+    result = CliRunner().invoke(
+        cli,
+        [
+            "shef",
+            "import_infile",
+            "-f",
+            str(in_file),
+            "-g",
+            "test-group",
             "-o",
             "spl",
             "-a",

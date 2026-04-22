@@ -6,6 +6,7 @@ CLI reference
 See also
 --------
 
+- :doc:`Shell Completion <cli/shell_completion>`
 - :doc:`blob <cli/blob>`
 - :doc:`clob <cli/clob>`
 - :doc:`csv2cwms <cli/csv2cwms>`

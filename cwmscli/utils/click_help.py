@@ -10,6 +10,7 @@ from cwmscli.utils import colors
 from cwmscli.utils.version import get_cwms_cli_version
 
 DOCS_BASE_URL = "https://cwms-cli.readthedocs.io/en/latest"
+SHELL_COMPLETION_DOCS_URL = f"{DOCS_BASE_URL}/cli/shell_completion.html"
 
 
 def _render_version_line(ctx: click.Context) -> str:
@@ -62,6 +63,14 @@ def _render_docs_line(ctx: click.Context) -> Optional[str]:
     return f"Docs: {colors.c(docs_url, 'blue', bright=True)}"
 
 
+def _render_shell_completion_line(ctx: click.Context) -> Optional[str]:
+    if ctx.parent is not None:
+        return None
+    return (
+        f"Shell completion: {colors.c(SHELL_COMPLETION_DOCS_URL, 'blue', bright=True)}"
+    )
+
+
 def _command_path(ctx: click.Context) -> str:
     names: list[str] = []
     cur: Optional[click.Context] = ctx
@@ -99,6 +108,7 @@ def _inject_help_header(help_text: str, ctx: click.Context) -> str:
 
     version_line = _render_version_line(ctx)
     docs_line = _render_docs_line(ctx)
+    shell_completion_line = _render_shell_completion_line(ctx)
     maintainers_line = _render_maintainers_line(ctx)
     if lines[0].startswith("Usage:"):
         lines.insert(1, version_line)
@@ -107,6 +117,11 @@ def _inject_help_header(help_text: str, ctx: click.Context) -> str:
             lines.insert(3, maintainers_line)
         else:
             lines.insert(2, maintainers_line)
+        if shell_completion_line is not None:
+            insert_at = 3 if docs_line is not None else 2
+            if docs_line is not None:
+                insert_at += 1
+            lines.insert(insert_at, shell_completion_line)
     else:
         lines.insert(0, version_line)
         if docs_line is not None:
@@ -114,6 +129,11 @@ def _inject_help_header(help_text: str, ctx: click.Context) -> str:
             lines.insert(2, maintainers_line)
         else:
             lines.insert(1, maintainers_line)
+        if shell_completion_line is not None:
+            insert_at = 2 if docs_line is not None else 1
+            if docs_line is not None:
+                insert_at += 1
+            lines.insert(insert_at, shell_completion_line)
     return "\n".join(lines)
 
 
