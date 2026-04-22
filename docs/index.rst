@@ -49,6 +49,7 @@ Contents
    :caption: Getting Started
 
    cli/setup
+   cli/shell_completion
    cli
    cli/api_arguments
 
