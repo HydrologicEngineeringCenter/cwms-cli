@@ -2,7 +2,7 @@
 name = "cwms-cli"
 repository = "https://github.com/HydrologicEngineeringCenter/cwms-cli"
 
-version = "0.4.0"
+version = "0.5.0"
 
 
 packages = [
@@ -38,6 +38,18 @@ hecdss = "^0.1.24"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+# Organize test output by test file
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v --tb=short -ra"
+# Group tests by module for clearer output
+markers = [
+    "unit: unit tests",
+    "integration: integration tests",
+    "cli: CLI command tests",
+]
 
 [tool.isort]
 profile = "black"

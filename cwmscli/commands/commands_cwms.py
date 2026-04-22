@@ -29,8 +29,23 @@ from cwmscli.utils.update import (
 from cwmscli.utils.version import get_cwms_cli_version
 
 
-@click.command(
-    "shefcritimport",
+# region SHEF
+# ================================================================================
+#  SHEF
+# ================================================================================
+@click.group(
+    "shef",
+    help="Manage SHEF file imports (crit files, .in configuration files)",
+)
+def shef_group():
+    pass
+
+
+# ================================================================================
+#       Import Crit File
+# ================================================================================
+@shef_group.command(
+    "import_crit",
     help="Import SHEF crit file into timeseries group for SHEF file processing",
 )
 @click.option(
@@ -42,9 +57,10 @@ from cwmscli.utils.version import get_cwms_cli_version
 )
 @common_api_options
 @api_key_loc_option
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
 @requires(reqs.cwms)
-def shefcritimport(filename, office, api_root, api_key, api_key_loc):
-    from cwmscli.commands.shef_critfile_import import import_shef_critfile
+def shef_import_crit(filename, office, api_root, api_key, api_key_loc, dry_run):
+    from cwmscli.commands.shef.import_critfile import import_shef_critfile
     from cwmscli.utils import get_api_key
 
     api_key = get_api_key(api_key, api_key_loc)
@@ -53,7 +69,65 @@ def shefcritimport(filename, office, api_root, api_key, api_key_loc):
         office_id=office,
         api_root=api_root,
         api_key=api_key,
+        dry_run=dry_run,
     )
+
+
+# ================================================================================
+#       Import .in File
+# ================================================================================
+@shef_group.command(
+    "import_infile",
+    help="Import SHEF .in file into timeseries group for SHEF file processing",
+)
+@click.option(
+    "-f",
+    "--filename",
+    required=True,
+    type=str,
+    help="filename of SHEF .in file to be processed",
+)
+@click.option(
+    "-g",
+    "--group-name",
+    required=True,
+    type=str,
+    help="CWMS timeseries group name",
+)
+@click.option(
+    "--category",
+    type=str,
+    default="SHEF Export",
+    show_default=True,
+    help="Timeseries category ID",
+)
+@common_api_options
+@api_key_loc_option
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    help="Parse the .in file and print the JSON payload without posting to the API.",
+)
+@requires(reqs.cwms)
+def shef_import_infile(
+    filename, group_name, category, office, api_root, api_key, api_key_loc, dry_run
+):
+    from cwmscli.commands.shef.import_infile import import_shef_infile
+    from cwmscli.utils import get_api_key
+
+    api_key = get_api_key(api_key, api_key_loc)
+    import_shef_infile(
+        in_file=filename,
+        group_name=group_name,
+        office_id=office,
+        api_root=api_root,
+        api_key=api_key,
+        category_id=category,
+        dry_run=dry_run,
+    )
+
+
+# endregion
 
 
 @click.command("csv2cwms", help="Store CSV TimeSeries data to CWMS using a config file")
@@ -411,6 +485,174 @@ def list_cmd(**kwargs):
     list_cmd(**kwargs)
 
 
+# endregion
+
+
+# region Clob
+# ================================================================================
+#  CLOB
+# ================================================================================
+@click.group(
+    "clob",
+    help="Manage CWMS Clobs (upload, download, delete, update, list)",
+    epilog=textwrap.dedent(
+        """
+    Example Usage:\n
+    - Download a clob by id to your local filesystem\n
+    - Update a clob's name/description/mime-type\n
+    - Bulk list clobs for an office  
+"""
+    ),
+)
+@requires(reqs.cwms)
+def clob_group():
+    pass
+
+
+# ================================================================================
+#       Upload
+# ================================================================================
+@clob_group.command("upload", help="Upload a file as a clob")
+@click.option(
+    "--input-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
+    help="Path to the file to upload.",
+)
+@click.option("--clob-id", required=True, type=str, help="Clob ID to create.")
+@click.option("--description", default=None, help="Optional description JSON or text.")
+@click.option(
+    "--overwrite/--no-overwrite",
+    default=False,
+    show_default=True,
+    help="If true, replace existing clob.",
+)
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@common_api_options
+def clob_upload(**kwargs):
+    from cwmscli.commands.clob import upload_cmd
+
+    upload_cmd(**kwargs)
+
+
+# ================================================================================
+#       Download
+# ================================================================================
+@clob_group.command("download", help="Download a clob by ID")
+# TODO: test XML
+@click.option("--clob-id", required=True, type=str, help="Clob ID to download.")
+@click.option(
+    "--dest",
+    default=None,
+    help="Destination file path. Defaults to clob-id.",
+)
+@click.option(
+    "--anonymous",
+    is_flag=True,
+    help="Do not send credentials for this read request, even if they are configured.",
+)
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@common_api_options
+def clob_download(**kwargs):
+    from cwmscli.commands.clob import download_cmd
+
+    download_cmd(**kwargs)
+
+
+# ================================================================================
+#       Delete
+# ================================================================================
+@clob_group.command("delete", help="Delete a clob by ID")
+@click.option("--clob-id", required=True, type=str, help="Clob ID to delete.")
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@common_api_options
+def delete_cmd(**kwargs):
+    from cwmscli.commands.clob import delete_cmd
+
+    delete_cmd(**kwargs)
+
+
+# ================================================================================
+#       Update
+# ================================================================================
+@clob_group.command("update", help="Update/patch a clob by ID")
+@click.option("--clob-id", required=True, type=str, help="Clob ID to update.")
+@click.option("--dry-run", is_flag=True, help="Show request; do not send.")
+@click.option(
+    "--description",
+    default=None,
+    help="New description JSON or text.",
+)
+@click.option(
+    "--input-file",
+    required=False,
+    type=click.Path(exists=True, dir_okay=False, readable=True, path_type=str),
+    help="Optional file content to upload with update.",
+)
+@click.option(
+    "--ignore-nulls/--no-ignore-nulls",
+    default=True,
+    show_default=True,
+    help="If true, null and empty fields in the provided clob will be ignored and the existing value of those fields left in place.",
+)
+@common_api_options
+def update_cmd(**kwargs):
+    from cwmscli.commands.clob import update_cmd
+
+    update_cmd(**kwargs)
+
+
+# ================================================================================
+#       List
+# ================================================================================
+@clob_group.command("list", help="List clobs with optional filters and sorting")
+# TODO: Add link to regex docs when new CWMS-DATA site is deployed to PROD
+@click.option(
+    "--clob-id-like", help="LIKE filter for clob ID (e.g., ``*PNG``)."
+)  # Escape the wildcard/asterisk for RTD generation with double backticks
+@click.option(
+    "--columns",
+    multiple=True,
+    callback=csv_to_list,
+    help="Columns to show (repeat or comma-separate).",
+)
+@click.option(
+    "--sort-by",
+    multiple=True,
+    callback=csv_to_list,
+    help="Columns to sort by (repeat or comma-separate).",
+)
+@click.option(
+    "--desc/--asc",
+    default=False,
+    show_default=True,
+    help="Sort descending instead of ascending.",
+)
+@click.option("--limit", type=int, default=None, help="Max rows to show.")
+@click.option(
+    "--page-size",
+    type=int,
+    default=None,
+    help="Max rows to request from the clob endpoint. Defaults to --limit when set.",
+)
+@click.option(
+    "--to-csv",
+    type=click.Path(dir_okay=False, writable=True, path_type=str),
+    help="If set, write results to this CSV file.",
+)
+@click.option(
+    "--anonymous",
+    is_flag=True,
+    help="Do not send credentials for this read request, even if they are configured.",
+)
+@common_api_options
+def list_cmd(**kwargs):
+    from cwmscli.commands.clob import list_cmd
+
+    list_cmd(**kwargs)
+
+
+# endregion
 # ================================================================================
 #       USERS
 # ================================================================================

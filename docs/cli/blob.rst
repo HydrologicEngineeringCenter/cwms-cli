@@ -5,6 +5,27 @@ Blob commands
 
 Use ``cwms-cli blob`` to upload, download, delete, update, and list CWMS blobs.
 
+See also
+--------
+
+- :doc:`Clob commands <clob>`
+
+Choose ``blob`` when you are working with binary or media-oriented files such as
+PDFs, images, spreadsheets, archives, or other files where media type and
+byte-preserving download behavior matter.
+
+Choose :doc:`clob <clob>` when you are working with text files such as JSON,
+XML, notes, templates, or other character-based content that you want the CLI
+to handle as text.
+
+NOTE:
+
+- Use ``blob`` when you want to set or preserve a media type such as
+  ``application/json`` so API consumers and JavaScript clients can treat the
+  payload as JSON (or other media types).
+- Use :doc:`clob <clob>` when you mainly want to manage text through
+  the CLI and don't care about media types.
+
 Quick reference
 ---------------
 
@@ -14,6 +35,15 @@ Quick reference
 - ``blob list --limit`` caps displayed rows, and sets the blob endpoint request page size unless ``--page-size`` is provided to override the fetch size.
 - Directory upload stops before sending anything if generated blob IDs would collide.
 - ``blob upload --overwrite``: To replace existing blobs.
+
+Compared with :doc:`clob <clob>`, the ``blob`` command group exposes more
+file-oriented options:
+
+- ``--media-type`` for upload and update
+- directory upload with ``--input-dir``
+- regex filtering with ``--file-regex``
+- recursive traversal with ``--recursive``
+- generated IDs via ``--blob-id-prefix``
 
 .. _blob-download-behavior:
 
@@ -25,6 +55,7 @@ Download behavior
 - Text responses are written as text.
 - Binary responses are written as bytes.
 - If the destination path has no extension, cwms-cli will try to infer one from the blob media type.
+- For text-only content without blob media handling, see :doc:`clob <clob>`.
 
 Example:
 
@@ -88,6 +119,12 @@ The ``upload`` command supports two modes:
 
 1. Single file upload with explicit blob ID (existing behavior)
 2. Directory upload with regex matching (bulk behavior)
+
+If you only need single-file text storage, :doc:`clob <clob>` is usually the
+simpler command group.
+
+If you are uploading JSON and want clients to receive it with a JSON media
+type, ``blob upload --media-type application/json`` is usually the better fit.
 
 Single file upload
 ~~~~~~~~~~~~~~~~~~
