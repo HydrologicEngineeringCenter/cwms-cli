@@ -4,6 +4,9 @@ import cwmscli.load.location.location_ids_bygroup as location_ids_bygroup_module
 
 
 def test_copy_from_group_uses_combined_exact_regex_and_dry_run(monkeypatch):
+    monkeypatch.setattr(
+        "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: None
+    )
     calls = []
 
     class FakeGroupResponse:

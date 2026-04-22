@@ -2,6 +2,8 @@ import logging
 
 import cwms
 
+from cwmscli.utils import init_cwms_session
+
 rating_types = {
     "store_corr": {"db_type": "db_corr", "db_disc": "USGS-CORR"},
     "store_base": {"db_type": "db_base", "db_disc": "USGS-BASE"},
@@ -10,8 +12,7 @@ rating_types = {
 
 
 def rating_ini_file_import(api_root, api_key, ini_filename):
-    api_key = "apikey " + api_key
-    cwms.api.init_session(api_root=api_root, api_key=api_key)
+    init_cwms_session(cwms, api_root=api_root, api_key="apikey " + api_key)
 
     logging.info(f"CDA connection: {api_root}")
     logging.info(f"Opening ini file: {ini_filename}")

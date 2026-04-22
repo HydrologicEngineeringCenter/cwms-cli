@@ -137,6 +137,7 @@ def test_every_command_has_help(runner, path, command):
     if len(path) == 1:
         page_map = {
             "blob": f"{DOCS_BASE_URL}/cli/blob.html",
+            "login": f"{DOCS_BASE_URL}/cli/login.html",
             "update": f"{DOCS_BASE_URL}/cli/update.html",
             "users": f"{DOCS_BASE_URL}/cli/users.html",
         }

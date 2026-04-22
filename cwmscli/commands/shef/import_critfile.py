@@ -5,6 +5,8 @@ from typing import Dict, List
 import cwms
 import pandas as pd
 
+from cwmscli.utils import init_cwms_session
+
 
 def import_shef_critfile(
     file_path: str,
@@ -44,8 +46,7 @@ def import_shef_critfile(
     """
 
     if not dry_run:
-        api_key = "apikey " + api_key
-        cwms.api.init_session(api_root=api_root, api_key=api_key)
+        init_cwms_session(cwms, api_root=api_root, api_key="apikey " + api_key)
         logging.info(f"CDA connection: {api_root}")
 
     # Parse the file and get the parsed data

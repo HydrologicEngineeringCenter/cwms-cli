@@ -9,6 +9,9 @@ from cwmscli.__main__ import cli
 @pytest.fixture(autouse=True)
 def mock_cwms_python_version(monkeypatch):
     monkeypatch.setattr(importlib.metadata, "version", lambda pkg: "1.0.7")
+    monkeypatch.setattr(
+        "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: None
+    )
 
 
 class _FakeData:
@@ -17,6 +20,47 @@ class _FakeData:
 
     def get(self, key, default=None):
         return self.json.get(key, default)
+
+
+def test_users_roles_list_all_prefers_saved_token(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: "saved-token"
+    )
+
+    class _FakeCwms:
+        class api:
+            class ApiError(Exception):
+                pass
+
+        @staticmethod
+        def init_session(api_root, api_key=None, token=None):
+            calls.append((api_root, api_key, token))
+            return None
+
+        @staticmethod
+        def get_roles():
+            return ["Viewer"]
+
+    monkeypatch.setitem(__import__("sys").modules, "cwms", _FakeCwms)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "users",
+            "roles",
+            "list-all",
+            "--api-root",
+            "https://example.test/cda/",
+            "--api-key",
+            "ignored",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls == [("https://example.test/cda/", None, "saved-token")]
 
 
 def test_users_roles_lists_available_roles(monkeypatch):

@@ -1,5 +1,7 @@
 import logging as py_logging
-from typing import Optional
+import time
+from pathlib import Path
+from typing import Optional, Union
 
 import click
 from click.core import ParameterSource
@@ -86,14 +88,14 @@ api_key_option = click.option(
     default=None,
     type=str,
     envvar="CDA_API_KEY",
-    help="api key for CDA. Can be user defined or place in env variable CDA_API_KEY. one of api-key or api-key-loc are required",
+    help="API key for CDA. Optional when a saved cwms-cli login token is available. Can also be provided by CDA_API_KEY.",
 )
 api_key_loc_option = click.option(
     "-kl",
     "--api-key-loc",
     default=None,
     type=str,
-    help="file storing Api Key. One of api-key or api-key-loc are required",
+    help="File storing an API key. Optional when a saved cwms-cli login token is available.",
 )
 log_level_option = click.option(
     "--log-level",
@@ -122,21 +124,111 @@ def get_api_key(api_key: str, api_key_loc: str) -> str:
         )
 
 
+def get_saved_login_token(
+    token_file: Optional[Union[str, Path]] = None,
+    provider: str = "federation-eams",
+) -> Optional[str]:
+    from cwmscli.utils.auth import (
+        AuthError,
+        default_token_file,
+        load_saved_login,
+        refresh_saved_login,
+        save_login,
+    )
+
+    candidate = Path(token_file) if token_file else default_token_file(provider)
+    try:
+        saved = load_saved_login(candidate)
+    except AuthError as error:
+        if candidate.exists():
+            py_logging.warning("Ignoring saved login at %s: %s", candidate, error)
+        return None
+
+    token = saved.get("token", {})
+    access_token = token.get("access_token")
+    if not access_token:
+        py_logging.warning(
+            "Ignoring saved login at %s: no access token found", candidate
+        )
+        return None
+    expires_at = token.get("expires_at")
+    if expires_at is not None:
+        try:
+            if float(expires_at) <= time.time():
+                py_logging.info("Refreshing expired saved login token at %s", candidate)
+                try:
+                    refreshed = refresh_saved_login(token_file=candidate)
+                    save_login(
+                        token_file=candidate,
+                        config=refreshed["config"],
+                        token=refreshed["token"],
+                    )
+                except AuthError as error:
+                    py_logging.warning(
+                        "Could not refresh saved login at %s: %s. Falling back to API key if available.",
+                        candidate,
+                        error,
+                    )
+                    return None
+                return refreshed["token"].get("access_token")
+        except (TypeError, ValueError, OSError):
+            py_logging.warning(
+                "Ignoring saved login at %s: invalid token expiration value %r",
+                candidate,
+                expires_at,
+            )
+            return None
+    return access_token
+
+
+def init_cwms_session(
+    cwms_module,
+    *,
+    api_root: str,
+    api_key: Optional[str] = None,
+    api_key_loc: Optional[str] = None,
+    anonymous: bool = False,
+    token_file: Optional[Union[str, Path]] = None,
+    provider: str = "federation-eams",
+):
+    init_fn = getattr(cwms_module, "init_session", None)
+    if init_fn is None:
+        init_fn = cwms_module.api.init_session
+
+    if anonymous:
+        return init_fn(api_root=api_root, api_key=None)
+
+    token = get_saved_login_token(token_file=token_file, provider=provider)
+    if token:
+        return init_fn(api_root=api_root, token=token)
+
+    resolved_api_key = None
+    if api_key_loc is not None or api_key is not None:
+        resolved_api_key = get_api_key(api_key, api_key_loc)
+
+    return init_fn(api_root=api_root, api_key=resolved_api_key)
+
+
 def log_scoped_read_hint(
     *,
-    api_key: Optional[str],
+    credential_kind: Optional[str],
     anonymous: bool,
     office: str,
     action: str,
     resource: str = "content",
 ) -> None:
-    if anonymous or not api_key:
+    if anonymous or not credential_kind:
         return
+    credential_text = (
+        "a saved login token was sent"
+        if credential_kind == "token"
+        else "an API key was sent"
+    )
     py_logging.warning(
         colors.c(
-            f"Access scope hint: a key was sent for this {action} request in office {office}. "
-            f"If you need to view {resource} outside that key's access scope, retry with "
-            f"--anonymous or remove the configured API key. Docs: {DOCS_BASE_URL}/cli/blob.html#blob-auth-scope",
+            f"Access scope hint: {credential_text} for this {action} request in office {office}. "
+            f"If you need to view {resource} outside that credential's access scope, retry with "
+            f"--anonymous or remove the configured credential. Docs: {DOCS_BASE_URL}/cli/blob.html#blob-auth-scope",
             "yellow",
             bright=True,
         )
