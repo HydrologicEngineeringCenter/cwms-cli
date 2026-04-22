@@ -61,8 +61,6 @@ Contents
    cli/blob
    cli/login
    cli/clob
-   cli/login
-   cli/clob
    cli/users
    cli/load_location_ids_all
    cli/update
