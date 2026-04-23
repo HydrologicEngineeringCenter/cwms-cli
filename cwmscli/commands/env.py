@@ -330,7 +330,7 @@ def install_cmd(yes: bool):
 
 
 @env_group.command(
-    "activate", help="Generate shell export commands to activate an environment"
+    "activate", help="[Advanced] Generate shell export commands to activate an environment"
 )
 @click.argument("env_name")
 @click.option(
