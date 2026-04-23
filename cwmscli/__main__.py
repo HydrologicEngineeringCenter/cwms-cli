@@ -7,6 +7,7 @@ import click
 from click.core import ParameterSource
 
 from cwmscli.commands import commands_cwms
+from cwmscli.commands.env import env_group
 from cwmscli.load import __main__ as load
 from cwmscli.usgs import usgs_group
 from cwmscli.utils.click_help import add_version_to_help_tree
@@ -88,6 +89,7 @@ cli.add_command(commands_cwms.update_cli_cmd)
 cli.add_command(commands_cwms.blob_group)
 cli.add_command(commands_cwms.clob_group)
 cli.add_command(commands_cwms.users_group)
+cli.add_command(env_group)
 cli.add_command(load.load_group)
 add_version_to_help_tree(cli)
 
