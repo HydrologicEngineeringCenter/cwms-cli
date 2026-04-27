@@ -210,8 +210,9 @@ def test_is_keyring_available_success(mock_keyring):
 
 def test_is_keyring_available_failure(mock_keyring):
     """Test keyring availability check when keyring fails."""
-    from cwmscli.utils.credentials import is_keyring_available
     from keyring.errors import KeyringError
+
+    from cwmscli.utils.credentials import is_keyring_available
 
     # Mock keyring failure
     mock_keyring.get_keyring.side_effect = KeyringError("No keyring available")
