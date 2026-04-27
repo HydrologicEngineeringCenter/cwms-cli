@@ -101,85 +101,57 @@ def setup_cmd(
 
 
 @env_group.command("show", help="Show current environment and available configurations")
-@click.option(
-    "--name",
-    "-n",
-    help="Show details for a specific environment",
-)
-def show_cmd(name: Optional[str]):
+def show_cmd():
     """
     Display current environment and list all configured environments.
 
-    Without --name: Lists all environments with API root and key status
-    With --name: Shows detailed configuration for a specific environment
+    Lists all environments with API root, office, and key status.
     """
     current_env = os.environ.get("ENVIRONMENT")
 
-    # Show details for a specific environment if requested
-    if name:
-        env_config = get_environment(name)
-        if env_config:
-            click.echo(f"Environment '{name}' configuration:")
-            for key, value in sorted(env_config.items()):
-                if "KEY" in key.upper() and value:
-                    display_value = "***REDACTED***"
-                else:
-                    display_value = value
-                click.echo(f"  {key}={display_value}")
-        else:
-            click.echo(
-                f"Environment '{name}' not found in keyring",
-                err=True,
-            )
-            click.echo("Run 'cwms-cli env setup <name>' to create it.", err=True)
-    else:
-        # List all environments
-        if current_env:
-            click.echo(
-                f"Current environment: {click.style(current_env, fg='green', bold=True)}\n"
-            )
-        else:
-            click.echo("No environment currently active\n")
-
-        environments = get_environment_index()
-
-        if environments:
-            click.echo("Available environments:")
-            for env_name in environments:
-                env_config = get_environment(env_name)
-                if env_config:
-                    is_active = env_name == current_env
-                    marker = "* " if is_active else "  "
-
-                    api_root = env_config.get("CDA_API_ROOT", "not set")
-                    office = env_config.get("OFFICE", "not set")
-                    has_key = (
-                        "has API key" if env_config.get("CDA_API_KEY") else "no API key"
-                    )
-
-                    click.echo(f"{marker}{env_name}")
-                    click.echo(f"    API Root: {api_root}")
-                    click.echo(f"    Office: {office}")
-                    click.echo(f"    Status: {has_key}")
-        else:
-            click.echo("No environments configured")
-            click.echo("Run 'cwms-cli env setup <name>' to create one")
-
-        # Check for old .env files (for migration purposes)
-        envs_dir = get_envs_dir()
-        env_files = []
-        if envs_dir.exists():
-            env_files = sorted(envs_dir.glob("*.env"))
-
-        if env_files:
-            click.echo("\nOld .env files found (not migrated to keyring):")
-            for env_file in env_files:
-                env_name = env_file.stem
-                click.echo(f"  - {env_name}")
-
+    # List all environments
+    if current_env:
         click.echo(
-            "\nUse 'cwms-cli env show --name <env>' to view detailed configuration"
+            f"Current environment: {click.style(current_env, fg='green', bold=True)}\n"
         )
+    else:
+        click.echo("No environment currently active\n")
+
+    environments = get_environment_index()
+
+    if environments:
+        click.echo("Available environments:")
+        for env_name in environments:
+            env_config = get_environment(env_name)
+            if env_config:
+                is_active = env_name == current_env
+                marker = "* " if is_active else "  "
+
+                api_root = env_config.get("CDA_API_ROOT", "not set")
+                office = env_config.get("OFFICE", "not set")
+                has_key = (
+                    "has API key" if env_config.get("CDA_API_KEY") else "no API key"
+                )
+
+                click.echo(f"{marker}{env_name}")
+                click.echo(f"    API Root: {api_root}")
+                click.echo(f"    Office: {office}")
+                click.echo(f"    Status: {has_key}")
+    else:
+        click.echo("No environments configured")
+        click.echo("Run 'cwms-cli env setup <name>' to create one")
+
+    # Check for old .env files (for migration purposes)
+    envs_dir = get_envs_dir()
+    env_files = []
+    if envs_dir.exists():
+        env_files = sorted(envs_dir.glob("*.env"))
+
+    if env_files:
+        click.echo("\nOld .env files found (not migrated to keyring):")
+        for env_file in env_files:
+            env_name = env_file.stem
+            click.echo(f"  - {env_name}")
 
 
 @env_group.command("delete", help="Delete an environment configuration")
