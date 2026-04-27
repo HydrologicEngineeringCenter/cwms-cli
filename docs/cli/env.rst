@@ -59,9 +59,6 @@ This spawns a new shell with the environment variables set. When you're done, ty
    # List all environments with their API roots
    cwms-cli env show
 
-   # View detailed config for a specific environment
-   cwms-cli env show --name cwbi-dev
-
 Commands
 --------
 
@@ -73,7 +70,7 @@ Create or update an environment configuration.
 .. code-block:: bash
 
    # Setup with all options
-   cwms-cli env setup myenv --api-root https://example.mil/cwms-data --api-key YOUR_KEY --office SWT
+   cwms-cli env setup myenv --api-root https://cwms-data-dev.example.mil/cwms-data  --api-key YOUR_KEY --office SWT
 
    # Update just the API key
    cwms-cli env setup myenv --api-key NEW_KEY
@@ -84,17 +81,14 @@ Create or update an environment configuration.
 cwms-cli env show
 ~~~~~~~~~~~~~~~~~~
 
-List all configured environments or show details for a specific one.
+List all configured environments.
 
 .. code-block:: bash
 
    # List all environments with API roots and key status
    cwms-cli env show
 
-   # Show detailed configuration for a specific environment
-   cwms-cli env show --name cwbi-prod
-
-**Without --name flag:**
+**Output:**
 
 .. code-block:: text
 
@@ -111,15 +105,6 @@ List all configured environments or show details for a specific one.
        Status: no API key
 
 The ``*`` marks the currently active environment.
-
-**With --name flag:**
-
-Shows detailed configuration including:
-
-- ``CDA_API_ROOT`` - Full URL
-- ``CDA_API_KEY`` - Redacted (``***REDACTED***``)
-- ``OFFICE`` - Office code
-- ``ENVIRONMENT`` - Environment name
 
 cwms-cli env activate <name>
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
