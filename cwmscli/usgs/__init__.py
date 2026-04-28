@@ -105,15 +105,23 @@ def getusgs_ratings(office, days_back, api_root, api_key, api_key_loc, rating_su
     type=str,
     help="filename of ratings ini file to be processed",
 )
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Preview changes without updating the database",
+)
 @api_root_option
 @api_key_option
 @api_key_loc_option
 @requires(reqs.cwms, reqs.requests)
-def ratingsinifileimport(filename, api_root, api_key, api_key_loc):
+def ratingsinifileimport(filename, dry_run, api_root, api_key, api_key_loc):
     from cwmscli.usgs.rating_ini_file_import import rating_ini_file_import
 
     api_key = get_api_key(api_key, api_key_loc)
-    rating_ini_file_import(api_root=api_root, api_key=api_key, ini_filename=filename)
+    rating_ini_file_import(
+        api_root=api_root, api_key=api_key, ini_filename=filename, dry_run=dry_run
+    )
 
 
 @usgs_group.command("measurements", help="Store USGS measurements into CWMS database")
