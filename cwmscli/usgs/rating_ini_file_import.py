@@ -25,18 +25,6 @@ def rating_ini_file_import(api_root, api_key, ini_filename, dry_run=False):
     ini_file.close()
 
     params = {}
-    keywords = [
-        "cwms_office",
-        "cwms_database",
-        "db_base",
-        "db_exsa",
-        "db_corr",
-        "db_tail",
-        "db_river",
-        "localid",
-        "cwmsid",
-        "textfile",
-    ]
     rating_errors = []
     for i in range(len(lines)):
         line = lines[i][:-1].strip()
@@ -49,12 +37,10 @@ def rating_ini_file_import(api_root, api_key, ini_filename, dry_run=False):
         if "=" in line:
             fields = line.split("=")
             key = fields[0].strip().lower()
-            if key in keywords:
-                if key == "cwms_office":
-                    fields[1] = fields[1].strip().upper()
-                else:
-                    fields[1] = fields[1].strip()
-                params[key] = fields[1]
+            value = fields[1].strip()
+            if key == "cwms_office":
+                value = value.upper()
+            params[key] = value
         else:
             fields = parse_ini_line(line)
             if fields[0] in rating_types.keys():
@@ -70,13 +56,11 @@ def rating_ini_file_import(api_root, api_key, ini_filename, dry_run=False):
 
                 if db_key:
                     rating_spec = params[db_key]
-                    # Handle both localid and cwmsid substitution
-                    if "localid" in params:
-                        rating_spec = rating_spec.replace(
-                            "\$localid", params["localid"]
-                        )
-                    if "cwmsid" in params:
-                        rating_spec = rating_spec.replace("\$cwmsid", params["cwmsid"])
+                    # Substitute any custom parameters found in rating_spec
+                    for param_key, param_value in params.items():
+                        placeholder = f"\\${param_key}"
+                        if placeholder in rating_spec:
+                            rating_spec = rating_spec.replace(placeholder, param_value)
                     logging.info(f"Updating rating specification: {rating_spec}")
                     try:
                         update_rating_spec(

@@ -575,6 +575,39 @@ store_exsa   $($db_tail)
         finally:
             os.unlink(temp_file)
 
+    def test_import_custom_tag_substitution(self):
+        """Test that custom tags (not just localid/cwmsid) are substituted."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
+            f.write(
+                r"""
+cwms_office=MVP
+db_corr=\$location.\$parameter.USGS-CORR.USGS-NWIS
+location=TESTLOC
+parameter=Stage;Flow
+store_corr $($db_corr)
+"""
+            )
+            temp_file = f.name
+
+        try:
+            with patch("cwmscli.usgs.rating_ini_file_import.init_cwms_session"):
+                with patch(
+                    "cwmscli.usgs.rating_ini_file_import.update_rating_spec"
+                ) as mock_update:
+                    rating_ini_file_import(
+                        "http://localhost:8080", "test_key", temp_file
+                    )
+
+                    mock_update.assert_called_once()
+                    rating_spec_arg = mock_update.call_args[0][0]
+                    # Both custom tags should be substituted
+                    assert "TESTLOC" in rating_spec_arg
+                    assert "Stage;Flow" in rating_spec_arg
+                    assert "\$location" not in rating_spec_arg
+                    assert "\$parameter" not in rating_spec_arg
+        finally:
+            os.unlink(temp_file)
+
     def test_normal_mode_calls_updates(self):
         """Test that normal mode (not dry_run) calls update_rating_spec with dry_run=False."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
