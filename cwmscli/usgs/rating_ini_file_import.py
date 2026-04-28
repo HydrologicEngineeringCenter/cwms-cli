@@ -11,8 +11,12 @@ rating_types = {
 }
 
 
-def rating_ini_file_import(api_root, api_key, ini_filename):
-    init_cwms_session(cwms, api_root=api_root, api_key="apikey " + api_key)
+def rating_ini_file_import(api_root, api_key, ini_filename, dry_run=False):
+    if dry_run:
+        logging.info("DRY RUN MODE - no changes will be made")
+        init_cwms_session(cwms, api_root=api_root)
+    else:
+        init_cwms_session(cwms, api_root=api_root, api_key="apikey " + api_key)
 
     logging.info(f"CDA connection: {api_root}")
     logging.info(f"Opening ini file: {ini_filename}")
@@ -21,7 +25,18 @@ def rating_ini_file_import(api_root, api_key, ini_filename):
     ini_file.close()
 
     params = {}
-    keywords = ["cwms_office", "db_base", "db_exsa", "db_corr", "localid"]
+    keywords = [
+        "cwms_office",
+        "cwms_database",
+        "db_base",
+        "db_exsa",
+        "db_corr",
+        "db_tail",
+        "db_river",
+        "localid",
+        "cwmsid",
+        "textfile",
+    ]
     rating_errors = []
     for i in range(len(lines)):
         line = lines[i][:-1].strip()
@@ -33,26 +48,45 @@ def rating_ini_file_import(api_root, api_key, ini_filename):
             continue
         if "=" in line:
             fields = line.split("=")
-            if fields[0] in keywords:
-                if fields[0] == "cwms_office":
-                    fields[1] = fields[1].upper()
-                params[fields[0]] = fields[1]
+            key = fields[0].strip().lower()
+            if key in keywords:
+                if key == "cwms_office":
+                    fields[1] = fields[1].strip().upper()
+                else:
+                    fields[1] = fields[1].strip()
+                params[key] = fields[1]
         else:
             fields = parse_ini_line(line)
             if fields[0] in rating_types.keys():
-                rating_db_type = rating_types[fields[0]]["db_type"]
-                if f"$(${rating_db_type})" in fields:
-                    rating_spec = params[rating_db_type].replace(
-                        "\$localid", params["localid"]
-                    )
+                # Find the database reference in the fields (e.g., $($db_tail), $($db_exsa), etc.)
+                db_key = None
+                for field in fields[1:]:
+                    if field.startswith("$(") and field.endswith(")"):
+                        # Extract the key name from $(...), e.g., "db_exsa" from "$($db_exsa)"
+                        potential_key = field[2:-1].lstrip("$")
+                        if potential_key in params:
+                            db_key = potential_key
+                            break
+
+                if db_key:
+                    rating_spec = params[db_key]
+                    # Handle both localid and cwmsid substitution
+                    if "localid" in params:
+                        rating_spec = rating_spec.replace(
+                            "\$localid", params["localid"]
+                        )
+                    if "cwmsid" in params:
+                        rating_spec = rating_spec.replace("\$cwmsid", params["cwmsid"])
                     logging.info(f"Updating rating specification: {rating_spec}")
                     try:
                         update_rating_spec(
                             rating_spec,
-                            params["cwms_office"],
+                            params.get("cwms_office"),
                             rating_types[fields[0]]["db_disc"],
+                            dry_run=dry_run,
                         )
-                        logging.info("SUCCESS: rating specification changes stored")
+                        if not dry_run:
+                            logging.info("SUCCESS: rating specification changes stored")
                     except:
                         logging.error(
                             "ERROR: rating specificataion could not be update"
@@ -109,7 +143,7 @@ def parse_ini_line(line):
     return fields
 
 
-def update_rating_spec(rating_id, office_id, db_disc):
+def update_rating_spec(rating_id, office_id, db_disc, dry_run=False):
     rating_spec = cwms.get_rating_spec(rating_id=rating_id, office_id=office_id)
     data = rating_spec.df
     data = data.drop("effective-dates", axis=1)
@@ -127,4 +161,8 @@ def update_rating_spec(rating_id, office_id, db_disc):
     disc = data.loc[0, "description"]
     logging.info(f"Saving specification discription as: {disc}")
     data_xml = cwms.rating_spec_df_to_xml(data)
-    cwms.store_rating_spec(data=data_xml, fail_if_exists=False)
+    if dry_run:
+        logging.info("DRY RUN: Would store rating specification with XML:")
+        logging.info(data_xml)
+    else:
+        cwms.store_rating_spec(data=data_xml, fail_if_exists=False)
