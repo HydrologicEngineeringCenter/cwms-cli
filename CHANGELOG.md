@@ -1,5 +1,20 @@
 # Changelog
 
+## [0.6.0](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.5.0...v0.6.0) (2026-04-28)
+
+
+### Features
+
+* 79 standard login should be supported ([#155](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/155)) ([35d0180](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/35d0180180219459065d4d4cf39c975e669182eb))
+* Add shef in file export, update shef command ([#196](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/196)) ([4b3e0bf](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/4b3e0bf5e40490689446722db73a0923f8ad0fa4))
+
+
+### Bug Fixes
+
+* 158 add smart complete feature to the cli ([#178](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/178)) ([e755cc9](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/e755cc932adfbfa334937c4c4cd8020848453009))
+* Fix blob-id path for delete ([#201](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/201)) ([bbfb87d](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/bbfb87d631f4cedb3e21946ea218013d99cb4dd2))
+* Update ini import ([#212](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/212)) ([b02eb8d](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/b02eb8da38a88308e9ebc19d024e42d2a6cb556a))
+
 ## [0.5.0](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.4.0...v0.5.0) (2026-04-09)
 
 
