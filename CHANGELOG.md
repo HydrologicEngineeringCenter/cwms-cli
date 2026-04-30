@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.0](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.6.0...v0.7.0) (2026-04-30)
+
+
+### Features
+
+* add function to save and load locations to csv file ([#213](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/213)) ([2668ab0](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/2668ab0faac239b8f7088b631656002bd9643515))
+
 ## [0.6.0](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.5.0...v0.6.0) (2026-04-28)
 
 
