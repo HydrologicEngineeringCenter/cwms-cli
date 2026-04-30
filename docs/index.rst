@@ -40,6 +40,7 @@ Reference Pages
   the full JSON config structure
 - :doc:`csv2cwms Supported Interval Identifiers <cli/csv2cwms_intervals>` for
   interval names accepted by ``csv2cwms``
+- :doc:`Version Guard Decorator <cli/version_guard>` for adding optional dependency checks to new commands
 
 Contents
 --------
@@ -73,3 +74,4 @@ Contents
    cli/cda_regex
    cli/csv2cwms_complete_config
    cli/csv2cwms_intervals
+   cli/version_guard
