@@ -26,8 +26,8 @@ Task Guides
 - :doc:`csv2cwms <cli/csv2cwms>` to load CSV time series into CDA
 - :doc:`Blob commands <cli/blob>` to upload, download, list, delete, and
   update blobs
-- :doc:`Load Location ids-all <cli/load_location_ids_all>` to copy locations
-  selected from a source CDA catalog into a target CDA
+- :doc:`Load Locations <cli/load_location_ids_all>` to copy locations from a
+  source CDA catalog or location group into a target CDA or CSV file
 - :doc:`Update command <cli/update>` to update the installed package with pip
 - :doc:`Version argument <cli/version>` to print the installed version and see
   upgrade guidance
