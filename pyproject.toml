@@ -24,6 +24,7 @@ requests = "^2.30.0"
 hecdss  = { version = ">=0.1.24", optional = true }  # Via https://github.com/HydrologicEngineeringCenter/hec-python-library/blob/main/hec/shared.py#L9-10
 cwms-python = { version = ">=1.0.7", optional = true}
 colorama = "^0.4.6"
+keyring = "^25.0.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.2.0"
