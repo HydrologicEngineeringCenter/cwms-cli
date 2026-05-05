@@ -19,7 +19,7 @@ from cwmscli.commands.blob import (
 
 
 @pytest.fixture(autouse=True)
-def no_saved_login(monkeypatch):
+def no_saved_login(monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(
         "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: None
     )
@@ -46,7 +46,9 @@ def test_blob_id_for_path_uses_prefix_and_relative_path():
     assert blob_id == "OPS_REPORTS_JAN_FINAL"
 
 
-def test_upload_cmd_continues_on_error_for_directory(tmp_path, monkeypatch):
+def test_upload_cmd_continues_on_error_for_directory(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     file_a = tmp_path / "a.txt"
     file_b = tmp_path / "b.txt"
     file_a.write_text("a")
@@ -114,7 +116,7 @@ def test_find_blob_id_collisions_detects_same_stem_and_path_collisions():
 
 
 def test_upload_cmd_aborts_before_upload_when_generated_ids_collide(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch: pytest.MonkeyPatch
 ):
     (tmp_path / "a.txt").write_text("a")
     (tmp_path / "a.json").write_text("{}")
@@ -175,7 +177,9 @@ def test_default_download_dest_strips_leading_path_separators():
     assert _default_download_dest("\\REPORTS\\REL-BLB") == "REPORTS\\REL-BLB"
 
 
-def test_download_cmd_uses_media_type_to_write_text(tmp_path, monkeypatch):
+def test_download_cmd_uses_media_type_to_write_text(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     dest = tmp_path / "downloaded"
 
     class FakeBlobListing:
@@ -224,7 +228,7 @@ def test_download_cmd_uses_media_type_to_write_text(tmp_path, monkeypatch):
 
 
 def test_download_cmd_default_dest_stays_relative_for_leading_slash_id(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch: pytest.MonkeyPatch
 ):
     class FakeBlobListing:
         df = pd.DataFrame(
@@ -277,7 +281,9 @@ def test_download_cmd_default_dest_stays_relative_for_leading_slash_id(
     assert saved.read_text(encoding="utf-8") == "retrieved text"
 
 
-def test_download_cmd_initializes_session_with_api_key(tmp_path, monkeypatch):
+def test_download_cmd_initializes_session_with_api_key(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     dest = tmp_path / "downloaded"
     calls = []
 
@@ -321,7 +327,9 @@ def test_download_cmd_initializes_session_with_api_key(tmp_path, monkeypatch):
     assert calls == [("init_session", "https://example.test/", "apikey 123")]
 
 
-def test_download_cmd_local_error_skips_scope_hint_and_logs_docs(monkeypatch, caplog):
+def test_download_cmd_local_error_skips_scope_hint_and_logs_docs(
+    monkeypatch: pytest.MonkeyPatch, caplog
+):
     class FakeBlobListing:
         df = pd.DataFrame(
             [{"id": "TEST_TXT", "media-type-id": "text/plain", "description": "x"}]
@@ -374,7 +382,7 @@ def test_download_cmd_local_error_skips_scope_hint_and_logs_docs(monkeypatch, ca
     assert "/cli/blob.html" in caplog.text
 
 
-def test_list_cmd_initializes_session_with_api_key(monkeypatch):
+def test_list_cmd_initializes_session_with_api_key(monkeypatch: pytest.MonkeyPatch):
     calls = []
 
     class FakeCwms:
@@ -411,7 +419,7 @@ def test_list_cmd_initializes_session_with_api_key(monkeypatch):
     ]
 
 
-def test_list_cmd_uses_limit_as_fetch_page_size(monkeypatch):
+def test_list_cmd_uses_limit_as_fetch_page_size(monkeypatch: pytest.MonkeyPatch):
     calls = []
 
     class FakeCwms:
@@ -447,7 +455,7 @@ def test_list_cmd_uses_limit_as_fetch_page_size(monkeypatch):
     assert calls == [("SWT", "TEST_.*", 25)]
 
 
-def test_list_cmd_page_size_overrides_limit_for_fetch(monkeypatch):
+def test_list_cmd_page_size_overrides_limit_for_fetch(monkeypatch: pytest.MonkeyPatch):
     calls = []
 
     class FakeCwms:
@@ -480,7 +488,9 @@ def test_list_cmd_page_size_overrides_limit_for_fetch(monkeypatch):
     assert calls == [("SWT", "TEST_.*", 200)]
 
 
-def test_delete_cmd_uses_query_override_for_special_char_ids(monkeypatch):
+def test_delete_cmd_uses_query_override_for_special_char_ids(
+    monkeypatch: pytest.MonkeyPatch,
+):
     calls = []
 
     class FakeApi:
@@ -526,7 +536,9 @@ def test_delete_cmd_uses_query_override_for_special_char_ids(monkeypatch):
     ]
 
 
-def test_download_cmd_anonymous_skips_api_key(tmp_path, monkeypatch):
+def test_download_cmd_anonymous_skips_api_key(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     dest = tmp_path / "downloaded"
     calls = []
 
@@ -571,7 +583,7 @@ def test_download_cmd_anonymous_skips_api_key(tmp_path, monkeypatch):
     assert calls == [("init_session", "https://example.test/", None)]
 
 
-def test_list_cmd_anonymous_skips_api_key(monkeypatch):
+def test_list_cmd_anonymous_skips_api_key(monkeypatch: pytest.MonkeyPatch):
     calls = []
 
     class FakeCwms:
@@ -609,7 +621,9 @@ def test_list_cmd_anonymous_skips_api_key(monkeypatch):
     ]
 
 
-def test_download_cmd_prefers_saved_token_over_api_key(tmp_path, monkeypatch):
+def test_download_cmd_prefers_saved_token_over_api_key(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     dest = tmp_path / "downloaded"
     calls = []
 

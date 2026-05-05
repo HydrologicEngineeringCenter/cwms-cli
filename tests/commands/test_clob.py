@@ -44,7 +44,9 @@ def test_default_download_dest_strips_leading_path_separators():
     assert _default_download_dest("\\REPORTS\\REL-CLOB") == "REPORTS\\REL-CLOB"
 
 
-def test_download_cmd_uses_default_dest_and_writes_text(tmp_path, monkeypatch):
+def test_download_cmd_uses_default_dest_and_writes_text(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     calls = []
 
     class FakeClobResponse:
@@ -96,7 +98,7 @@ def test_download_cmd_uses_default_dest_and_writes_text(tmp_path, monkeypatch):
 
 
 def test_download_cmd_default_dest_stays_relative_for_leading_slash_id(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch: pytest.MonkeyPatch
 ):
     class FakeCwms:
         @staticmethod
@@ -137,7 +139,9 @@ def test_download_cmd_default_dest_stays_relative_for_leading_slash_id(
     assert saved.read_text(encoding="utf-8") == "retrieved clob text"
 
 
-def test_download_cmd_uses_query_override_for_special_char_ids(tmp_path, monkeypatch):
+def test_download_cmd_uses_query_override_for_special_char_ids(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     calls = []
 
     class FakeCwms:
@@ -204,7 +208,9 @@ def test_download_cmd_uses_query_override_for_special_char_ids(tmp_path, monkeyp
     ]
 
 
-def test_download_cmd_anonymous_skips_api_key(tmp_path, monkeypatch):
+def test_download_cmd_anonymous_skips_api_key(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     calls = []
 
     class FakeClobResponse:
@@ -247,7 +253,9 @@ def test_download_cmd_anonymous_skips_api_key(tmp_path, monkeypatch):
     assert calls == [("init_session", "https://example.test/", None)]
 
 
-def test_download_cmd_local_error_skips_scope_hint(monkeypatch, caplog):
+def test_download_cmd_local_error_skips_scope_hint(
+    monkeypatch: pytest.MonkeyPatch, caplog
+):
     class FakeClobResponse:
         json = {"value": "retrieved clob text"}
 
@@ -299,7 +307,7 @@ def test_download_cmd_local_error_skips_scope_hint(monkeypatch, caplog):
     assert "/cli/blob.html" not in caplog.text
 
 
-def test_list_cmd_initializes_session_with_api_key(monkeypatch):
+def test_list_cmd_initializes_session_with_api_key(monkeypatch: pytest.MonkeyPatch):
     calls = []
 
     class FakeCwms:
@@ -335,7 +343,7 @@ def test_list_cmd_initializes_session_with_api_key(monkeypatch):
     ]
 
 
-def test_list_cmd_uses_limit_as_fetch_page_size(monkeypatch):
+def test_list_cmd_uses_limit_as_fetch_page_size(monkeypatch: pytest.MonkeyPatch):
     calls = []
 
     class FakeCwms:
@@ -372,7 +380,7 @@ def test_list_cmd_uses_limit_as_fetch_page_size(monkeypatch):
     assert calls == [("SWT", "TEST_.*", 25)]
 
 
-def test_list_cmd_page_size_overrides_limit_for_fetch(monkeypatch):
+def test_list_cmd_page_size_overrides_limit_for_fetch(monkeypatch: pytest.MonkeyPatch):
     calls = []
 
     class FakeCwms:
@@ -404,7 +412,7 @@ def test_list_cmd_page_size_overrides_limit_for_fetch(monkeypatch):
     assert calls == [("SWT", "TEST_.*", 200)]
 
 
-def test_list_cmd_anonymous_skips_api_key(monkeypatch):
+def test_list_cmd_anonymous_skips_api_key(monkeypatch: pytest.MonkeyPatch):
     calls = []
 
     class FakeCwms:
@@ -441,7 +449,9 @@ def test_list_cmd_anonymous_skips_api_key(monkeypatch):
     ]
 
 
-def test_delete_cmd_uses_query_override_for_special_char_ids(monkeypatch):
+def test_delete_cmd_uses_query_override_for_special_char_ids(
+    monkeypatch: pytest.MonkeyPatch,
+):
     calls = []
 
     class FakeCwms:
@@ -481,7 +491,9 @@ def test_delete_cmd_uses_query_override_for_special_char_ids(monkeypatch):
     ]
 
 
-def test_update_cmd_uses_query_override_for_special_char_ids(tmp_path, monkeypatch):
+def test_update_cmd_uses_query_override_for_special_char_ids(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     calls = []
     file_path = tmp_path / "updated.txt"
     file_path.write_text("updated clob text", encoding="utf-8")
