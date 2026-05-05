@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.1](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.7.0...v0.7.1) (2026-05-05)
+
+
+### Bug Fixes
+
+* Issue 195 path safety tests ([#203](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/203)) ([595bf22](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/595bf225e3d50cf59f362516793f1957408b5b39))
+
 ## [0.7.0](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.6.0...v0.7.0) (2026-04-30)
 
 
