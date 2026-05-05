@@ -26,8 +26,8 @@ Task Guides
 - :doc:`csv2cwms <cli/csv2cwms>` to load CSV time series into CDA
 - :doc:`Blob commands <cli/blob>` to upload, download, list, delete, and
   update blobs
-- :doc:`Load Location ids-all <cli/load_location_ids_all>` to copy locations
-  selected from a source CDA catalog into a target CDA
+- :doc:`Load Locations <cli/load_location_ids_all>` to copy locations from a
+  source CDA catalog or location group into a target CDA or CSV file
 - :doc:`Update command <cli/update>` to update the installed package with pip
 - :doc:`Version argument <cli/version>` to print the installed version and see
   upgrade guidance
@@ -40,6 +40,7 @@ Reference Pages
   the full JSON config structure
 - :doc:`csv2cwms Supported Interval Identifiers <cli/csv2cwms_intervals>` for
   interval names accepted by ``csv2cwms``
+- :doc:`Version Guard Decorator <cli/version_guard>` for adding optional dependency checks to new commands
 
 Contents
 --------
@@ -49,6 +50,7 @@ Contents
    :caption: Getting Started
 
    cli/setup
+   cli/shell_completion
    cli
    cli/api_arguments
 
@@ -58,6 +60,7 @@ Contents
 
    cli/csv2cwms
    cli/blob
+   cli/login
    cli/clob
    cli/users
    cli/load_location_ids_all
@@ -71,3 +74,4 @@ Contents
    cli/cda_regex
    cli/csv2cwms_complete_config
    cli/csv2cwms_intervals
+   cli/version_guard

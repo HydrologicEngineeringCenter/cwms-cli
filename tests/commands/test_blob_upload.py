@@ -11,10 +11,18 @@ from cwmscli.commands.blob import (
     _find_blob_id_collisions,
     _list_matching_files,
     _save_blob_content,
+    delete_cmd,
     download_cmd,
     list_cmd,
     upload_cmd,
 )
+
+
+@pytest.fixture(autouse=True)
+def no_saved_login(monkeypatch):
+    monkeypatch.setattr(
+        "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: None
+    )
 
 
 def test_list_matching_files_filters_by_regex(tmp_path):
@@ -472,6 +480,52 @@ def test_list_cmd_page_size_overrides_limit_for_fetch(monkeypatch):
     assert calls == [("SWT", "TEST_.*", 200)]
 
 
+def test_delete_cmd_uses_query_override_for_special_char_ids(monkeypatch):
+    calls = []
+
+    class FakeApi:
+        @staticmethod
+        def delete(endpoint, params=None):
+            calls.append(("api.delete", endpoint, params))
+
+    class FakeCwms:
+        api = FakeApi
+
+        @staticmethod
+        def init_session(api_root, api_key):
+            calls.append(("init_session", api_root, api_key))
+            return None
+
+        @staticmethod
+        def delete_blob(office_id, blob_id):
+            calls.append(("delete_blob", office_id, blob_id))
+
+    class FakeHTTPError(Exception):
+        pass
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=FakeHTTPError)
+    )
+
+    delete_cmd(
+        blob_id="path/id",
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="apikey 123",
+        dry_run=False,
+    )
+
+    assert calls == [
+        ("init_session", "https://example.test/", "apikey 123"),
+        (
+            "api.delete",
+            "blobs/ignored",
+            {"office": "SWT", "blob-id": "PATH/ID"},
+        ),
+    ]
+
+
 def test_download_cmd_anonymous_skips_api_key(tmp_path, monkeypatch):
     dest = tmp_path / "downloaded"
     calls = []
@@ -553,3 +607,47 @@ def test_list_cmd_anonymous_skips_api_key(monkeypatch):
         ("init_session", "https://example.test/", None),
         ("get_blobs", "SWT", "TEST_.*", None),
     ]
+
+
+def test_download_cmd_prefers_saved_token_over_api_key(tmp_path, monkeypatch):
+    dest = tmp_path / "downloaded"
+    calls = []
+
+    monkeypatch.setattr(
+        "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: "saved-token"
+    )
+
+    class FakeBlobListing:
+        df = pd.DataFrame(
+            [{"id": "TEST_TXT", "media-type-id": "text/plain", "description": "x"}]
+        )
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key=None, token=None):
+            calls.append(("init_session", api_root, api_key, token))
+            return None
+
+        @staticmethod
+        def get_blob(office_id, blob_id):
+            return "retrieved text"
+
+        @staticmethod
+        def get_blobs(office_id, blob_id_like):
+            return FakeBlobListing()
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=RuntimeError)
+    )
+
+    download_cmd(
+        blob_id="test_txt",
+        dest=str(dest),
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="apikey 123",
+        dry_run=False,
+    )
+
+    assert calls == [("init_session", "https://example.test/", None, "saved-token")]

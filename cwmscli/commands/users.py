@@ -4,7 +4,7 @@ from typing import Optional, Union
 
 import click
 
-from cwmscli.utils import colors, get_api_key
+from cwmscli.utils import colors, init_cwms_session
 
 
 def _format_table(headers: list[str], rows: list[list[str]]) -> str:
@@ -46,8 +46,7 @@ def _handle_api_error(error: Exception, cwms_module) -> None:
 def _init_cwms(api_root: str, api_key: str, api_key_loc: str) -> object:
     import cwms
 
-    resolved_api_key = get_api_key(api_key, api_key_loc)
-    cwms.init_session(api_root=api_root, api_key=resolved_api_key)
+    init_cwms_session(cwms, api_root=api_root, api_key=api_key, api_key_loc=api_key_loc)
     return cwms
 
 

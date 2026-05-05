@@ -6,6 +6,8 @@ from datetime import datetime
 
 import cwms
 
+from cwmscli.utils import init_cwms_session
+
 # Add the current directory to the path
 # This is necessary for the script to be run as a standalone script
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
@@ -70,8 +72,8 @@ def main(*args, **kwargs):
     tz = safe_zoneinfo(kwargs.get("tz"))
     begin_time = _resolve_begin_time(tz, kwargs.get("begin"))
 
-    cwms.api.init_session(
-        api_root=kwargs.get("api_root"), api_key=kwargs.get("api_key")
+    init_cwms_session(
+        cwms, api_root=kwargs.get("api_root"), api_key=kwargs.get("api_key")
     )
     setup_logger(kwargs.get("log"), verbose=kwargs.get("verbose"))
     logger.info(f"Begin time: {begin_time}")
