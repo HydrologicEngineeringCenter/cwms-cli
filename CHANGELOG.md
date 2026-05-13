@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.2](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.7.1...v0.7.2) (2026-05-13)
+
+
+### Bug Fixes
+
+* update shef infile importer to handle nwo infiles ([#216](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/216)) ([7da15b3](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/7da15b34864f76db0eacf8459682c75cf941fab4))
+
 ## [0.7.1](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.7.0...v0.7.1) (2026-05-05)
 
 
