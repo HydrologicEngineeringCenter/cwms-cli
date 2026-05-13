@@ -388,17 +388,23 @@ def _contextual_parse(
     current_send_code = "ZZZ"
     current_shef_loc: Optional[str] = None
     location_map: dict[str, str] = {}  # cwms_location_name -> shef_id
+    version_send_codes: dict[str, str] = {}  # cwms_version -> send_code
 
     for raw in text.splitlines():
         s = raw.strip()
         if not s or s.startswith("#"):
             continue
 
-        # TS * = SEND_CODE
-        m = re.match(r"^TS\s+\*\s*=\s*(\S+)\s*$", s, re.IGNORECASE)
+        # TS * = SEND_CODE  or  TS VersionName = SEND_CODE
+        m = re.match(r"^TS\s+(\S+)\s*=\s*(\S+)\s*$", s, re.IGNORECASE)
         if m:
-            current_send_code = m.group(1)
-            log.debug("Send code → %s", current_send_code)
+            ts_key, ts_val = m.group(1), m.group(2)
+            if ts_key == "*":
+                current_send_code = ts_val
+                log.debug("Send code → %s", ts_val)
+            else:
+                version_send_codes[ts_key] = ts_val
+                log.debug("Version send code: %s → %s", ts_key, ts_val)
             continue
 
         # PE pattern = CODE[;units=UNIT]  (positional — update mappings in place)
@@ -458,6 +464,7 @@ def _contextual_parse(
         cwms_location = cwms_parts[0]
         cwms_parameter = cwms_parts[1]
         cwms_duration = cwms_parts[4]
+        cwms_version = cwms_parts[5]
 
         # Resolve SHEF location
         #   1. Exact match in location_map
@@ -491,10 +498,12 @@ def _contextual_parse(
                     shef_loc = mapped_value
         if not shef_loc:
             shef_loc = current_shef_loc
-
         if not shef_loc:
-            log.warning("No SHEF location found for TSID: %s — skipping.", tsid_str)
-            continue
+            shef_loc = cwms_location
+            log.debug(
+                "No LOCATION mapping for %s — using CWMS location as SHEF ID",
+                cwms_location,
+            )
 
         # Resolve PE code (first matching rule wins)
         pe_code = _resolve_pe_code(cwms_parameter, pe_mappings)
@@ -511,12 +520,13 @@ def _contextual_parse(
         if not units and pe_code in pe_units:
             units = pe_units[pe_code]
 
+        send_code = version_send_codes.get(cwms_version, current_send_code)
         entry = {
             "tsid": tsid_str,
             "shef_loc": shef_loc,
             "pe_code": pe_code,
             "duration": str(duration_value),
-            "send_code": current_send_code,
+            "send_code": send_code,
         }
         if units:
             entry["units"] = units
