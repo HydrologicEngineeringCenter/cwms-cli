@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 from click.testing import CliRunner
 
-from cwmscli.commands.shef.import_infile import import_shef_infile
+from cwmscli.commands.shef.import_infile import import_shef_infile, parse_in_file
 
 
 @pytest.fixture
@@ -200,3 +200,40 @@ def test_import_shef_infile_parses_location_mappings(fake_cwms, caplog):
     # Verify that location mappings were recognized (GENW3, LYNW3, GTTI4)
     # These are the SHEF location IDs from the LOCATION directives
     assert "GENW3" in output or "LYNW3" in output or "GTTI4" in output
+
+
+# ---------------------------------------------------------------------------
+# Regression tests: both .in file styles
+# ---------------------------------------------------------------------------
+
+_NWO_FIXTURE = Path(__file__).parent / "fixtures" / "MRBWM_GAPT.in"
+
+
+def test_nwo_style_version_send_code():
+    """ts VersionName=SEND_CODE maps a specific TSID version to a send code."""
+    if not _NWO_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {_NWO_FIXTURE}")
+    _, entries = parse_in_file(_NWO_FIXTURE)
+    assert len(entries) == 1
+    assert entries[0]["send_code"] == "FX"
+
+
+def test_nwo_style_location_fallback():
+    """Without a LOCATION directive the CWMS location part is used as the SHEF ID."""
+    if not _NWO_FIXTURE.exists():
+        pytest.skip(f"Fixture file not found: {_NWO_FIXTURE}")
+    _, entries = parse_in_file(_NWO_FIXTURE)
+    assert len(entries) == 1
+    assert entries[0]["shef_loc"] == "GAPT"
+    assert entries[0]["tsid"] == "GAPT.Flow-Out.Inst.6Hours.0.Fcst-MRBWM-GRFT_TW"
+
+
+def test_existing_style_location_and_wildcard_send_code():
+    """Existing style: LOCATION directives + TS * = SEND_CODE still works."""
+    fixture_path = Path(__file__).parent / "fixtures" / "exportShef_CWMS_LD8-10.in"
+    if not fixture_path.exists():
+        pytest.skip(f"Fixture file not found: {fixture_path}")
+    _, entries = parse_in_file(fixture_path)
+    assert len(entries) > 0
+    genw3 = [e for e in entries if e["shef_loc"].startswith("GENW3")]
+    assert genw3, "Expected LOCATION mapping GENW3 for LockDam_08*"
