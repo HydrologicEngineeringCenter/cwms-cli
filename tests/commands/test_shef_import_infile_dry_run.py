@@ -228,6 +228,80 @@ def test_nwo_style_location_fallback():
     assert entries[0]["tsid"] == "GAPT.Flow-Out.Inst.6Hours.0.Fcst-MRBWM-GRFT_TW"
 
 
+def test_missing_tsid_falls_back_to_validated_save(tmp_path, monkeypatch, caplog):
+    """If save fails, validate each TSID and retry with only the valid ones."""
+    import logging
+
+    from cwmscli.commands.shef import import_infile as mod
+
+    caplog.set_level(logging.INFO)
+
+    in_file = tmp_path / "missing.in"
+    in_file.write_text(
+        "PE Flow.*=QR\n"
+        "ts Best-MRBWM=RG\n"
+        "loc AAA=AAA\nAAA.Flow.Inst.1Hour.0.Best-MRBWM\n"
+        "loc BBB=BBB\nBBB.Flow.Inst.1Hour.0.Best-MRBWM\n"
+        "loc CCC=CCC\nCCC.Flow.Inst.1Hour.0.Best-MRBWM\n",
+        encoding="utf-8",
+    )
+
+    missing_tsid = "BBB.Flow.Inst.1Hour.0.Best-MRBWM"
+    store_calls: list[dict] = []
+
+    def fake_store(payload, fail_if_exists):
+        store_calls.append(payload)
+        # First call (with all 3 entries) fails; retry (with 2) succeeds.
+        if any(m["timeseries-id"] == missing_tsid for m in payload["members"]):
+            raise RuntimeError(f"DOES_NOT_EXIST: {missing_tsid}")
+
+    def fake_update(data, group_id, office_id, replace_assigned_ts):
+        # Force the inner _save fallback to also fail so store_group enters
+        # the per-TSID validation branch.
+        raise RuntimeError(f"DOES_NOT_EXIST: {missing_tsid}")
+
+    def fake_get_tsid(ts_id, office_id):
+        if ts_id == missing_tsid:
+            raise RuntimeError("404 Not Found")
+        return {"office-id": office_id, "timeseries-id": ts_id}
+
+    def fake_init_session(api_root, api_key=None, token=None):
+        pass
+
+    def fake_df_to_json(
+        data, group_id, group_office_id, category_office_id, category_id
+    ):
+        return {
+            "group-id": group_id,
+            "office-id": group_office_id,
+            "category-id": category_id,
+            "members": data.to_dict("records"),
+        }
+
+    monkeypatch.setattr(mod.cwms, "store_timeseries_groups", fake_store)
+    monkeypatch.setattr(mod.cwms, "update_timeseries_groups", fake_update)
+    monkeypatch.setattr(mod.cwms, "get_timeseries_identifier", fake_get_tsid)
+    monkeypatch.setattr(mod.cwms, "timeseries_group_df_to_json", fake_df_to_json)
+    monkeypatch.setattr(mod.cwms_api, "init_session", fake_init_session)
+
+    import_shef_infile(
+        in_file=str(in_file),
+        group_name="Test Group",
+        office_id="MVP",
+        api_root="https://test.example.com/",
+        api_key="test-key",
+    )
+
+    # First store had 3 entries (failed), retry store had 2 (succeeded).
+    assert len(store_calls) == 2
+    assert len(store_calls[0]["members"]) == 3
+    assert len(store_calls[1]["members"]) == 2
+    retried_ids = {m["timeseries-id"] for m in store_calls[1]["members"]}
+    assert missing_tsid not in retried_ids
+    assert "Skipping missing TSID" in caplog.text
+    assert "Retrying save with 2/3 valid TSIDs" in caplog.text
+
+
 def test_existing_style_location_and_wildcard_send_code():
     """Existing style: LOCATION directives + TS * = SEND_CODE still works."""
     fixture_path = Path(__file__).parent / "fixtures" / "exportShef_CWMS_LD8-10.in"
