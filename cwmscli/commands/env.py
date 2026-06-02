@@ -1,37 +1,29 @@
 import os
+import shutil
+import subprocess
 import sys
-from pathlib import Path
 from typing import Dict, Optional
 
 import click
 
-from cwmscli.utils.credentials import (
-    CredentialStorageError,
-    add_to_environment_index,
-    delete_environment,
-    get_environment,
-    get_environment_from_os_environ,
-    get_environment_index,
-    is_keyring_available,
-    remove_from_environment_index,
-    store_environment,
+from cwmscli.utils.env_store import (
+    EnvStoreError,
+    delete_env,
+    list_envs,
+    load_env,
+    save_env,
 )
 
-
-def get_envs_dir() -> Path:
-    """Get the directory where environment files are stored."""
-    if sys.platform == "win32":
-        base_dir = Path(os.environ.get("APPDATA", "~/.config")).expanduser()
-    else:
-        base_dir = Path("~/.config").expanduser()
-
-    envs_dir = base_dir / "cwms-cli" / "envs"
-    return envs_dir
-
+SENSITIVE_KEYS = {"CDA_API_KEY"}
 
 ENV_DEFAULTS = {
     "cwbi-prod": "https://cwms-data.usace.army.mil/cwms-data",
 }
+
+
+def _stdout_is_tty() -> bool:
+    """Indirection so tests can override TTY detection."""
+    return sys.stdout.isatty()
 
 
 @click.group("env", help="Manage CDA environments and API keys")
@@ -65,10 +57,8 @@ def setup_cmd(
 
     ENV_NAME can be: cwbi-dev, cwbi-test, cwbi-prod, onsite, localhost, or custom
     """
-    # Get existing config from keyring, if any
-    existing_vars = get_environment(env_name) or {}
-
-    env_vars = existing_vars.copy()
+    existing = load_env(env_name) or {}
+    env_vars = dict(existing)
     env_vars["ENVIRONMENT"] = env_name
 
     if api_root:
@@ -90,14 +80,13 @@ def setup_cmd(
         click.echo(f"Available defaults: {', '.join(ENV_DEFAULTS.keys())}", err=True)
         sys.exit(1)
 
-    # Store in keyring
     try:
-        store_environment(env_name, env_vars)
-        add_to_environment_index(env_name)
-        click.echo(f"Environment '{env_name}' configured securely in system keyring")
-    except CredentialStorageError as e:
+        path = save_env(env_name, env_vars)
+    except EnvStoreError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
+
+    click.echo(f"Environment '{env_name}' saved to {path}")
 
 
 @env_group.command("show", help="Show current environment and available configurations")
@@ -109,7 +98,6 @@ def show_cmd():
     """
     current_env = os.environ.get("ENVIRONMENT")
 
-    # List all environments
     if current_env:
         click.echo(
             f"Current environment: {click.style(current_env, fg='green', bold=True)}\n"
@@ -117,41 +105,26 @@ def show_cmd():
     else:
         click.echo("No environment currently active\n")
 
-    environments = get_environment_index()
-
-    if environments:
-        click.echo("Available environments:")
-        for env_name in environments:
-            env_config = get_environment(env_name)
-            if env_config:
-                is_active = env_name == current_env
-                marker = "* " if is_active else "  "
-
-                api_root = env_config.get("CDA_API_ROOT", "not set")
-                office = env_config.get("OFFICE", "not set")
-                has_key = (
-                    "has API key" if env_config.get("CDA_API_KEY") else "no API key"
-                )
-
-                click.echo(f"{marker}{env_name}")
-                click.echo(f"    API Root: {api_root}")
-                click.echo(f"    Office: {office}")
-                click.echo(f"    Status: {has_key}")
-    else:
+    names = list_envs()
+    if not names:
         click.echo("No environments configured")
         click.echo("Run 'cwms-cli env setup <name>' to create one")
+        return
 
-    # Check for old .env files (for migration purposes)
-    envs_dir = get_envs_dir()
-    env_files = []
-    if envs_dir.exists():
-        env_files = sorted(envs_dir.glob("*.env"))
+    click.echo("Available environments:")
+    for env_name in names:
+        env_config = load_env(env_name)
+        if not env_config:
+            continue
+        marker = "* " if env_name == current_env else "  "
+        api_root = env_config.get("CDA_API_ROOT", "not set")
+        office = env_config.get("OFFICE", "not set")
+        has_key = "has API key" if env_config.get("CDA_API_KEY") else "no API key"
 
-    if env_files:
-        click.echo("\nOld .env files found (not migrated to keyring):")
-        for env_file in env_files:
-            env_name = env_file.stem
-            click.echo(f"  - {env_name}")
+        click.echo(f"{marker}{env_name}")
+        click.echo(f"    API Root: {api_root}")
+        click.echo(f"    Office:   {office}")
+        click.echo(f"    Status:   {has_key}")
 
 
 @env_group.command("delete", help="Delete an environment configuration")
@@ -159,54 +132,119 @@ def show_cmd():
 @click.option("--yes", "-y", is_flag=True, help="Skip confirmation prompt")
 def delete_cmd(env_name: str, yes: bool):
     """
-    Delete an environment configuration from keyring.
+    Delete an environment configuration.
 
     Examples:
         cwms-cli env delete myenv
         cwms-cli env delete myenv --yes
     """
-    if not yes:
-        if not click.confirm(f"Delete environment '{env_name}'?"):
-            click.echo("Cancelled")
-            return
+    if not yes and not click.confirm(f"Delete environment '{env_name}'?"):
+        click.echo("Cancelled")
+        return
 
     try:
-        delete_environment(env_name)
-        remove_from_environment_index(env_name)
-        click.echo(f"Environment '{env_name}' deleted")
-    except CredentialStorageError as e:
+        existed = delete_env(env_name)
+    except EnvStoreError as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)
+
+    if existed:
+        click.echo(f"Environment '{env_name}' deleted")
+    else:
+        click.echo(f"Environment '{env_name}' not found", err=True)
+        sys.exit(1)
+
+
+def _detect_shell() -> str:
+    """Best-effort detection of the user's interactive shell."""
+    if sys.platform == "win32":
+        # PowerShell sets PSModulePath; prefer pwsh/powershell when present.
+        if os.environ.get("PSModulePath"):
+            for candidate in ("pwsh", "powershell"):
+                found = shutil.which(candidate)
+                if found:
+                    return found
+        return os.environ.get("COMSPEC", "cmd.exe")
+
+    return os.environ.get("SHELL", "/bin/bash")
+
+
+def _detect_shell_kind() -> str:
+    """Map the detected shell path to a known kind, defaulting to 'bash'."""
+    path = _detect_shell().lower()
+    base = os.path.basename(path)
+    if "pwsh" in base or "powershell" in base:
+        return "powershell"
+    if "cmd" in base:
+        return "cmd"
+    if "fish" in base:
+        return "fish"
+    if "zsh" in base:
+        return "zsh"
+    if "bash" in base or "sh" in base:
+        return "bash"
+    return "bash"
+
+
+def _export_help_lines(env_name: str) -> str:
+    """Per-shell instructions for loading an env into the current shell."""
+    recipes = {
+        "bash": f'eval "$(cwms-cli env export {env_name} --format bash)"',
+        "zsh": f'eval "$(cwms-cli env export {env_name} --format bash)"',
+        "powershell": (
+            f"cwms-cli env export {env_name} --format powershell "
+            "| Out-String | Invoke-Expression"
+        ),
+        "cmd": (
+            f"cwms-cli env export {env_name} --format cmd "
+            f"--output %TEMP%\\cwms-env.cmd && call %TEMP%\\cwms-env.cmd"
+        ),
+        "fish": f"cwms-cli env export {env_name} --format fish | source",
+    }
+    detected = _detect_shell_kind()
+    primary = recipes.get(detected, recipes["bash"])
+
+    lines = [
+        f"To load '{env_name}' into your current shell ({detected} detected):",
+        f"  {primary}",
+        "",
+        "For other shells:",
+    ]
+    label_width = max(len(k) for k in recipes)
+    for kind, recipe in recipes.items():
+        if kind == detected:
+            continue
+        lines.append(f"  {kind.ljust(label_width)}  {recipe}")
+    lines.extend(
+        [
+            "",
+            f"Write a .env file:  cwms-cli env export {env_name} --output .env",
+            "Print to terminal anyway: --show-key",
+        ]
+    )
+    return "\n".join(lines)
 
 
 def spawn_shell_with_env(env_vars: Dict[str, str], env_name: str):
     """Spawn a new shell with environment variables set."""
-    import subprocess
-
-    # Detect user's shell
-    user_shell = os.environ.get("SHELL")
-    if not user_shell:
-        if sys.platform == "win32":
-            user_shell = os.environ.get("COMSPEC", "cmd.exe")
-        else:
-            user_shell = "/bin/bash"
-
-    # Create environment dict
+    user_shell = _detect_shell()
     new_env = os.environ.copy()
     new_env.update(env_vars)
 
-    # Show activation message
     click.echo(
-        f"Activating environment: {click.style(env_name, fg='green', bold=True)}"
+        f"Activating environment: {click.style(env_name, fg='green', bold=True)}",
+        err=True,
     )
-    click.echo(f"Shell: {user_shell}")
-    click.echo("Type 'exit' or press Ctrl+D to return to your original environment\n")
+    click.echo(f"Shell: {user_shell}", err=True)
+    click.echo(
+        "Type 'exit' or press Ctrl+D to return to your original environment\n",
+        err=True,
+    )
 
-    # Spawn shell with modified environment
     try:
         result = subprocess.run([user_shell], env=new_env)
         sys.exit(result.returncode)
-    except Exception as e:
+    except OSError as e:
         click.echo(f"Error spawning shell: {e}", err=True)
         sys.exit(1)
 
@@ -220,49 +258,162 @@ def activate_cmd(env_name: str):
     The environment variables will be set in the new shell and persist
     until you exit the shell. Type 'exit' to return to your original environment.
 
+    Note: This spawns a child shell. Your parent shell, and any IDE
+    already open, will not see these variables. To populate the current
+    shell, use:  eval "$(cwms-cli env export <name> --format bash)"
+
     Examples:
         cwms-cli env activate cwbi-prod
         cwms-cli env activate localhost
     """
-    # Try to get environment from keyring
-    env_vars = get_environment(env_name)
-
+    env_vars = load_env(env_name)
     if not env_vars:
-        # If not in keyring and keyring not available, try OS environment as fallback
-        if not is_keyring_available():
-            fallback_vars = get_environment_from_os_environ()
-            if fallback_vars:
-                click.echo(
-                    f"Using environment variables from current shell (keyring not available)",
-                    err=True,
-                )
-                env_vars = fallback_vars
-                env_vars["ENVIRONMENT"] = env_name
-            else:
-                click.echo(
-                    "Error: Keyring not available and no environment variables found.",
-                    err=True,
-                )
-                click.echo(
-                    "Set CDA_API_ROOT, CDA_API_KEY, and OFFICE in your environment,",
-                    err=True,
-                )
-                click.echo(
-                    "or run 'cwms-cli env setup <name>' on a system with keyring support.",
-                    err=True,
-                )
-                sys.exit(1)
-        else:
-            click.echo(
-                f"Error: Environment '{env_name}' not found in keyring",
-                err=True,
-            )
-            click.echo(
-                "Run 'cwms-cli env show --name <env>' to see if it exists",
-                err=True,
-            )
-            click.echo(f"Or run 'cwms-cli env setup {env_name}' to create it", err=True)
-            sys.exit(1)
+        click.echo(f"Error: Environment '{env_name}' not found", err=True)
+        click.echo(f"Run 'cwms-cli env setup {env_name}' to create it", err=True)
+        sys.exit(1)
 
-    # Always spawn a new shell
     spawn_shell_with_env(env_vars, env_name)
+
+
+def _quote_dotenv(value: str) -> str:
+    escaped = value.replace("\\", "\\\\").replace('"', '\\"')
+    return f'"{escaped}"'
+
+
+def _quote_bash(value: str) -> str:
+    return "'" + value.replace("'", "'\\''") + "'"
+
+
+def _quote_powershell(value: str) -> str:
+    return "'" + value.replace("'", "''") + "'"
+
+
+def _quote_cmd(value: str) -> str:
+    # set "K=V" handles spaces and most special chars. Escape embedded " and %.
+    return value.replace("%", "%%").replace('"', '""')
+
+
+def _quote_fish(value: str) -> str:
+    # Fish single-quoted strings: backslash escapes \ and '.
+    return "'" + value.replace("\\", "\\\\").replace("'", "\\'") + "'"
+
+
+def _format_env(env_vars: Dict[str, str], fmt: str) -> str:
+    items = sorted(env_vars.items())
+    lines = []
+    for key, value in items:
+        value = str(value)
+        if fmt == "dotenv":
+            lines.append(f"{key}={_quote_dotenv(value)}")
+        elif fmt == "bash":
+            lines.append(f"export {key}={_quote_bash(value)}")
+        elif fmt == "powershell":
+            lines.append(f"$env:{key} = {_quote_powershell(value)}")
+        elif fmt == "cmd":
+            # @ prefix suppresses cmd's default echoing of each line when run via `call`.
+            lines.append(f'@set "{key}={_quote_cmd(value)}"')
+        elif fmt == "fish":
+            lines.append(f"set -gx {key} {_quote_fish(value)}")
+        else:
+            raise ValueError(f"Unknown format: {fmt}")
+    return "\n".join(lines)
+
+
+@env_group.command(
+    "export",
+    help="Export an environment's variables to your current shell or a .env file",
+)
+@click.argument("env_name")
+@click.option(
+    "--format",
+    "fmt",
+    type=click.Choice(["dotenv", "bash", "powershell", "cmd", "fish"]),
+    default="dotenv",
+    show_default=True,
+    help="Output syntax. Match this to your shell, or use 'dotenv' for a .env file.",
+)
+@click.option(
+    "--output",
+    "-o",
+    type=click.Path(dir_okay=False, writable=True, resolve_path=True),
+    default=None,
+    help="Write to FILE (mode 0600) instead of standard output.",
+)
+@click.option(
+    "--no-key",
+    is_flag=True,
+    default=False,
+    help="Omit CDA_API_KEY (useful for sharing templates).",
+)
+@click.option(
+    "--show-key",
+    is_flag=True,
+    default=False,
+    help="Allow the API key to be displayed in your terminal.",
+)
+def export_cmd(
+    env_name: str,
+    fmt: str,
+    output: Optional[str],
+    no_key: bool,
+    show_key: bool,
+):
+    """
+    Export a stored environment so your current shell, IDE, or another tool
+    can use its variables.
+
+    A child process cannot directly modify its parent shell, so this command
+    emits values that you (or your shell) load. Three common ways:
+
+    \b
+        # Load into the current bash/zsh shell
+        eval "$(cwms-cli env export cwbi-prod --format bash)"
+
+        # Load into the current PowerShell session
+        cwms-cli env export cwbi-prod --format powershell | Out-String | Invoke-Expression
+
+        # Write a .env file for an IDE, docker-compose, or direnv to read
+        cwms-cli env export cwbi-prod --output .env
+
+    Run with no flags in an interactive terminal to see the right recipe
+    for your detected shell. The API key is never displayed in a terminal
+    unless you pass --show-key.
+    """
+    env_vars = load_env(env_name)
+    if env_vars is None:
+        click.echo(f"Error: Environment '{env_name}' not found", err=True)
+        sys.exit(1)
+
+    if no_key:
+        env_vars = {k: v for k, v in env_vars.items() if k not in SENSITIVE_KEYS}
+
+    has_key = any(k in env_vars for k in SENSITIVE_KEYS)
+    writing_to_file = output is not None
+
+    if has_key and not writing_to_file and _stdout_is_tty() and not show_key:
+        click.echo(_export_help_lines(env_name), err=True)
+        sys.exit(1)
+
+    rendered = _format_env(env_vars, fmt)
+
+    if writing_to_file:
+        path = output
+        flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+        if sys.platform == "win32":
+            fd = os.open(path, flags)
+        else:
+            fd = os.open(path, flags, 0o600)
+        try:
+            with os.fdopen(fd, "w") as f:
+                f.write(rendered + "\n")
+            if sys.platform != "win32":
+                os.chmod(path, 0o600)
+        except OSError as e:
+            click.echo(f"Error writing {path}: {e}", err=True)
+            sys.exit(1)
+        click.echo(f"Wrote {path} (0600)", err=True)
+        if path.endswith(".env") or os.path.basename(path).startswith(".env"):
+            click.echo("Reminder: add this file to .gitignore.", err=True)
+        return
+
+    click.echo(rendered)
