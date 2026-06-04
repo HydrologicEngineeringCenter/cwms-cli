@@ -1,0 +1,14 @@
+# Missouri River Basin Water Management GRFT Forecast
+# Extract CWMS into SHEF for MVS and MBRFC and post to LDM
+#
+debug 1
+type .E
+ti t t+31d
+system eng
+tz z
+DB LOCAL
+
+PE Flow-Out.*=QT
+FORMAT QT(5.1)
+ts Fcst-MRBWM-GRFT_TW=FX
+GAPT.Flow-Out.Inst.6Hours.0.Fcst-MRBWM-GRFT_TW

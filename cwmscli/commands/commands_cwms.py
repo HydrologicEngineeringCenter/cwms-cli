@@ -283,7 +283,15 @@ def shef_import_crit(filename, office, api_root, api_key, api_key_loc, dry_run):
 # ================================================================================
 @shef_group.command(
     "import_infile",
-    help="Import SHEF .in file into timeseries group for SHEF file processing",
+    help=(
+        "Import a legacy exportShef .in configuration file into a CWMS "
+        "timeseries group (default category 'SHEF Export'). Each entry "
+        "becomes a group member whose alias-id encodes the SHEF location, "
+        "PE code, send code, duration, and (optionally) units. "
+        "If the bulk save fails, each TSID is validated via "
+        "get_timeseries_identifier; missing TSIDs are logged and skipped, "
+        "and the save is retried with the surviving entries."
+    ),
 )
 @click.option(
     "-f",
