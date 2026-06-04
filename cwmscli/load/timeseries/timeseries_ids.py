@@ -2,6 +2,7 @@
 from typing import Optional
 
 import click
+import logging
 import pandas as pd
 
 from cwmscli.utils import init_cwms_session
