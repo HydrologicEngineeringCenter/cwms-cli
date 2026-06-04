@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.7.2...v0.7.3) (2026-06-04)
+
+
+### Bug Fixes
+
+* Import logging module in timeseries_ids.py ([#219](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/219)) ([5ce62bb](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/5ce62bb38678440b1bc053cdb8c30e44a794b63b))
+
 ## [0.7.2](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.7.1...v0.7.2) (2026-05-13)
 
 
