@@ -66,6 +66,9 @@ Notes
   ``CDA_BEARER_TOKEN``, ``--api-key``, ``--api-key-loc``, or ``CDA_API_KEY``.
 - In batch jobs, ``CDA_BEARER_TOKEN`` is used before API keys. When
   ``BATCH_JOB_CONTEXT_TOKEN`` is present, it is sent as ``X-CWMS-Job-Context``.
+  These variables are normally populated by the CWMS batch runner after it
+  exchanges the machine client credentials for a short-lived CDA token and
+  retrieves the signed job context for the specific job.
 - For CDA-backed regex filters such as ``--like``, ``--location-kind-like``, and ``--timeseries-id-regex``, see the :doc:`CWMS Data API regular expression guide <cda_regex>`.
 - Commands may still expose additional non-API options such as config files,
   timezone selection, or dry-run behavior.
