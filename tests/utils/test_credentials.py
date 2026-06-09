@@ -40,6 +40,60 @@ def test_init_cwms_session_falls_back_to_api_key(monkeypatch):
 
 def test_init_cwms_session_prefers_saved_token(monkeypatch):
     calls = []
+    session = type("Session", (), {"headers": {}})()
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key=None, token=None):
+            calls.append((api_root, api_key, token))
+            return session
+
+    monkeypatch.setattr(
+        "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: "saved-token"
+    )
+    monkeypatch.setenv("CDA_BEARER_TOKEN", "batch-token")
+    monkeypatch.setenv("BATCH_JOB_CONTEXT_TOKEN", "job-context")
+
+    result = init_cwms_session(
+        FakeCwms,
+        api_root="https://example.test/cwms-data",
+        api_key="apikey 123",
+    )
+
+    assert result == session
+    assert calls == [("https://example.test/cwms-data", None, "saved-token")]
+    assert session.headers == {"X-CWMS-Job-Context": "job-context"}
+
+
+def test_init_cwms_session_prefers_batch_token_over_api_key(monkeypatch):
+    calls = []
+    session = type("Session", (), {"headers": {}})()
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key=None, token=None):
+            calls.append((api_root, api_key, token))
+            return session
+
+    monkeypatch.setattr(
+        "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: None
+    )
+    monkeypatch.setenv("CDA_BEARER_TOKEN", "Bearer batch-token")
+    monkeypatch.setenv("BATCH_JOB_CONTEXT_TOKEN", "job-context")
+
+    result = init_cwms_session(
+        FakeCwms,
+        api_root="https://example.test/cwms-data",
+        api_key="apikey 123",
+    )
+
+    assert result == session
+    assert calls == [("https://example.test/cwms-data", None, "batch-token")]
+    assert session.headers == {"X-CWMS-Job-Context": "job-context"}
+
+
+def test_init_cwms_session_anonymous_ignores_batch_token(monkeypatch):
+    calls = []
 
     class FakeCwms:
         @staticmethod
@@ -50,15 +104,17 @@ def test_init_cwms_session_prefers_saved_token(monkeypatch):
     monkeypatch.setattr(
         "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: "saved-token"
     )
+    monkeypatch.setenv("CDA_BEARER_TOKEN", "batch-token")
 
     result = init_cwms_session(
         FakeCwms,
         api_root="https://example.test/cwms-data",
         api_key="apikey 123",
+        anonymous=True,
     )
 
     assert result == "session"
-    assert calls == [("https://example.test/cwms-data", None, "saved-token")]
+    assert calls == [("https://example.test/cwms-data", None, None)]
 
 
 def test_get_saved_login_token_ignores_expired_token(monkeypatch):

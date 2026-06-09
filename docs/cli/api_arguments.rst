@@ -18,7 +18,10 @@ available on the USGS subcommands and ``shefcritimport``.
 These are the standard API inputs used by commands such as ``csv2cwms``.
 If you have already run ``cwms-cli login``, cwms-cli will prefer the saved
 access token from ``~/.config/cwms-cli/auth/federation-eams.json`` over an API
-key. If no saved token is available, it falls back to the configured API key.
+key. In batch jobs, if no saved login token is available, cwms-cli will use
+``CDA_BEARER_TOKEN`` and add ``BATCH_JOB_CONTEXT_TOKEN`` as
+``X-CWMS-Job-Context`` when that context token is set. If neither token source
+is available, it falls back to the configured API key.
 
 Environment setup
 -----------------
@@ -60,7 +63,9 @@ Notes
   read from that file takes precedence over ``--api-key`` and over a
   ``CDA_API_KEY`` value coming from the environment.
 - When a saved login token exists, cwms-cli uses that token before consulting
-  ``--api-key``, ``--api-key-loc``, or ``CDA_API_KEY``.
+  ``CDA_BEARER_TOKEN``, ``--api-key``, ``--api-key-loc``, or ``CDA_API_KEY``.
+- In batch jobs, ``CDA_BEARER_TOKEN`` is used before API keys. When
+  ``BATCH_JOB_CONTEXT_TOKEN`` is present, it is sent as ``X-CWMS-Job-Context``.
 - For CDA-backed regex filters such as ``--like``, ``--location-kind-like``, and ``--timeseries-id-regex``, see the :doc:`CWMS Data API regular expression guide <cda_regex>`.
 - Commands may still expose additional non-API options such as config files,
   timezone selection, or dry-run behavior.
