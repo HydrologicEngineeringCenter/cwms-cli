@@ -126,7 +126,7 @@ def _existing_user_name(users: list[dict], user_name: str) -> Optional[str]:
 
 
 def _split_roles(
-    raw_roles: Optional[Union[tuple[str, ...], list[str]]] = None
+    raw_roles: Optional[Union[tuple[str, ...], list[str]]] = None,
 ) -> list[str]:
     if not raw_roles:
         return []
