@@ -9,10 +9,23 @@
 {%- set month_overrides = report_overrides.get(month.start.strftime("%Y-%m"), {}) -%}
 {%- set daily_overrides = month_overrides.get("daily", {}) -%}
 {%- set summary_overrides = month_overrides.get("summary", {}) -%}
+{%- macro fixed_line(fields) -%}
+{%- set ns = namespace(text="") -%}
+{%- for field in fields -%}
+{%- set start = field[0] -%}
+{%- set value = field[1]|string -%}
+{%- if ns.text|length < start - 1 -%}
+{%- set ns.text = ns.text + (" " * (start - 1 - (ns.text|length))) -%}
+{%- endif -%}
+{%- set ns.text = ns.text + value -%}
+{%- endfor -%}
+{{- ns.text -}}
+{%- endmacro -%}
 {%- set missing_power_release = options.missing_power_release if options.missing_power_release is defined else none -%}
 {%- set missing_total_release = options.missing_total_release if options.missing_total_release is defined else none -%}
 {%- set missing_evaporation = options.missing_evaporation if options.missing_evaporation is defined else none -%}
 {%- set missing_rainfall_dam = options.missing_rainfall_dam if options.missing_rainfall_dam is defined else none -%}
+{%- set missing_rainfall_basin = options.missing_rainfall_basin if options.missing_rainfall_basin is defined else none -%}
 {%- set lines = [] -%}
 {%- set prior_elev = value_at("elevation", month.start) -%}
 {%- set prior_storage = value_at("storage", month.start) -%}
@@ -47,6 +60,9 @@
 {%- set dam_rain = missing_rainfall_dam -%}
 {%- endif -%}
 {%- set basin_rain = value_at("rainfall_basin", at_time(day_start, 7)) -%}
+{%- if basin_rain is none and missing_rainfall_basin is not none -%}
+{%- set basin_rain = missing_rainfall_basin -%}
+{%- endif -%}
 {%- set inflow_rounded = round_int(inflow) -%}
 {%- set ns.power_total = ns.power_total + (power or 0) -%}
 {%- set ns.release_total = ns.release_total + (release or 0) -%}
@@ -58,9 +74,26 @@
 {%- set ns.elev_total = ns.elev_total + elev_2400 -%}
 {%- set ns.elev_count = ns.elev_count + 1 -%}
 {%- endif -%}
+{%- set elev_0800_display = day_overrides.get("elevation_0800", elev_0800) -%}
+{%- set elev_2400_display = day_overrides.get("elevation_2400", elev_2400) -%}
+{%- set storage_display = day_overrides.get("storage", storage) -%}
 {%- set power_display = day_overrides.get("power_release", power) -%}
 {%- set release_display = day_overrides.get("total_release", release) -%}
-{%- do lines.append("%2d %8s %7s  %7s  %5s    %5s   %5s   %5s   %4s  %4s"|format(day, fmt_float(elev_0800, 2), fmt_float(elev_2400, 2), fmt_int(storage), fmt_int(power_display), fmt_int(release_display), fmt_float(evap, 3), fmt_int(inflow), fmt_float(dam_rain, 2), fmt_float(basin_rain, 2))) -%}
+{%- set evap_display = day_overrides.get("evaporation", evap) -%}
+{%- set inflow_display = day_overrides.get("inflow", inflow) -%}
+{%- set dam_rain_display = day_overrides.get("rainfall_dam", dam_rain) -%}
+{%- set basin_rain_display = day_overrides.get("rainfall_basin", basin_rain) -%}
+{%- set day_text = "%d"|format(day) -%}
+{%- set elev_0800_text = fmt_float(elev_0800_display, 2) -%}
+{%- set elev_2400_text = fmt_float(elev_2400_display, 2) -%}
+{%- set storage_text = fmt_int(storage_display) -%}
+{%- set power_text = fmt_int(power_display) -%}
+{%- set release_text = fmt_int(release_display) -%}
+{%- set evap_text = fmt_float(evap_display, 3) -%}
+{%- set inflow_text = fmt_int(inflow_display) -%}
+{%- set dam_rain_text = fmt_float(dam_rain_display, 2) -%}
+{%- set basin_rain_text = fmt_float(basin_rain_display, 2) -%}
+{%- do lines.append(fixed_line([(3 - (day_text|length), day_text), (12 - (elev_0800_text|length), elev_0800_text), (20 - (elev_2400_text|length), elev_2400_text), (29 - (storage_text|length), storage_text), (36 - (power_text|length), power_text), (45 - (release_text|length), release_text), (53 - (evap_text|length), evap_text), (61 - (inflow_text|length), inflow_text), (68 - (dam_rain_text|length), dam_rain_text), (74 - (basin_rain_text|length), basin_rain_text)])) -%}
 {%- if day % 5 == 0 and day < month.days - 1 -%}
 {%- do lines.append("") -%}
 {%- endif -%}
@@ -75,9 +108,21 @@
 {%- set min_elevation_display = summary_overrides.get("min_elevation", min_elev.value) -%}
 {%- set min_storage_display = summary_overrides.get("min_storage", min_storage) -%}
 {%- set min_day_display = summary_overrides.get("min_day", report_day(min_elev["date-time"], month.start)) -%}
+{%- set total_power_text = "%d"|format(round_int(ns.power_total)) -%}
+{%- set total_release_text = "%d"|format(round_int(ns.release_total)) -%}
+{%- set total_evap_text = "%5.3f"|format(ns.evap_total) -%}
+{%- set total_inflow_text = "%d"|format(ns.inflow_total) -%}
+{%- set total_dam_rain_text = "%4.2f"|format(ns.dam_rain_total) -%}
+{%- set total_basin_rain_text = "%4.2f"|format(ns.basin_rain_total) -%}
+{%- set total_inflow_end = 61 if total_evap_text|length > 5 else 60 -%}
+{%- set total_dam_rain_end = 68 if total_evap_text|length > 5 else 67 -%}
+{%- set total_basin_rain_end = 74 if total_evap_text|length > 5 else 73 -%}
+{%- set average_power_display = summary_overrides.get("average_power", round_int(ns.power_total) / month.days) -%}
+{%- set average_release_display = summary_overrides.get("average_release", round_int(ns.release_total) / month.days) -%}
+{%- set average_inflow_display = summary_overrides.get("average_inflow", ns.inflow_total / month.days) -%}
 {%- do lines.append("") -%}
-{%- do lines.append("TOTAL                        %6d   %6d   %5.3f  %6d   %4.2f  %4.2f"|format(round_int(ns.power_total), round_int(ns.release_total), ns.evap_total, ns.inflow_total, ns.dam_rain_total, ns.basin_rain_total)) -%}
-{%- do lines.append("AVERAGE %8.2f              %5.0f    %5.0f           %5.0f NORMAL= %4.2f"|format(ns.elev_total / ns.elev_count, round_int(ns.power_total) / month.days, round_int(ns.release_total) / month.days, ns.inflow_total / month.days, normal_rainfall)) -%}
+{%- do lines.append(fixed_line([(1, "TOTAL"), (36 - (total_power_text|length), total_power_text), (45 - (total_release_text|length), total_release_text), (48, total_evap_text), (total_inflow_end + 1 - (total_inflow_text|length), total_inflow_text), (total_dam_rain_end + 1 - (total_dam_rain_text|length), total_dam_rain_text), (total_basin_rain_end + 1 - (total_basin_rain_text|length), total_basin_rain_text)])) -%}
+{%- do lines.append("AVERAGE %8.2f              %5.0f    %5.0f           %5.0f NORMAL= %4.2f"|format(ns.elev_total / ns.elev_count, average_power_display, average_release_display, average_inflow_display, normal_rainfall)) -%}
 {%- do lines.append("") -%}
 {%- do lines.append("MAXIMUM %8.2f     %7d   DATE=%2d    TOP CONSERVATION POOL      %4.2f"|format(max_elevation_display, round_int(max_storage_display), max_day_display, top_conservation)) -%}
 {%- do lines.append("MINIMUM %8.2f     %7d   DATE=%2d    TOP FLOOD POOL             %4.2f"|format(min_elevation_display, round_int(min_storage_display), min_day_display, top_flood)) -%}
