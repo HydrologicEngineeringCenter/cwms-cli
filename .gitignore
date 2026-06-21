@@ -191,6 +191,12 @@ cython_debug/
 # Ruff stuff:
 .ruff_cache/
 
+# Rendered report outputs from local `cwms-cli report generate` runs.
+/*.html
+/*.pdf
+/report*.txt
+/wm_daily_*.txt
+
 # PyPI configuration file
 .pypirc
 

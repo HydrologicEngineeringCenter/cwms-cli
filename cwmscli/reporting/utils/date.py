@@ -1,77 +1,81 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
+from typing import Optional
 from zoneinfo import ZoneInfo
 
 
-def parse_when(expr: str, tz: str = "GMT", *, _now: datetime | None = None) -> datetime:
+def parse_when(
+    expr: str, tz: str = "GMT", *, _now: Optional[datetime] = None
+) -> datetime:
     """
-    Parse a flexible datetime expression:
-      - ISO 8601 (e.g. 2025-09-22T08:00[:SS][Z|±HH:MM])
-      - ISO with strftime placeholders (e.g. "%Y-%m-01T08:00:00")
-      - Natural language (e.g. "2 years ago September 1 08:00", "yesterday 08:00")
-    Returns a timezone-aware datetime in the provided tz.
+    Parse a report datetime expression:
+      - ISO 8601, with optional timezone
+      - strftime placeholders, such as "%Y-%m-01T08:00:00"
+      - small relative days, such as "today 0800" or "yesterday 08:00"
     """
-    s = (expr or "").strip()
-    if not s:
+    value = (expr or "").strip()
+    if not value:
         raise ValueError("empty datetime expression")
 
     tzinfo = ZoneInfo(tz)
     now = _now or datetime.now(tzinfo)
 
-    # Expand strftime placeholders first if any
-    if "%" in s:
-        s = now.strftime(s)
+    if "%" in value:
+        value = now.strftime(value)
 
-    # Try strict ISO first
+    relative = _parse_relative_day(value, now)
+    if relative is not None:
+        return relative
+
     try:
-        iso = s.replace("Z", "+00:00") if s.endswith("Z") else s
-        dt = datetime.fromisoformat(iso)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=tzinfo)
-        else:
-            dt = dt.astimezone(tzinfo)
-        return dt
+        iso = value.replace("Z", "+00:00") if value.endswith("Z") else value
+        parsed = datetime.fromisoformat(iso)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=tzinfo)
+        return parsed.astimezone(tzinfo)
     except Exception:
         pass
 
-    # Give options to the parsers
-    #  - dateutil.parser: https://dateutil.readthedocs.io/en/stable/parser.html
-    #  - dateparser: https://dateparser.readthedocs.io
     try:
         from dateutil import parser as du_parser
 
-        dt = du_parser.parse(s)
-        if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=tzinfo)
-        else:
-            dt = dt.astimezone(tzinfo)
-        return dt
-    except Exception:
-        pass
-
-    try:
-        from dateparser import parse as dp_parse
-
-        dt = dp_parse(
-            s,
-            settings={
-                "RETURN_AS_TIMEZONE_AWARE": True,
-                "TIMEZONE": tz,
-                "PREFER_DAY_OF_MONTH": "first",
-            },
-        )
-        if dt:
-            # convert to expected tz if not already
-            if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=tzinfo)
-            else:
-                dt = dt.astimezone(tzinfo)
-            return dt
+        parsed = du_parser.parse(value)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=tzinfo)
+        return parsed.astimezone(tzinfo)
     except Exception:
         pass
 
     raise ValueError(f"Could not parse datetime expression: {expr!r}")
+
+
+def _parse_relative_day(expr: str, now: datetime) -> Optional[datetime]:
+    parts = expr.lower().split()
+    if not parts or parts[0] not in {"today", "yesterday", "tomorrow"}:
+        return None
+
+    day_offsets = {"today": 0, "yesterday": -1, "tomorrow": 1}
+    base_date = (now + timedelta(days=day_offsets[parts[0]])).date()
+    hour = 0
+    minute = 0
+    if len(parts) > 1:
+        time_text = parts[1].replace(":", "")
+        if not time_text.isdigit() or len(time_text) not in {2, 4}:
+            return None
+        if len(time_text) == 2:
+            hour = int(time_text)
+        else:
+            hour = int(time_text[:2])
+            minute = int(time_text[2:])
+    return datetime(
+        base_date.year,
+        base_date.month,
+        base_date.day,
+        hour,
+        minute,
+        tzinfo=now.tzinfo,
+    )
 
 
 def parse_range(begin_expr: str, end_expr: str, tz: str = "America/Chicago"):

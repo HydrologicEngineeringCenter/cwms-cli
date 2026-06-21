@@ -1,6 +1,97 @@
-{% extends "daily/base.html.j2" %}
-{% block title %}{{report.district}} {{report.name}}{% endblock %}
-{% block body %}
-  {% include "themes/_header.html.j2" %}
-  {% include "daily/_table.html.j2" %}
-{% endblock %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>{{ report.district }} {{ report.name }}</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 1rem; color: #111; }
+    .report-header { text-align: center; margin-bottom: 1rem; }
+    .report-header h1 { font-size: 1.35rem; margin: 0.2rem 0; }
+    .report-header p { margin: 0.15rem 0; }
+    .table-wrap { overflow-x: auto; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #444; padding: 0.35rem 0.45rem; white-space: nowrap; text-align: right; }
+    th { background: #e7ece8; }
+    td:first-child, th:first-child { text-align: left; }
+    a { color: #0b5688; }
+    footer { margin-top: 1rem; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+  <header class="report-header">
+    {% if report.title_lines %}
+      {% for line in report.title_lines %}
+        <h1>{{ line }}</h1>
+      {% endfor %}
+    {% else %}
+      <h1>{{ report.district }}</h1>
+      <h1>{{ report.name }}</h1>
+    {% endif %}
+    <p>Generated {{ generated_at.strftime("%Y-%m-%d %H:%M UTC") }}</p>
+  </header>
+
+  <main class="table-wrap">
+    <table>
+      <thead>
+        {% if header and header.rows %}
+          {% set header_row_count = header.rows|length %}
+          {% for row in header.rows %}
+            <tr>
+              {% if loop.first %}
+                {% set project = header.project %}
+                <th rowspan="{{ project.rowspan or header_row_count }}">{{ project.text }}</th>
+              {% endif %}
+              {% for cell in row %}
+                <th{% if cell.colspan and cell.colspan > 1 %} colspan="{{ cell.colspan }}"{% endif %}
+                    {% if cell.rowspan and cell.rowspan > 1 %} rowspan="{{ cell.rowspan }}"{% endif %}>
+                  {{ cell.text }}
+                </th>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        {% else %}
+          <tr>
+            <th>{{ header.project.text if header else "Project" }}</th>
+            {% for column in columns %}
+              <th>{{ column.title }}</th>
+            {% endfor %}
+          </tr>
+        {% endif %}
+      </thead>
+      <tbody>
+        {% for project in rows %}
+          <tr>
+            <td>
+              {% set location = data[project]["location"] %}
+              {% if location.href %}
+                <a href="{{ location.href }}">{{ location["public-name"] or location.name or project }}</a>
+              {% else %}
+                {{ location["public-name"] or location.name or project }}
+              {% endif %}
+            </td>
+            {% for column in columns %}
+              {% set cell = data[project][column.key] %}
+              <td>
+                {% if cell.href %}
+                  <a href="{{ cell.href }}">{{ cell.text }}</a>
+                {% else %}
+                  {{ cell.text }}
+                {% endif %}
+              </td>
+            {% endfor %}
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </main>
+
+  {% if report.footer_lines %}
+    <footer>
+      {% for line in report.footer_lines %}
+        <p>{{ line }}</p>
+      {% endfor %}
+    </footer>
+  {% endif %}
+</body>
+</html>

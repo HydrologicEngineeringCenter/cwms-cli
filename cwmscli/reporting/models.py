@@ -13,10 +13,10 @@ class ProjectSpec:
 class ReportSpec:
     district: str
     name: str
-    logo_left: Optional[str] = None
-    logo_right: Optional[str] = None
     title_lines: List[str] = field(default_factory=list)
     footer_lines: List[str] = field(default_factory=list)
+    logo_left: Optional[str] = None
+    logo_right: Optional[str] = None
 
 
 @dataclass
@@ -45,7 +45,6 @@ class ColumnSpec:
     unit: Optional[str] = None
     precision: Optional[int] = None
     office: Optional[str] = None
-    location_id: Optional[str] = None
     href: Optional[str] = None
     missing: Optional[str] = None
     undefined: Optional[str] = None
@@ -56,14 +55,6 @@ class ColumnSpec:
 
 
 @dataclass
-class EngineSpec:
-    name: str = "text"
-    template: Optional[str] = None
-    template_dir: Optional[str] = None
-    options: Dict[str, Any] = field(default_factory=dict)
-
-
-@dataclass
 class DatasetSpec:
     kind: str = "table"
     options: Dict[str, Any] = field(default_factory=dict)
@@ -71,5 +62,7 @@ class DatasetSpec:
 
 @dataclass
 class TemplateSpec:
-    kind: str = "default"
+    name: str = "WM-Daily"
+    source: str = "builtin"
+    path: Optional[str] = None
     options: Dict[str, Any] = field(default_factory=dict)

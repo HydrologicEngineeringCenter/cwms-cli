@@ -10,5 +10,3 @@
    cli/blob
    cli/update
    cli/version
-   reporting/index
-
