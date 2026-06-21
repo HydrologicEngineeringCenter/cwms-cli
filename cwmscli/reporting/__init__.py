@@ -219,6 +219,12 @@ PANDAS_REQUIREMENT = {
     help="Path to a report package directory. Uses the package entrypoint config.",
 )
 @click.option(
+    "--report",
+    "package_report",
+    default=None,
+    help="Named report entrypoint inside --package.",
+)
+@click.option(
     "--template",
     "template_name",
     default=None,
@@ -259,6 +265,7 @@ PANDAS_REQUIREMENT = {
 def generate_report_cli(
     config_path,
     package_path,
+    package_report,
     template_name,
     template_file,
     output_format,
@@ -267,7 +274,7 @@ def generate_report_cli(
 ):
     package = None
     if package_path:
-        package = load_report_package(package_path)
+        package = load_report_package(package_path, report_name=package_report)
         if config_path:
             raise click.UsageError("Use either --config or --package, not both.")
         config_path = str(package.config_path)

@@ -245,6 +245,76 @@ def test_report_generate_accepts_report_package(runner, workspace_tmpdir, fake_c
     assert "KEYS Lake" in html
 
 
+def test_report_generate_accepts_named_report_package_entry(
+    runner, workspace_tmpdir, fake_cwms
+):
+    package_path = workspace_tmpdir / "named-package"
+    package_path.mkdir()
+    config_path = package_path / "daily.yaml"
+    out_path = workspace_tmpdir / "report.html"
+    _write_minimal_config(config_path)
+    (package_path / "report-package.yaml").write_text(
+        "\n".join(
+            [
+                "schema: https://wmes.usace.army.mil/report-package/v1",
+                "name: example-reports",
+                "version: 0.1.0",
+                "reports:",
+                "  daily:",
+                "    config: daily.yaml",
+                "    outputs:",
+                "      - html",
+                "  monthly:",
+                "    config: missing.yaml",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli,
+        [
+            "report",
+            "generate",
+            "--package",
+            str(package_path),
+            "--report",
+            "daily",
+            "--out",
+            str(out_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Daily Reservoir Report" in out_path.read_text(encoding="utf-8")
+
+
+def test_report_package_with_multiple_reports_requires_selection(
+    runner, workspace_tmpdir, fake_cwms
+):
+    package_path = workspace_tmpdir / "multi-package"
+    package_path.mkdir()
+    _write_minimal_config(package_path / "daily.yaml")
+    (package_path / "report-package.yaml").write_text(
+        "\n".join(
+            [
+                "name: example-reports",
+                "reports:",
+                "  daily:",
+                "    config: daily.yaml",
+                "  monthly:",
+                "    config: daily.yaml",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(cli, ["report", "generate", "--package", str(package_path)])
+
+    assert result.exit_code != 0
+    assert "Select one with --report" in result.output
+
+
 def test_report_example_wm_daily_swt_generates_with_fake_cwms(
     runner, workspace_tmpdir, fake_cwms
 ):
