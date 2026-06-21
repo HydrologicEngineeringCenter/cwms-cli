@@ -45,6 +45,7 @@ def build_report_table(
     project_by_id = {project.location_id: project for project in config.projects}
     tz = config.time_zone or "UTC"
     timeout_seconds = float(config.dataset.options.get("request_timeout_seconds") or 12)
+    retry_count = int(config.dataset.options.get("request_retry_count") or 3)
 
     column_defs: List[Dict[str, Any]] = []
     for column in config.columns:
@@ -142,6 +143,7 @@ def build_report_table(
             begin_eff,
             end_eff,
             timeout_seconds,
+            retry_count=retry_count,
         )
         latest_group_values = latest_timeseries_values(df)
         if latest_group_values:

@@ -271,7 +271,9 @@ def test_report_example_swt_monthly_lake_generates_text(
 ):
     import pandas as pd
 
-    def fake_fetch_timeseries_df(tsids, office, unit, begin, end, timeout_seconds):
+    def fake_fetch_timeseries_df(
+        tsids, office, unit, begin, end, timeout_seconds, retry_count=3
+    ):
         rows = []
         value_by_unit = {
             "ft": 725.25,
@@ -339,7 +341,9 @@ def test_report_generate_accepts_dataset_overrides(
 
     captured = []
 
-    def fake_fetch_timeseries_df(tsids, office, unit, begin, end, timeout_seconds):
+    def fake_fetch_timeseries_df(
+        tsids, office, unit, begin, end, timeout_seconds, retry_count=3
+    ):
         captured.append((tsids[0], begin, end))
         rows = []
         value_by_unit = {

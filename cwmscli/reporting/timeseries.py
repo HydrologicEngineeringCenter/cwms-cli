@@ -127,6 +127,7 @@ def build_time_series_context(
     tz_name = config.time_zone or "UTC"
     project = str(options.get("project") or "").strip()
     timeout_seconds = float(options.get("request_timeout_seconds") or 12)
+    retry_count = int(options.get("request_retry_count") or 3)
     month = _month_context(_parse_month(str(options.get("month") or ""), tz_name))
     if month and begin is None:
         begin = month["start"] - timedelta(days=1)
@@ -161,6 +162,7 @@ def build_time_series_context(
             series_begin,
             series_end,
             timeout_seconds,
+            retry_count=retry_count,
         )
         requested_series[key] = {
             **spec,
