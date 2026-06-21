@@ -211,6 +211,40 @@ def test_report_generate_html_uses_builtin_template(
     assert "722.34" in html
 
 
+def test_report_generate_accepts_report_package(runner, workspace_tmpdir, fake_cwms):
+    package_path = workspace_tmpdir / "daily-package"
+    package_path.mkdir()
+    config_path = package_path / "report.yaml"
+    out_path = workspace_tmpdir / "report.html"
+    _write_minimal_config(config_path)
+    (package_path / "report-package.yaml").write_text(
+        "\n".join(
+            [
+                "schema: https://wmes.usace.army.mil/report-package/v1",
+                "name: example-daily",
+                "version: 0.1.0",
+                "entrypoint:",
+                "  config: report.yaml",
+                "outputs:",
+                "  - html",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli,
+        ["report", "generate", "--package", str(package_path), "--out", str(out_path)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "[report] Loading package: example-daily" in result.output
+    assert "[report] Loading config:" in result.output
+    html = out_path.read_text(encoding="utf-8")
+    assert "Daily Reservoir Report" in html
+    assert "KEYS Lake" in html
+
+
 def test_report_example_wm_daily_swt_generates_with_fake_cwms(
     runner, workspace_tmpdir, fake_cwms
 ):

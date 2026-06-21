@@ -8,6 +8,7 @@ import click
 
 from cwmscli.reporting.config import Config
 from cwmscli.reporting.context import build_report_table
+from cwmscli.reporting.packages import load_report_package
 from cwmscli.reporting.renderers import (
     list_builtin_templates,
     render_html,
@@ -207,9 +208,15 @@ PANDAS_REQUIREMENT = {
     "--config",
     "-c",
     "config_path",
-    required=True,
+    required=False,
     type=click.Path(exists=True, dir_okay=False),
     help="Path to report YAML definition.",
+)
+@click.option(
+    "--package",
+    "package_path",
+    type=click.Path(exists=True, file_okay=False),
+    help="Path to a report package directory. Uses the package entrypoint config.",
 )
 @click.option(
     "--template",
@@ -251,12 +258,30 @@ PANDAS_REQUIREMENT = {
 @requires(*REPORTING_REQUIREMENTS)
 def generate_report_cli(
     config_path,
+    package_path,
     template_name,
     template_file,
     output_format,
     out_path,
     config_overrides,
 ):
+    package = None
+    if package_path:
+        package = load_report_package(package_path)
+        if config_path:
+            raise click.UsageError("Use either --config or --package, not both.")
+        config_path = str(package.config_path)
+        package_template = package.template_path(output_format)
+        if package_template and not template_file:
+            template_file = str(package_template)
+        _status(
+            "[report]",
+            f"Loading package: {package.manifest.get('name') or package.root.name}",
+            "cyan",
+        )
+    if not config_path:
+        raise click.UsageError("Either --config or --package is required.")
+
     config, context = _build_context(config_path, config_overrides)
     if output_format.lower() == "text":
         configured_template_file = (
