@@ -360,7 +360,7 @@ def test_report_generate_accepts_dataset_overrides(
     assert result.exit_code == 0, result.output
     assert "Applying 3 config override(s)" in result.output
     text = out_path.read_text(encoding="utf-8", newline="")
-    assert text.startswith("                              El Dorado Lake")
+    assert text.splitlines()[0].strip() == "El Dorado Lake"
     assert "APRIL 2026" in text
     assert captured[0][0] == "ELDR.Elev.Inst.1Hour.0.Ccp-Rev"
     assert captured[0][1].isoformat() == "2026-03-31T00:00:00-05:00"

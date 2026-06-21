@@ -192,23 +192,29 @@ def build_time_series_context(
         out = _frame_between(df, range_begin, range_end, tz_name)
         return float(out["value"].dropna().sum()) if not out.empty else 0
 
-    def min_row(key: str, range_begin=None, range_end=None):
+    def min_row(key: str, range_begin=None, range_end=None, tie: str = "first"):
         df = frames.get(key)
         if df is None:
             return None
         out = _frame_between(df, range_begin, range_end, tz_name)
         if out.empty:
             return None
-        return out.loc[out["value"].idxmin()].to_dict()
+        value = out["value"].min()
+        matches = out[out["value"].eq(value)]
+        row = matches.iloc[-1] if tie == "last" else matches.iloc[0]
+        return row.to_dict()
 
-    def max_row(key: str, range_begin=None, range_end=None):
+    def max_row(key: str, range_begin=None, range_end=None, tie: str = "first"):
         df = frames.get(key)
         if df is None:
             return None
         out = _frame_between(df, range_begin, range_end, tz_name)
         if out.empty:
             return None
-        return out.loc[out["value"].idxmax()].to_dict()
+        value = out["value"].max()
+        matches = out[out["value"].eq(value)]
+        row = matches.iloc[-1] if tie == "last" else matches.iloc[0]
+        return row.to_dict()
 
     def add_days(value, days: int):
         return _coerce_when(value, tz_name) + timedelta(days=int(days))
@@ -238,6 +244,10 @@ def build_time_series_context(
         "fmt_float": _format_float,
         "fmt_int": _format_int,
         "center": lambda text, width=74: str(text).center(int(width)).rstrip(),
+        "center_legacy_title": lambda text: str(text)
+        .center(72 if len(str(text)) % 2 == 0 else 73)
+        .rstrip(),
+        "is_even": lambda value: int(value) % 2 == 0,
         "round_int": lambda value: (
             int(round(float(value))) if value is not None else None
         ),

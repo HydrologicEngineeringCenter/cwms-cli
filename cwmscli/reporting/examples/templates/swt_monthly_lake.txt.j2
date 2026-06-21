@@ -2,14 +2,17 @@
 {%- set top_conservation = options.top_conservation_display or 0 -%}
 {%- set top_flood = options.top_flood_display or 0 -%}
 {%- set inflow_factor = options.cfs_day_to_acre_feet or 1.9835 -%}
+{%- set datum_label = options.datum_label or "FT-NGVD" -%}
+{%- set normal_rainfall = options.normal_rainfall or 4.19 -%}
+{%- set missing_power_release = options.missing_power_release if options.missing_power_release is defined else none -%}
 {%- set lines = [] -%}
 {%- set prior_elev = value_at("elevation", month.start) -%}
 {%- set prior_storage = value_at("storage", month.start) -%}
 {%- do lines.append("    POOL ELEVATIONS  STORAGE     RELEASES       EVAP  INFLOW   RAINFALL") -%}
-{%- do lines.append("DAY      FT-NGVD     2400HR         DSF        INCHES   ADJ     INCHES") -%}
+{%- do lines.append("DAY      %-7s     2400HR         DSF        INCHES   ADJ     INCHES"|format(datum_label)) -%}
 {%- do lines.append("      0800    2400    AC-FT   POWER    TOTAL  8A TO 8A  DSF    7A TO  7A") -%}
 {%- do lines.append("                                                               DAM   BSN") -%}
-{%- do lines.append("PRIOR MONTH  %6s   %6s"|format(fmt_float(prior_elev, 2), fmt_int(prior_storage))) -%}
+{%- do lines.append("PRIOR MONTH%8s   %6s"|format(fmt_float(prior_elev, 2), fmt_int(prior_storage))) -%}
 {%- set ns = namespace(power_total=0.0, release_total=0.0, evap_total=0.0, inflow_total=0, dam_rain_total=0.0, basin_rain_total=0.0, elev_total=0.0, elev_count=0) -%}
 {%- for day in range(1, month.days + 1) -%}
 {%- set day_start = add_days(month.start, day - 1) -%}
@@ -18,6 +21,9 @@
 {%- set elev_2400 = value_at("elevation", day_end) -%}
 {%- set storage = value_at("storage", day_end) -%}
 {%- set power = value_at("power_release", day_end) -%}
+{%- if power is none and missing_power_release is not none -%}
+{%- set power = missing_power_release -%}
+{%- endif -%}
 {%- set release = value_at("total_release", day_end) -%}
 {%- set evap = value_at("evaporation", at_time(day_start, 7)) -%}
 {%- set inflow = value_at("inflow", day_end) -%}
@@ -34,25 +40,29 @@
 {%- set ns.elev_total = ns.elev_total + elev_2400 -%}
 {%- set ns.elev_count = ns.elev_count + 1 -%}
 {%- endif -%}
-{%- do lines.append("%2d   %6s  %6s   %6s  %5s    %5s   %5s   %5s   %4s  %4s"|format(day, fmt_float(elev_0800, 2), fmt_float(elev_2400, 2), fmt_int(storage), fmt_int(power), fmt_int(release), fmt_float(evap, 3), fmt_int(inflow), fmt_float(dam_rain, 2), fmt_float(basin_rain, 2))) -%}
+{%- do lines.append("%2d %8s %7s   %6s  %5s    %5s   %5s   %5s   %4s  %4s"|format(day, fmt_float(elev_0800, 2), fmt_float(elev_2400, 2), fmt_int(storage), fmt_int(power), fmt_int(release), fmt_float(evap, 3), fmt_int(inflow), fmt_float(dam_rain, 2), fmt_float(basin_rain, 2))) -%}
 {%- if day % 5 == 0 and day <= month.days - 6 -%}
 {%- do lines.append("") -%}
 {%- endif -%}
 {%- endfor -%}
-{%- set max_elev = max_row("elevation", month.start, month.end) -%}
-{%- set min_elev = min_row("elevation", month.start, month.end) -%}
+{%- set max_elev = max_row("elevation", month.start, month.end, "last") -%}
+{%- set min_elev = min_row("elevation", month.start, month.end, "last") -%}
 {%- set max_storage = value_at("storage", max_elev["date-time"]) -%}
 {%- set min_storage = value_at("storage", min_elev["date-time"]) -%}
 {%- do lines.append("") -%}
 {%- do lines.append("TOTAL                         %5d    %5d   %5.3f   %5d   %4.2f  %4.2f"|format(round_int(ns.power_total), round_int(ns.release_total), ns.evap_total, ns.inflow_total, ns.dam_rain_total, ns.basin_rain_total)) -%}
-{%- do lines.append("AVERAGE   %6.2f               %4.0f     %4.0f            %4.0f NORMAL= 4.19"|format(ns.elev_total / ns.elev_count, round_int(ns.power_total) / month.days, round_int(ns.release_total) / month.days, ns.inflow_total / month.days)) -%}
+{%- do lines.append("AVERAGE %8.2f               %4.0f     %4.0f            %4.0f NORMAL= %4.2f"|format(ns.elev_total / ns.elev_count, round_int(ns.power_total) / month.days, round_int(ns.release_total) / month.days, ns.inflow_total / month.days, normal_rainfall)) -%}
 {%- do lines.append("") -%}
-{%- do lines.append("MAXIMUM   %6.2f      %6d   DATE=%2d    TOP CONSERVATION POOL      %4.2f"|format(max_elev.value, round_int(max_storage), local_day(max_elev["date-time"]), top_conservation)) -%}
-{%- do lines.append("MINIMUM   %6.2f      %6d   DATE=%2d    TOP FLOOD POOL             %4.2f"|format(min_elev.value, round_int(min_storage), local_day(min_elev["date-time"]), top_flood)) -%}
+{%- do lines.append("MAXIMUM %8.2f      %6d   DATE=%2d    TOP CONSERVATION POOL      %4.2f"|format(max_elev.value, round_int(max_storage), local_day(max_elev["date-time"]), top_conservation)) -%}
+{%- do lines.append("MINIMUM %8.2f      %6d   DATE=%2d    TOP FLOOD POOL             %4.2f"|format(min_elev.value, round_int(min_storage), local_day(min_elev["date-time"]), top_flood)) -%}
 {%- do lines.append("") -%}
+{%- if options.water_supply_withdrawn_acft is defined -%}
+{%- do lines.append("WATER SUPPLY:  WITHDRAWN %6d AC-FT"|format(round_int(options.water_supply_withdrawn_acft))) -%}
+{%- do lines.append("") -%}
+{%- endif -%}
 {%- do lines.append("                      INFLOW VOLUME=   %6d AC-FT"|format(round_int(ns.inflow_total * inflow_factor))) -%}
 {%- do lines.append("") -%}
 {%- do lines.append("") -%}
 {%- do lines.append("") -%}
 {%- do lines.append("REPORT IS SUBJECT TO CHANGE AND/OR REVISION") -%}
-{{- center(title) ~ "\r\n" ~ center("MONTHLY LAKE REPORT") ~ "\r\n" ~ center(month.label) ~ "\n\n\r\n\r\n" ~ (lines | join("\r\n")) -}}
+{{- center_legacy_title(title) ~ "\r\n" ~ center("MONTHLY LAKE REPORT") ~ "\r\n" ~ center(month.label) ~ "\n\n\r\n\r\n" ~ (lines | join("\r\n")) -}}
