@@ -11,7 +11,10 @@ dataset:
   top_flood_display: 0.00
   cfs_day_to_acre_feet: 1.9835
   datum_label: FT-NGVD
+  missing_evaporation: 0
   missing_power_release: 0
+  missing_rainfall_dam: 0
+  missing_total_release: 0
   normal_rainfall: 4.19
   series:
     elevation:

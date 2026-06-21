@@ -5,6 +5,9 @@
 {%- set datum_label = options.datum_label or "FT-NGVD" -%}
 {%- set normal_rainfall = options.normal_rainfall or 4.19 -%}
 {%- set missing_power_release = options.missing_power_release if options.missing_power_release is defined else none -%}
+{%- set missing_total_release = options.missing_total_release if options.missing_total_release is defined else none -%}
+{%- set missing_evaporation = options.missing_evaporation if options.missing_evaporation is defined else none -%}
+{%- set missing_rainfall_dam = options.missing_rainfall_dam if options.missing_rainfall_dam is defined else none -%}
 {%- set lines = [] -%}
 {%- set prior_elev = value_at("elevation", month.start) -%}
 {%- set prior_storage = value_at("storage", month.start) -%}
@@ -25,9 +28,18 @@
 {%- set power = missing_power_release -%}
 {%- endif -%}
 {%- set release = value_at("total_release", day_end) -%}
+{%- if release is none and missing_total_release is not none -%}
+{%- set release = missing_total_release -%}
+{%- endif -%}
 {%- set evap = value_at("evaporation", at_time(day_start, 7)) -%}
+{%- if evap is none and missing_evaporation is not none -%}
+{%- set evap = missing_evaporation -%}
+{%- endif -%}
 {%- set inflow = value_at("inflow", day_end) -%}
 {%- set dam_rain = value_at("rainfall_dam", at_time(day_start, 7)) -%}
+{%- if dam_rain is none and missing_rainfall_dam is not none -%}
+{%- set dam_rain = missing_rainfall_dam -%}
+{%- endif -%}
 {%- set basin_rain = value_at("rainfall_basin", at_time(day_start, 7)) -%}
 {%- set inflow_rounded = round_int(inflow) -%}
 {%- set ns.power_total = ns.power_total + (power or 0) -%}
@@ -53,8 +65,8 @@
 {%- do lines.append("TOTAL                        %6d   %6d   %5.3f  %6d   %4.2f  %4.2f"|format(round_int(ns.power_total), round_int(ns.release_total), ns.evap_total, ns.inflow_total, ns.dam_rain_total, ns.basin_rain_total)) -%}
 {%- do lines.append("AVERAGE %8.2f               %4.0f     %4.0f            %4.0f NORMAL= %4.2f"|format(ns.elev_total / ns.elev_count, round_int(ns.power_total) / month.days, round_int(ns.release_total) / month.days, ns.inflow_total / month.days, normal_rainfall)) -%}
 {%- do lines.append("") -%}
-{%- do lines.append("MAXIMUM %8.2f      %6d   DATE=%2d    TOP CONSERVATION POOL      %4.2f"|format(max_elev.value, round_int(max_storage), local_day(max_elev["date-time"]), top_conservation)) -%}
-{%- do lines.append("MINIMUM %8.2f      %6d   DATE=%2d    TOP FLOOD POOL             %4.2f"|format(min_elev.value, round_int(min_storage), local_day(min_elev["date-time"]), top_flood)) -%}
+{%- do lines.append("MAXIMUM %8.2f     %7d   DATE=%2d    TOP CONSERVATION POOL      %4.2f"|format(max_elev.value, round_int(max_storage), report_day(max_elev["date-time"], month.start), top_conservation)) -%}
+{%- do lines.append("MINIMUM %8.2f     %7d   DATE=%2d    TOP FLOOD POOL             %4.2f"|format(min_elev.value, round_int(min_storage), report_day(min_elev["date-time"], month.start), top_flood)) -%}
 {%- do lines.append("") -%}
 {%- if options.water_supply_withdrawn_acft is defined -%}
 {%- do lines.append("WATER SUPPLY:  WITHDRAWN %6d AC-FT"|format(round_int(options.water_supply_withdrawn_acft))) -%}

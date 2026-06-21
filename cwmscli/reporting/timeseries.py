@@ -241,6 +241,13 @@ def build_time_series_context(
     def local_day(value) -> int:
         return _coerce_when(value, tz_name).astimezone(ZoneInfo(tz_name)).day
 
+    def report_day(value, report_month_start) -> int:
+        local = _coerce_when(value, tz_name).astimezone(ZoneInfo(tz_name))
+        month_start = _coerce_when(report_month_start, tz_name)
+        if local.month != month_start.month or local.year != month_start.year:
+            local = local - timedelta(days=1)
+        return local.day
+
     return {
         "kind": "time_series",
         "project": project,
@@ -257,6 +264,7 @@ def build_time_series_context(
         "add_days": add_days,
         "at_time": at_time,
         "local_day": local_day,
+        "report_day": report_day,
         "fmt_float": _format_float,
         "fmt_int": _format_int,
         "center": lambda text, width=74: str(text).center(int(width)).rstrip(),
