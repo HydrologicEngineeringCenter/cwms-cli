@@ -405,6 +405,92 @@ def test_report_generate_accepts_dataset_overrides(
     assert captured[0][2].isoformat() == "2026-05-02T00:00:00-05:00"
 
 
+def test_report_template_supports_series_arithmetic_helpers(
+    runner, workspace_tmpdir, fake_cwms, monkeypatch
+):
+    import pandas as pd
+
+    def fake_fetch_timeseries_df(
+        tsids, office, unit, begin, end, timeout_seconds, retry_count=3
+    ):
+        return pd.DataFrame(
+            [
+                {
+                    "ts_id": tsids[0],
+                    "date-time": begin,
+                    "value": 10.0,
+                    "units": unit,
+                },
+                {
+                    "ts_id": tsids[0],
+                    "date-time": begin + timedelta(days=1),
+                    "value": 20.0,
+                    "units": unit,
+                },
+                {
+                    "ts_id": tsids[0],
+                    "date-time": begin + timedelta(days=2),
+                    "value": None,
+                    "units": unit,
+                },
+            ]
+        )
+
+    monkeypatch.setattr(
+        "cwmscli.reporting.timeseries.fetch_timeseries_df",
+        fake_fetch_timeseries_df,
+    )
+    config_path = workspace_tmpdir / "arithmetic.yaml"
+    template_path = workspace_tmpdir / "arithmetic.txt.j2"
+    out_path = workspace_tmpdir / "arithmetic.txt"
+    config_path.write_text(
+        "\n".join(
+            [
+                "office: SWT",
+                "cda_api_root: https://cwms-data.usace.army.mil/cwms-data",
+                "time_zone: UTC",
+                "dataset:",
+                "  kind: time_series",
+                "  project: KEYS",
+                '  month: "2026-05"',
+                "  series:",
+                "    inflow:",
+                '      tsid: "{project}.Flow-Res In.Ave.~1Day.1Day.Regi-Rev-Adjusted"',
+                "      unit: cfs",
+                "report:",
+                '  district: "Tulsa District"',
+                '  name: "Arithmetic Report"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    template_path.write_text(
+        "sum={{ round_int(sum_values('inflow')) }} "
+        "count={{ count_values('inflow') }} "
+        "avg={{ round_int(avg_values('inflow')) }}",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli,
+        [
+            "report",
+            "generate",
+            "--config",
+            str(config_path),
+            "--format",
+            "text",
+            "--template-file",
+            str(template_path),
+            "--out",
+            str(out_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert out_path.read_text(encoding="utf-8") == "sum=30 count=2 avg=15"
+
+
 def test_report_generate_text_output(runner, workspace_tmpdir, fake_cwms):
     config_path = workspace_tmpdir / "report.yaml"
     out_path = workspace_tmpdir / "report.txt"

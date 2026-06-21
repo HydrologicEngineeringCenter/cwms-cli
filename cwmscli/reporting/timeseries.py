@@ -196,6 +196,21 @@ def build_time_series_context(
         out = _frame_between(df, range_begin, range_end, tz_name)
         return float(out["value"].dropna().sum()) if not out.empty else 0
 
+    def count_values(key: str, range_begin=None, range_end=None):
+        df = frames.get(key)
+        if df is None:
+            return 0
+        out = _frame_between(df, range_begin, range_end, tz_name)
+        return int(out["value"].dropna().count()) if not out.empty else 0
+
+    def avg_values(key: str, range_begin=None, range_end=None):
+        df = frames.get(key)
+        if df is None:
+            return None
+        out = _frame_between(df, range_begin, range_end, tz_name)
+        values = out["value"].dropna() if not out.empty else []
+        return float(values.mean()) if len(values) else None
+
     def min_row(
         key: str, range_begin=None, range_end=None, tie: str = "first", precision=None
     ):
@@ -261,6 +276,8 @@ def build_time_series_context(
         "values_between": values_between,
         "value_at": value_at,
         "sum_values": sum_values,
+        "count_values": count_values,
+        "avg_values": avg_values,
         "min_row": min_row,
         "max_row": max_row,
         "add_days": add_days,
