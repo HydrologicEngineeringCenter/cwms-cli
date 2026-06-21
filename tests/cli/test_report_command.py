@@ -201,7 +201,7 @@ def test_report_generate_html_uses_builtin_template(
 
     assert result.exit_code == 0, result.output
     assert "[report] Loading config:" in result.output
-    assert "[report] Fetching CWMS data and shaping table context" in result.output
+    assert "[report] Fetching CWMS data and shaping report context" in result.output
     assert "[report] Rendering HTML with built-in template WM-Daily" in result.output
     assert "[report] Wrote" in result.output
     html = out_path.read_text(encoding="utf-8")
@@ -230,6 +230,71 @@ def test_report_example_wm_daily_swt_generates_with_fake_cwms(
     assert "OOLO Lake" in html
     assert "SKIA Lake" in html
     assert "https://www.swt-wc.usace.army.mil/KEYS.lakepage.html" in html
+
+
+def test_report_example_swt_monthly_lake_generates_text(
+    runner, workspace_tmpdir, fake_cwms, monkeypatch
+):
+    import pandas as pd
+
+    def fake_fetch_timeseries_df(tsids, office, unit, begin, end, timeout_seconds):
+        rows = []
+        value_by_unit = {
+            "ft": 725.25,
+            "ac-ft": 450000,
+            "cfs": 1000,
+            "in": 0.10,
+        }
+        for tsid in tsids:
+            current = begin
+            while current <= end:
+                rows.append(
+                    {
+                        "ts_id": tsid,
+                        "date-time": current,
+                        "value": value_by_unit[unit],
+                        "units": unit,
+                    }
+                )
+                current += timedelta(hours=1)
+        return pd.DataFrame(rows)
+
+    monkeypatch.setattr(
+        "cwmscli.reporting.monthly.fetch_timeseries_df",
+        fake_fetch_timeseries_df,
+    )
+    config_path = EXAMPLES_DIR / "swt_monthly_lake_keys_may_2026.yaml"
+    out_path = workspace_tmpdir / "KEYSMAY26.txt"
+
+    result = runner.invoke(
+        cli,
+        [
+            "report",
+            "generate",
+            "--config",
+            str(config_path),
+            "--format",
+            "text",
+            "--template",
+            "SWT-Monthly-Lake",
+            "--out",
+            str(out_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (
+        "[report] Rendering text with built-in template SWT-Monthly-Lake"
+        in result.output
+    )
+    text = out_path.read_text(encoding="utf-8", newline="")
+    assert text.startswith(
+        "                              Keystone Lake\r\n"
+        "                           MONTHLY LAKE REPORT\r\n"
+        "                                 MAY 2026\n\n\r\n\r\n"
+    )
+    assert "TOTAL                         31000    31000" in text
+    assert text.endswith("REPORT IS SUBJECT TO CHANGE AND/OR REVISION")
 
 
 def test_report_generate_text_output(runner, workspace_tmpdir, fake_cwms):
@@ -331,12 +396,14 @@ def test_report_templates_list_uses_pandas_table_and_source_column(runner):
     header_index = next(
         index for index, line in enumerate(lines) if line.startswith("Template")
     )
-    header, row = lines[header_index : header_index + 2]
-    assert header.index("Source") == row.index("builtin")
-    assert header.index("Description") == row.index(
+    header = lines[header_index]
+    wm_daily = next(line for line in lines if line.startswith("WM-Daily"))
+    assert header.index("Source") == wm_daily.index("builtin")
+    assert header.index("Description") == wm_daily.index(
         "Generic Water Management daily table report"
     )
     assert "WM-Daily" in result.output
+    assert "SWT-Monthly-Lake" in result.output
     assert "builtin" in result.output
     assert "Generic Water Management daily table report" in result.output
 

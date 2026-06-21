@@ -1,0 +1,17 @@
+office: SWT
+cda_api_root: https://cwms-data.usace.army.mil/cwms-data
+time_zone: America/Chicago
+dataset:
+  kind: monthly_lake
+  project: KEYS
+  title: Keystone Lake
+  month: "2026-05"
+  request_timeout_seconds: 12
+  top_conservation_display: 0.00
+  top_flood_display: 0.00
+template:
+  name: SWT-Monthly-Lake
+  source: builtin
+report:
+  district: "Tulsa District"
+  name: "Monthly Lake Report"

@@ -8,7 +8,13 @@ import click
 
 from cwmscli.reporting.config import Config
 from cwmscli.reporting.context import build_report_table
-from cwmscli.reporting.renderers import list_builtin_templates, render_html, render_text
+from cwmscli.reporting.monthly import build_monthly_lake_report
+from cwmscli.reporting.renderers import (
+    list_builtin_templates,
+    render_html,
+    render_template_text,
+    render_text,
+)
 from cwmscli.reporting.utils.date import parse_when
 from cwmscli.utils import colors
 from cwmscli.utils.deps import requires
@@ -62,12 +68,15 @@ def _build_context(config_path: str):
         "cyan",
     )
     cwms.init_session(api_root=config.cda_api_root)
-    _status("[report]", "Fetching CWMS data and shaping table context", "cyan")
-    table_context = build_report_table(config, begin_dt, end_dt)
+    _status("[report]", "Fetching CWMS data and shaping report context", "cyan")
+    if config.dataset.kind == "monthly_lake":
+        table_context = build_monthly_lake_report(config)
+    else:
+        table_context = build_report_table(config, begin_dt, end_dt)
     _status(
         "[report]",
-        f"Fetched table rows={len(table_context['rows'])}; "
-        f"columns={len(table_context['columns'])}",
+        f"Fetched report rows={len(table_context.get('rows', []))}; "
+        f"columns={len(table_context.get('columns', []))}",
         "green",
     )
     base_date = table_context.get(
@@ -165,8 +174,22 @@ def generate_report_cli(
 ):
     config, context = _build_context(config_path)
     if output_format.lower() == "text":
-        _status("[report]", "Rendering text output", "cyan")
-        result = render_text(config, context)
+        if template_file or (template_name or config.template.name) != "WM-Daily":
+            template_detail = (
+                f"user template file {template_file}"
+                if template_file
+                else f"built-in template {template_name or config.template.name}"
+            )
+            _status("[report]", f"Rendering text with {template_detail}", "cyan")
+            result = render_template_text(
+                config,
+                context,
+                template_name=template_name,
+                template_file=template_file,
+            )
+        else:
+            _status("[report]", "Rendering text output", "cyan")
+            result = render_text(config, context)
     else:
         template_detail = (
             f"user template file {template_file}"
@@ -182,7 +205,7 @@ def generate_report_cli(
         )
 
     final_out_path = _default_output_path(out_path, result.default_extension)
-    with open(final_out_path, "w", encoding="utf-8") as file:
+    with open(final_out_path, "w", encoding="utf-8", newline="") as file:
         file.write(result.content)
     _status("[report]", f"Wrote {final_out_path}", "green")
 

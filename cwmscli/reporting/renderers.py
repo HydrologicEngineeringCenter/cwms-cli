@@ -22,6 +22,10 @@ BUILTIN_TEMPLATES = {
         "description": "Generic Water Management daily table report.",
         "template": "report.html.j2",
     },
+    "SWT-Monthly-Lake": {
+        "description": "Tulsa District fixed-width monthly lake report.",
+        "template": "monthly_lake.txt.j2",
+    },
 }
 
 
@@ -94,6 +98,39 @@ def render_html(
         return env.get_template(selected_template).render(**context)
 
     return RenderResult(content=_render(), default_extension=".html")
+
+
+def render_template_text(
+    config: Config,
+    context: Dict[str, Any],
+    *,
+    template_name: Optional[str] = None,
+    template_file: Optional[str] = None,
+) -> RenderResult:
+    @requires(
+        {
+            "module": "jinja2",
+            "package": "Jinja2",
+            "version": "3.1.0",
+            "desc": "text report templating",
+        }
+    )
+    def _render() -> str:
+        import jinja2
+
+        template_dir, selected_template = _resolve_template(
+            config,
+            template_name=template_name,
+            template_file=template_file,
+        )
+        env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(template_dir),
+            autoescape=False,
+            keep_trailing_newline=True,
+        )
+        return env.get_template(selected_template).render(**context)
+
+    return RenderResult(content=_render(), default_extension=".txt")
 
 
 def _align_text(value: str, width: int, align: str) -> str:

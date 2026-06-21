@@ -196,6 +196,8 @@ cython_debug/
 /*.pdf
 /report*.txt
 /wm_daily_*.txt
+/KEYS*.txt
+/.tmp_reports/
 
 # PyPI configuration file
 .pypirc
