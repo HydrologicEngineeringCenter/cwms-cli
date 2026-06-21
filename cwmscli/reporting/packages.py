@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import click
 
@@ -74,9 +74,53 @@ class ReportPackage:
             return path
         return self.root / path
 
+    def report_summaries(self) -> List[Dict[str, Any]]:
+        reports = self.manifest.get("reports") or {}
+        default_report = self.manifest.get("default_report") or self.manifest.get(
+            "default-report"
+        )
+        if reports:
+            rows = []
+            for name, entrypoint in sorted(reports.items()):
+                entrypoint = entrypoint or {}
+                if not isinstance(entrypoint, dict):
+                    entrypoint = {}
+                rows.append(
+                    {
+                        "Report": name,
+                        "Default": "yes" if name == default_report else "",
+                        "Config": entrypoint.get("config") or "report.yaml",
+                        "Outputs": ", ".join(entrypoint.get("outputs") or []),
+                        "Description": entrypoint.get("description") or "",
+                    }
+                )
+            return rows
+
+        entrypoint = self.manifest.get("entrypoint") or {}
+        if not isinstance(entrypoint, dict):
+            entrypoint = {}
+        return [
+            {
+                "Report": default_report or self.manifest.get("name") or "default",
+                "Default": "yes",
+                "Config": entrypoint.get("config")
+                or self.manifest.get("config")
+                or "report.yaml",
+                "Outputs": ", ".join(
+                    entrypoint.get("outputs") or self.manifest.get("outputs") or []
+                ),
+                "Description": entrypoint.get("description")
+                or self.manifest.get("description")
+                or "",
+            }
+        ]
+
 
 def load_report_package(
-    package_path: str, *, report_name: Optional[str] = None
+    package_path: str,
+    *,
+    report_name: Optional[str] = None,
+    validate_config: bool = True,
 ) -> ReportPackage:
     import yaml
 
@@ -103,7 +147,7 @@ def load_report_package(
         manifest=manifest,
         selected_report=report_name,
     )
-    if not package.config_path.exists():
+    if validate_config and not package.config_path.exists():
         raise click.BadParameter(
             f"Report package config does not exist: {package.config_path}"
         )

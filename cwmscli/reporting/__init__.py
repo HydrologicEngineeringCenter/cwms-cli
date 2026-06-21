@@ -195,6 +195,13 @@ REPORTING_REQUIREMENTS = (
     },
 )
 
+YAML_REQUIREMENT = {
+    "module": "yaml",
+    "package": "PyYAML",
+    "version": "6.0",
+    "desc": "YAML parsing for report package metadata",
+}
+
 PANDAS_REQUIREMENT = {
     "module": "pandas",
     "package": "pandas",
@@ -338,6 +345,45 @@ def generate_report_cli(
     with open(final_out_path, "w", encoding="utf-8", newline="") as file:
         file.write(result.content)
     _status("[report]", f"Wrote {final_out_path}", "green")
+
+
+@report_cli.group(name="packages")
+def packages_cli() -> None:
+    """Inspect report packages."""
+
+
+@packages_cli.command(name="inspect")
+@click.option(
+    "--package",
+    "package_path",
+    required=True,
+    type=click.Path(exists=True, file_okay=False),
+    help="Path to a report package directory.",
+)
+@requires(YAML_REQUIREMENT, PANDAS_REQUIREMENT)
+def inspect_package_cli(package_path) -> None:
+    import pandas as pd
+
+    package = load_report_package(package_path, validate_config=False)
+    name = package.manifest.get("name") or package.root.name
+    version = package.manifest.get("version") or ""
+    default_report = package.manifest.get("default_report") or package.manifest.get(
+        "default-report"
+    )
+
+    click.echo(f"Package: {colors.c(name, 'green', bright=True)}")
+    if version:
+        click.echo(f"Version: {version}")
+    if default_report:
+        click.echo(f"Default report: {default_report}")
+    click.echo(f"Manifest: {package.manifest_path}")
+    click.echo()
+
+    table = pd.DataFrame(
+        package.report_summaries(),
+        columns=["Report", "Default", "Config", "Outputs", "Description"],
+    )
+    click.echo(_format_templates_table(table))
 
 
 @report_cli.group(name="templates")

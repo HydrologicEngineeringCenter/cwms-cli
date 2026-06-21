@@ -315,6 +315,77 @@ def test_report_package_with_multiple_reports_requires_selection(
     assert "Select one with --report" in result.output
 
 
+def test_report_packages_inspect_lists_named_reports(runner, workspace_tmpdir):
+    package_path = workspace_tmpdir / "named-package"
+    package_path.mkdir()
+    (package_path / "report-package.yaml").write_text(
+        "\n".join(
+            [
+                "name: example-reports",
+                "version: 0.1.0",
+                "default_report: monthly",
+                "reports:",
+                "  daily:",
+                "    config: daily.yaml",
+                "    outputs:",
+                "      - html",
+                "    description: Daily web report",
+                "  monthly:",
+                "    config: monthly.yaml",
+                "    outputs:",
+                "      - text",
+                "      - web",
+                "    description: Monthly lake report",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli, ["report", "packages", "inspect", "--package", str(package_path)]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Package: example-reports" in result.output
+    assert "Version: 0.1.0" in result.output
+    assert "Default report: monthly" in result.output
+    assert "daily" in result.output
+    assert "daily.yaml" in result.output
+    assert "html" in result.output
+    assert "monthly" in result.output
+    assert "monthly.yaml" in result.output
+    assert "text, web" in result.output
+
+
+def test_report_packages_inspect_lists_single_entrypoint(runner, workspace_tmpdir):
+    package_path = workspace_tmpdir / "single-package"
+    package_path.mkdir()
+    (package_path / "report-package.yaml").write_text(
+        "\n".join(
+            [
+                "name: example-daily",
+                "description: Example package",
+                "entrypoint:",
+                "  config: report.yaml",
+                "outputs:",
+                "  - html",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli, ["report", "packages", "inspect", "--package", str(package_path)]
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Package: example-daily" in result.output
+    assert "example-daily" in result.output
+    assert "report.yaml" in result.output
+    assert "html" in result.output
+    assert "Example package" in result.output
+
+
 def test_report_example_wm_daily_swt_generates_with_fake_cwms(
     runner, workspace_tmpdir, fake_cwms
 ):
