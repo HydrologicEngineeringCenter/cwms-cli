@@ -8,13 +8,13 @@ import click
 
 from cwmscli.reporting.config import Config
 from cwmscli.reporting.context import build_report_table
-from cwmscli.reporting.monthly import build_monthly_lake_report
 from cwmscli.reporting.renderers import (
     list_builtin_templates,
     render_html,
     render_template_text,
     render_text,
 )
+from cwmscli.reporting.timeseries import build_time_series_context
 from cwmscli.reporting.utils.date import parse_when
 from cwmscli.utils import colors
 from cwmscli.utils.deps import requires
@@ -69,8 +69,8 @@ def _build_context(config_path: str):
     )
     cwms.init_session(api_root=config.cda_api_root)
     _status("[report]", "Fetching CWMS data and shaping report context", "cyan")
-    if config.dataset.kind == "monthly_lake":
-        table_context = build_monthly_lake_report(config)
+    if config.dataset.kind == "time_series":
+        table_context = build_time_series_context(config, begin_dt, end_dt)
     else:
         table_context = build_report_table(config, begin_dt, end_dt)
     _status(
@@ -174,7 +174,19 @@ def generate_report_cli(
 ):
     config, context = _build_context(config_path)
     if output_format.lower() == "text":
-        if template_file or (template_name or config.template.name) != "WM-Daily":
+        configured_template_file = (
+            config.template.path
+            or config.template.source
+            not in {
+                "builtin",
+                "package",
+            }
+        )
+        if (
+            template_file
+            or configured_template_file
+            or (template_name or config.template.name) != "WM-Daily"
+        ):
             template_detail = (
                 f"user template file {template_file}"
                 if template_file

@@ -260,10 +260,11 @@ def test_report_example_swt_monthly_lake_generates_text(
         return pd.DataFrame(rows)
 
     monkeypatch.setattr(
-        "cwmscli.reporting.monthly.fetch_timeseries_df",
+        "cwmscli.reporting.timeseries.fetch_timeseries_df",
         fake_fetch_timeseries_df,
     )
     config_path = EXAMPLES_DIR / "swt_monthly_lake_keys_may_2026.yaml"
+    template_path = EXAMPLES_DIR / "templates" / "swt_monthly_lake.txt.j2"
     out_path = workspace_tmpdir / "KEYSMAY26.txt"
 
     result = runner.invoke(
@@ -275,8 +276,8 @@ def test_report_example_swt_monthly_lake_generates_text(
             str(config_path),
             "--format",
             "text",
-            "--template",
-            "SWT-Monthly-Lake",
+            "--template-file",
+            str(template_path),
             "--out",
             str(out_path),
         ],
@@ -284,7 +285,7 @@ def test_report_example_swt_monthly_lake_generates_text(
 
     assert result.exit_code == 0, result.output
     assert (
-        "[report] Rendering text with built-in template SWT-Monthly-Lake"
+        f"[report] Rendering text with user template file {template_path}"
         in result.output
     )
     text = out_path.read_text(encoding="utf-8", newline="")
@@ -403,7 +404,6 @@ def test_report_templates_list_uses_pandas_table_and_source_column(runner):
         "Generic Water Management daily table report"
     )
     assert "WM-Daily" in result.output
-    assert "SWT-Monthly-Lake" in result.output
     assert "builtin" in result.output
     assert "Generic Water Management daily table report" in result.output
 

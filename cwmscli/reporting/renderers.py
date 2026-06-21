@@ -22,10 +22,6 @@ BUILTIN_TEMPLATES = {
         "description": "Generic Water Management daily table report.",
         "template": "report.html.j2",
     },
-    "SWT-Monthly-Lake": {
-        "description": "Tulsa District fixed-width monthly lake report.",
-        "template": "monthly_lake.txt.j2",
-    },
 }
 
 
@@ -127,6 +123,7 @@ def render_template_text(
             loader=jinja2.FileSystemLoader(template_dir),
             autoescape=False,
             keep_trailing_newline=True,
+            extensions=["jinja2.ext.do"],
         )
         return env.get_template(selected_template).render(**context)
 
