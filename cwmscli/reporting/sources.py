@@ -1,4 +1,5 @@
 import logging
+import time
 import traceback
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
@@ -24,6 +25,7 @@ def fetch_timeseries_df(
     begin: Optional[datetime],
     end: Optional[datetime],
     timeout_seconds: float,
+    retry_count: int = 3,
 ):
     import pandas as pd
 
@@ -51,6 +53,7 @@ def fetch_timeseries_df(
                 begin=begin,
                 end=end,
                 timeout_seconds=timeout_seconds,
+                retry_count=retry_count,
             ): tsid
             for tsid in tsids
         }
@@ -92,6 +95,7 @@ def fetch_timeseries_values(
     begin: Optional[datetime],
     end: Optional[datetime],
     timeout_seconds: float,
+    retry_count: int = 3,
 ) -> List[Dict[str, Any]]:
     from cwms import api
 
@@ -110,22 +114,37 @@ def fetch_timeseries_values(
     headers["Accept"] = "application/json;version=2"
     LOGGER.debug("[report] direct CDA request url=%s params=%s", url, params)
 
+    response = None
     with requests.Session() as session:
-        response = session.get(
-            url,
-            params=params,
-            headers=headers,
-            timeout=timeout_seconds,
-        )
-
-    if response.status_code == 404:
-        LOGGER.warning(
-            "%s %s",
-            colors.c("[report]", "yellow", bright=True),
-            f"CDA returned 404 for {tsid}; report will show missing value.",
-        )
+        for attempt in range(1, max(1, retry_count) + 1):
+            try:
+                response = session.get(
+                    url,
+                    params=params,
+                    headers=headers,
+                    timeout=timeout_seconds,
+                )
+                if response.status_code == 404:
+                    LOGGER.warning(
+                        "%s %s",
+                        colors.c("[report]", "yellow", bright=True),
+                        f"CDA returned 404 for {tsid}; report will show missing value.",
+                    )
+                    return []
+                response.raise_for_status()
+                break
+            except requests.RequestException:
+                if attempt >= max(1, retry_count):
+                    raise
+                _status(
+                    "[report]",
+                    f"Retrying {tsid} after request failure "
+                    f"({attempt}/{max(1, retry_count)})",
+                    "yellow",
+                )
+                time.sleep(0.5 * attempt)
+    if response is None:
         return []
-    response.raise_for_status()
     payload = response.json()
     rows = []
     for value in payload.get("values", []):
