@@ -108,12 +108,18 @@
 {%- set min_elevation_display = summary_overrides.get("min_elevation", min_elev.value) -%}
 {%- set min_storage_display = summary_overrides.get("min_storage", min_storage) -%}
 {%- set min_day_display = summary_overrides.get("min_day", report_day(min_elev["date-time"], month.start)) -%}
-{%- set total_power_text = "%d"|format(round_int(ns.power_total)) -%}
-{%- set total_release_text = "%d"|format(round_int(ns.release_total)) -%}
-{%- set total_evap_text = "%5.3f"|format(ns.evap_total) -%}
-{%- set total_inflow_text = "%d"|format(ns.inflow_total) -%}
-{%- set total_dam_rain_text = "%4.2f"|format(ns.dam_rain_total) -%}
-{%- set total_basin_rain_text = "%4.2f"|format(ns.basin_rain_total) -%}
+{%- set total_power_display = summary_overrides.get("total_power", round_int(ns.power_total)) -%}
+{%- set total_release_display = summary_overrides.get("total_release", round_int(ns.release_total)) -%}
+{%- set total_evaporation_display = summary_overrides.get("total_evaporation", ns.evap_total) -%}
+{%- set total_inflow_display = summary_overrides.get("total_inflow", ns.inflow_total) -%}
+{%- set total_dam_rain_display = summary_overrides.get("total_rainfall_dam", ns.dam_rain_total) -%}
+{%- set total_basin_rain_display = summary_overrides.get("total_rainfall_basin", ns.basin_rain_total) -%}
+{%- set total_power_text = "%d"|format(round_int(total_power_display)) -%}
+{%- set total_release_text = "%d"|format(round_int(total_release_display)) -%}
+{%- set total_evap_text = "%5.3f"|format(total_evaporation_display) -%}
+{%- set total_inflow_text = "%d"|format(round_int(total_inflow_display)) -%}
+{%- set total_dam_rain_text = "%4.2f"|format(total_dam_rain_display) -%}
+{%- set total_basin_rain_text = "%4.2f"|format(total_basin_rain_display) -%}
 {%- set total_inflow_end = 61 if total_evap_text|length > 5 else 60 -%}
 {%- set total_dam_rain_end = 68 if total_evap_text|length > 5 else 67 -%}
 {%- set total_basin_rain_end = 74 if total_evap_text|length > 5 else 73 -%}
@@ -131,7 +137,7 @@
 {%- do lines.append("WATER SUPPLY:  WITHDRAWN %6d AC-FT"|format(round_int(options.water_supply_withdrawn_acft))) -%}
 {%- do lines.append("") -%}
 {%- endif -%}
-{%- do lines.append("                      INFLOW VOLUME=  %7d AC-FT"|format(round_int(ns.inflow_total * inflow_factor))) -%}
+{%- do lines.append("                      INFLOW VOLUME=  %7d AC-FT"|format(round_int(summary_overrides.get("inflow_volume_acft", ns.inflow_total * inflow_factor)))) -%}
 {%- do lines.append("") -%}
 {%- do lines.append("") -%}
 {%- do lines.append("") -%}
