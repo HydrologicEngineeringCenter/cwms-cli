@@ -34,9 +34,84 @@ def _status(label: str, detail: str, color: str = "cyan") -> None:
     LOGGER.info("%s %s", colors.c(label, color, bright=True), detail)
 
 
-def _build_context(config_path: str):
+def _coerce_override_value(value: str):
+    import yaml
+
+    try:
+        return yaml.safe_load(value)
+    except Exception:
+        return value
+
+
+def _apply_config_override(config: Config, override: str) -> None:
+    if "=" not in override:
+        raise click.BadParameter(
+            f"Invalid --set value {override!r}; expected dotted.path=value."
+        )
+    path, value = override.split("=", 1)
+    parts = [part.strip() for part in path.split(".") if part.strip()]
+    if not parts:
+        raise click.BadParameter(
+            f"Invalid --set value {override!r}; expected dotted.path=value."
+        )
+    parsed = _coerce_override_value(value)
+
+    if parts[0] == "dataset":
+        if len(parts) == 2 and parts[1] == "kind":
+            config.dataset.kind = str(parsed)
+            return
+        target = config.dataset.options
+        option_parts = parts[1:]
+    elif parts[0] == "template":
+        if len(parts) != 2 or parts[1] not in {"name", "source", "path"}:
+            raise click.BadParameter(
+                "Template overrides support template.name, template.source, "
+                "or template.path."
+            )
+        setattr(config.template, parts[1], None if parsed is None else str(parsed))
+        return
+    elif len(parts) == 1 and parts[0] in {
+        "office",
+        "cda_api_root",
+        "begin",
+        "end",
+        "default_unit",
+        "missing",
+        "undefined",
+        "time_zone",
+    }:
+        setattr(config, parts[0], None if parsed is None else str(parsed))
+        return
+    else:
+        raise click.BadParameter(
+            "Overrides currently support top-level report settings, dataset.*, "
+            "and template.name/source/path."
+        )
+
+    for part in option_parts[:-1]:
+        next_target = target.get(part)
+        if not isinstance(next_target, dict):
+            next_target = {}
+            target[part] = next_target
+        target = next_target
+    if not option_parts:
+        raise click.BadParameter("Dataset override must include an option name.")
+    target[option_parts[-1]] = parsed
+
+
+def _apply_config_overrides(config: Config, overrides) -> None:
+    for override in overrides or ():
+        _apply_config_override(config, override)
+
+
+def _build_context(config_path: str, config_overrides=()):
     _status("[report]", f"Loading config: {config_path}", "cyan")
     config = Config.from_yaml(config_path)
+    if config_overrides:
+        _status(
+            "[report]", f"Applying {len(config_overrides)} config override(s)", "cyan"
+        )
+        _apply_config_overrides(config, config_overrides)
     _status(
         "[report]",
         f"Office={config.office}; dataset={config.dataset.kind}; "
@@ -164,6 +239,15 @@ PANDAS_REQUIREMENT = {
     type=click.Path(dir_okay=False),
     help="Output path. Defaults to report.html or report.txt.",
 )
+@click.option(
+    "--set",
+    "config_overrides",
+    multiple=True,
+    help=(
+        "Override a YAML value, e.g. --set dataset.project=KEYS "
+        "--set dataset.month=2026-05. May be repeated."
+    ),
+)
 @requires(*REPORTING_REQUIREMENTS)
 def generate_report_cli(
     config_path,
@@ -171,8 +255,9 @@ def generate_report_cli(
     template_file,
     output_format,
     out_path,
+    config_overrides,
 ):
-    config, context = _build_context(config_path)
+    config, context = _build_context(config_path, config_overrides)
     if output_format.lower() == "text":
         configured_template_file = (
             config.template.path
@@ -187,9 +272,10 @@ def generate_report_cli(
             or configured_template_file
             or (template_name or config.template.name) != "WM-Daily"
         ):
+            selected_template_file = template_file or config.template.path
             template_detail = (
-                f"user template file {template_file}"
-                if template_file
+                f"user template file {selected_template_file}"
+                if selected_template_file
                 else f"built-in template {template_name or config.template.name}"
             )
             _status("[report]", f"Rendering text with {template_detail}", "cyan")

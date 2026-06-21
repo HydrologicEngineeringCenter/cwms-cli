@@ -298,6 +298,75 @@ def test_report_example_swt_monthly_lake_generates_text(
     assert text.endswith("REPORT IS SUBJECT TO CHANGE AND/OR REVISION")
 
 
+def test_report_generate_accepts_dataset_overrides(
+    runner, workspace_tmpdir, fake_cwms, monkeypatch
+):
+    import pandas as pd
+
+    captured = []
+
+    def fake_fetch_timeseries_df(tsids, office, unit, begin, end, timeout_seconds):
+        captured.append((tsids[0], begin, end))
+        rows = []
+        value_by_unit = {
+            "ft": 725.25,
+            "ac-ft": 450000,
+            "cfs": 1000,
+            "in": 0.10,
+        }
+        current = begin
+        while current <= end:
+            rows.append(
+                {
+                    "ts_id": tsids[0],
+                    "date-time": current,
+                    "value": value_by_unit[unit],
+                    "units": unit,
+                }
+            )
+            current += timedelta(hours=1)
+        return pd.DataFrame(rows)
+
+    monkeypatch.setattr(
+        "cwmscli.reporting.timeseries.fetch_timeseries_df",
+        fake_fetch_timeseries_df,
+    )
+    config_path = EXAMPLES_DIR / "swt_monthly_lake_keys_may_2026.yaml"
+    template_path = EXAMPLES_DIR / "templates" / "swt_monthly_lake.txt.j2"
+    out_path = workspace_tmpdir / "ELDRAPR26.txt"
+
+    result = runner.invoke(
+        cli,
+        [
+            "report",
+            "generate",
+            "--config",
+            str(config_path),
+            "--format",
+            "text",
+            "--template-file",
+            str(template_path),
+            "--set",
+            "dataset.project=ELDR",
+            "--set",
+            "dataset.title=El Dorado Lake",
+            "--set",
+            "dataset.month=2026-04",
+            "--out",
+            str(out_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Applying 3 config override(s)" in result.output
+    text = out_path.read_text(encoding="utf-8", newline="")
+    assert text.startswith("                              El Dorado Lake")
+    assert "APRIL 2026" in text
+    assert captured[0][0] == "ELDR.Elev.Inst.1Hour.0.Ccp-Rev"
+    assert captured[0][1].isoformat() == "2026-03-31T00:00:00-05:00"
+    assert captured[0][2].isoformat() == "2026-05-02T00:00:00-05:00"
+
+
 def test_report_generate_text_output(runner, workspace_tmpdir, fake_cwms):
     config_path = workspace_tmpdir / "report.yaml"
     out_path = workspace_tmpdir / "report.txt"

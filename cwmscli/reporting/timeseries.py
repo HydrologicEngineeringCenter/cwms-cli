@@ -126,6 +126,10 @@ def build_time_series_context(
     project = str(options.get("project") or "").strip()
     timeout_seconds = float(options.get("request_timeout_seconds") or 12)
     month = _month_context(_parse_month(str(options.get("month") or ""), tz_name))
+    if month and begin is None:
+        begin = month["start"] - timedelta(days=1)
+    if month and end is None:
+        end = month["end"] + timedelta(days=1)
 
     series_specs = _series_items(options.get("series") or {})
     if not series_specs:
