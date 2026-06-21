@@ -63,7 +63,7 @@
 {%- set min_storage = value_at("storage", min_elev["date-time"]) -%}
 {%- do lines.append("") -%}
 {%- do lines.append("TOTAL                        %6d   %6d   %5.3f  %6d   %4.2f  %4.2f"|format(round_int(ns.power_total), round_int(ns.release_total), ns.evap_total, ns.inflow_total, ns.dam_rain_total, ns.basin_rain_total)) -%}
-{%- do lines.append("AVERAGE %8.2f               %4.0f     %4.0f            %4.0f NORMAL= %4.2f"|format(ns.elev_total / ns.elev_count, round_int(ns.power_total) / month.days, round_int(ns.release_total) / month.days, ns.inflow_total / month.days, normal_rainfall)) -%}
+{%- do lines.append("AVERAGE %8.2f              %5.0f    %5.0f           %5.0f NORMAL= %4.2f"|format(ns.elev_total / ns.elev_count, round_int(ns.power_total) / month.days, round_int(ns.release_total) / month.days, ns.inflow_total / month.days, normal_rainfall)) -%}
 {%- do lines.append("") -%}
 {%- do lines.append("MAXIMUM %8.2f     %7d   DATE=%2d    TOP CONSERVATION POOL      %4.2f"|format(max_elev.value, round_int(max_storage), report_day(max_elev["date-time"], month.start), top_conservation)) -%}
 {%- do lines.append("MINIMUM %8.2f     %7d   DATE=%2d    TOP FLOOD POOL             %4.2f"|format(min_elev.value, round_int(min_storage), report_day(min_elev["date-time"], month.start), top_flood)) -%}
@@ -72,7 +72,7 @@
 {%- do lines.append("WATER SUPPLY:  WITHDRAWN %6d AC-FT"|format(round_int(options.water_supply_withdrawn_acft))) -%}
 {%- do lines.append("") -%}
 {%- endif -%}
-{%- do lines.append("                      INFLOW VOLUME=   %6d AC-FT"|format(round_int(ns.inflow_total * inflow_factor))) -%}
+{%- do lines.append("                      INFLOW VOLUME=  %7d AC-FT"|format(round_int(ns.inflow_total * inflow_factor))) -%}
 {%- do lines.append("") -%}
 {%- do lines.append("") -%}
 {%- do lines.append("") -%}
