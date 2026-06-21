@@ -33,6 +33,8 @@ def _parse_month(value: str, tz_name: str) -> Optional[datetime]:
 
 
 def _coerce_when(value: Any, tz_name: str) -> datetime:
+    if hasattr(value, "to_pydatetime"):
+        value = value.to_pydatetime()
     if isinstance(value, datetime):
         parsed = value
     else:
@@ -192,27 +194,41 @@ def build_time_series_context(
         out = _frame_between(df, range_begin, range_end, tz_name)
         return float(out["value"].dropna().sum()) if not out.empty else 0
 
-    def min_row(key: str, range_begin=None, range_end=None, tie: str = "first"):
+    def min_row(
+        key: str, range_begin=None, range_end=None, tie: str = "first", precision=None
+    ):
         df = frames.get(key)
         if df is None:
             return None
         out = _frame_between(df, range_begin, range_end, tz_name)
         if out.empty:
             return None
-        value = out["value"].min()
-        matches = out[out["value"].eq(value)]
+        values = (
+            out["value"].round(int(precision))
+            if precision is not None
+            else out["value"]
+        )
+        value = values.min()
+        matches = out[values.eq(value)]
         row = matches.iloc[-1] if tie == "last" else matches.iloc[0]
         return row.to_dict()
 
-    def max_row(key: str, range_begin=None, range_end=None, tie: str = "first"):
+    def max_row(
+        key: str, range_begin=None, range_end=None, tie: str = "first", precision=None
+    ):
         df = frames.get(key)
         if df is None:
             return None
         out = _frame_between(df, range_begin, range_end, tz_name)
         if out.empty:
             return None
-        value = out["value"].max()
-        matches = out[out["value"].eq(value)]
+        values = (
+            out["value"].round(int(precision))
+            if precision is not None
+            else out["value"]
+        )
+        value = values.max()
+        matches = out[values.eq(value)]
         row = matches.iloc[-1] if tie == "last" else matches.iloc[0]
         return row.to_dict()
 
