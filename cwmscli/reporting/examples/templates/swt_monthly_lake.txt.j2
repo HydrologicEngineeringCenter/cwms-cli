@@ -9,6 +9,7 @@
 {%- set month_overrides = report_overrides.get(month.start.strftime("%Y-%m"), {}) -%}
 {%- set daily_overrides = month_overrides.get("daily", {}) -%}
 {%- set summary_overrides = month_overrides.get("summary", {}) -%}
+{%- set prior_overrides = month_overrides.get("prior", {}) -%}
 {%- macro fixed_line(fields) -%}
 {%- set ns = namespace(text="") -%}
 {%- for field in fields -%}
@@ -29,11 +30,13 @@
 {%- set lines = [] -%}
 {%- set prior_elev = value_at("elevation", month.start) -%}
 {%- set prior_storage = value_at("storage", month.start) -%}
+{%- set prior_elev_display = prior_overrides.get("elevation", prior_elev) -%}
+{%- set prior_storage_display = prior_overrides.get("storage", prior_storage) -%}
 {%- do lines.append("    POOL ELEVATIONS  STORAGE     RELEASES       EVAP  INFLOW   RAINFALL") -%}
 {%- do lines.append("DAY      %-7s     2400HR         DSF        INCHES   ADJ     INCHES"|format(datum_label)) -%}
 {%- do lines.append("      0800    2400    AC-FT   POWER    TOTAL  8A TO 8A  DSF    7A TO  7A") -%}
 {%- do lines.append("                                                               DAM   BSN") -%}
-{%- do lines.append("PRIOR MONTH%8s  %7s"|format(fmt_float(prior_elev, 2), fmt_int(prior_storage))) -%}
+{%- do lines.append("PRIOR MONTH%8s  %7s"|format(fmt_float(prior_elev_display, 2), fmt_int(prior_storage_display))) -%}
 {%- set ns = namespace(power_total=0.0, release_total=0.0, evap_total=0.0, inflow_total=0, dam_rain_total=0.0, basin_rain_total=0.0, elev_total=0.0, elev_count=0) -%}
 {%- for day in range(1, month.days + 1) -%}
 {%- set day_start = add_days(month.start, day - 1) -%}
