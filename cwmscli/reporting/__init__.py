@@ -36,12 +36,39 @@ def _status(label: str, detail: str, color: str = "cyan") -> None:
 
 
 def _coerce_override_value(value: str):
+    import re
+
     import yaml
 
+    def parse_shell_stripped_mapping(raw: str):
+        quoted_keys = re.sub(r"([{\[,])\s*([A-Za-z0-9_.~-]+)\s*:", r'\1"\2":', raw)
+        return yaml.safe_load(quoted_keys)
+
     try:
-        return yaml.safe_load(value)
+        parsed = yaml.safe_load(value)
     except Exception:
         return value
+    if (
+        isinstance(value, str)
+        and '\\"' in value
+        and value.lstrip().startswith(("{", "["))
+    ):
+        try:
+            return yaml.safe_load(value.replace('\\"', '"'))
+        except Exception:
+            return parsed
+    if (
+        isinstance(value, str)
+        and '"' not in value
+        and value.lstrip().startswith(("{", "["))
+    ):
+        try:
+            reparsed = parse_shell_stripped_mapping(value)
+        except Exception:
+            return parsed
+        if isinstance(reparsed, (dict, list)):
+            return reparsed
+    return parsed
 
 
 def _apply_config_override(config: Config, override: str) -> None:

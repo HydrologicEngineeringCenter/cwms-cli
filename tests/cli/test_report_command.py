@@ -629,6 +629,74 @@ def test_report_generate_accepts_dataset_overrides(
     assert captured[0][2].isoformat() == "2026-05-02T00:00:00-05:00"
 
 
+def test_report_generate_accepts_escaped_nested_dataset_overrides(
+    runner, workspace_tmpdir, fake_cwms
+):
+    config_path = workspace_tmpdir / "time_series.yaml"
+    template_path = workspace_tmpdir / "time_series.txt.j2"
+    out_path = workspace_tmpdir / "series_override.txt"
+    _write_time_series_config(config_path)
+    template_path.write_text(
+        "{{ options.report_overrides['2026-05'].summary.max_storage }}",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli,
+        [
+            "report",
+            "generate",
+            "--config",
+            str(config_path),
+            "--format",
+            "text",
+            "--template-file",
+            str(template_path),
+            "--set",
+            'dataset.report_overrides={\\"2026-05\\":{\\"summary\\":{\\"max_storage\\":31612}}}',
+            "--out",
+            str(out_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert out_path.read_text(encoding="utf-8", newline="") == "31612"
+
+
+def test_report_generate_accepts_shell_stripped_nested_dataset_overrides(
+    runner, workspace_tmpdir, fake_cwms
+):
+    config_path = workspace_tmpdir / "time_series.yaml"
+    template_path = workspace_tmpdir / "time_series.txt.j2"
+    out_path = workspace_tmpdir / "series_override.txt"
+    _write_time_series_config(config_path)
+    template_path.write_text(
+        "{{ options.report_overrides['2026-05'].daily['14'].power_release }}",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli,
+        [
+            "report",
+            "generate",
+            "--config",
+            str(config_path),
+            "--format",
+            "text",
+            "--template-file",
+            str(template_path),
+            "--set",
+            "dataset.report_overrides={2026-05:{daily:{14:{power_release:6313}}}}",
+            "--out",
+            str(out_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert out_path.read_text(encoding="utf-8", newline="") == "6313"
+
+
 def test_report_template_supports_series_arithmetic_helpers(
     runner, workspace_tmpdir, fake_cwms, monkeypatch
 ):
