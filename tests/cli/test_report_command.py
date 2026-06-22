@@ -662,7 +662,10 @@ def test_report_template_supports_series_arithmetic_helpers(
     template_path.write_text(
         "sum={{ round_int(sum_values('inflow')) }} "
         "count={{ count_values('inflow') }} "
-        "avg={{ round_int(avg_values('inflow')) }}",
+        "avg={{ round_int(avg_values('inflow')) }} "
+        "min={{ round_int(min_row('inflow').value) }} "
+        "max={{ round_int(max_row('inflow').value) }} "
+        "max_day={{ report_day(max_row('inflow')['date-time'], month.start) }}",
         encoding="utf-8",
     )
 
@@ -683,7 +686,9 @@ def test_report_template_supports_series_arithmetic_helpers(
     )
 
     assert result.exit_code == 0, result.output
-    assert out_path.read_text(encoding="utf-8") == "sum=30 count=2 avg=15"
+    assert out_path.read_text(encoding="utf-8") == (
+        "sum=30 count=2 avg=15 min=10 max=20 max_day=1"
+    )
 
 
 def test_report_formatters_treat_nan_and_infinity_as_missing():
