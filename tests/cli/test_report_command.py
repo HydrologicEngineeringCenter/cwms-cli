@@ -403,6 +403,104 @@ def test_report_generate_uses_package_relative_text_template(
     )
 
 
+def test_report_package_template_uses_custom_dataset_fields_and_helpers(
+    runner, workspace_tmpdir, fake_cwms, monkeypatch
+):
+    import pandas as pd
+
+    def fake_fetch_timeseries_df(
+        tsids, office, unit, begin, end, timeout_seconds, retry_count=3
+    ):
+        return pd.DataFrame(
+            [
+                {
+                    "ts_id": tsids[0],
+                    "date-time": begin,
+                    "value": 100.0,
+                    "units": unit,
+                },
+                {
+                    "ts_id": tsids[0],
+                    "date-time": begin + timedelta(days=1),
+                    "value": 250.0,
+                    "units": unit,
+                },
+            ]
+        )
+
+    monkeypatch.setattr(
+        "cwmscli.reporting.timeseries.fetch_timeseries_df",
+        fake_fetch_timeseries_df,
+    )
+    package_path = workspace_tmpdir / "custom-monthly-package"
+    template_dir = package_path / "templates"
+    template_dir.mkdir(parents=True)
+    out_path = workspace_tmpdir / "custom_report.txt"
+    (package_path / "report-package.yaml").write_text(
+        "\n".join(
+            [
+                "name: custom-monthly-package",
+                "entrypoint:",
+                "  config: report.yaml",
+                "  templates:",
+                "    text: templates/report.txt.j2",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (package_path / "report.yaml").write_text(
+        "\n".join(
+            [
+                "office: SWT",
+                "cda_api_root: https://cwms-data.usace.army.mil/cwms-data",
+                "time_zone: UTC",
+                "dataset:",
+                "  kind: time_series",
+                "  project: KEYS",
+                '  month: "2026-05"',
+                "  water_supply:",
+                "    withdrawn_acft: 12345",
+                "  hydropower:",
+                "    powerhouse: Keystone",
+                "  series:",
+                "    release:",
+                '      tsid: "{project}.Flow-Res Out.Ave.~1Day.1Day.Rev-Regi-Flowgroup"',
+                "      unit: cfs",
+                "report:",
+                '  district: "Tulsa District"',
+                '  name: "Custom Monthly Report"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (template_dir / "report.txt.j2").write_text(
+        "project={{ project }} "
+        "ws={{ options.water_supply.withdrawn_acft }} "
+        "powerhouse={{ options.hydropower.powerhouse }} "
+        "release_total={{ round_int(sum_values('release')) }}",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli,
+        [
+            "report",
+            "generate",
+            "--package",
+            str(package_path),
+            "--format",
+            "text",
+            "--out",
+            str(out_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert out_path.read_text(encoding="utf-8") == (
+        "project=KEYS ws=12345 powerhouse=Keystone release_total=350"
+    )
+
+
 def test_report_package_with_multiple_reports_requires_selection(
     runner, workspace_tmpdir, fake_cwms
 ):
