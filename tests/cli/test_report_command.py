@@ -169,6 +169,31 @@ def _write_minimal_config(
     path.write_text("\n".join(lines), encoding="utf-8")
 
 
+def _write_time_series_config(path: Path) -> None:
+    path.write_text(
+        "\n".join(
+            [
+                "office: MVD",
+                "cda_api_root: https://cwms-data.usace.army.mil/cwms-data",
+                "time_zone: America/Chicago",
+                "dataset:",
+                "  kind: time_series",
+                "  project: KEYS",
+                "  title: Example Lake",
+                '  month: "2026-05"',
+                "  series:",
+                "    stage:",
+                '      tsid: "{project}.Stage.Inst.1Hour.0.Raw"',
+                "      unit: ft",
+                "report:",
+                '  district: "Example District"',
+                '  name: "Monthly Series Report"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_report_config_parses_template_and_columns(workspace_tmpdir):
     config_path = workspace_tmpdir / "report.yaml"
     _write_minimal_config(
@@ -461,7 +486,7 @@ def test_report_example_wm_daily_swt_generates_with_fake_cwms(
     assert "https://www.swt-wc.usace.army.mil/KEYS.lakepage.html" in html
 
 
-def test_report_example_swt_monthly_lake_generates_text(
+def test_report_time_series_config_generates_text_with_template(
     runner, workspace_tmpdir, fake_cwms, monkeypatch
 ):
     import pandas as pd
@@ -494,9 +519,15 @@ def test_report_example_swt_monthly_lake_generates_text(
         "cwmscli.reporting.timeseries.fetch_timeseries_df",
         fake_fetch_timeseries_df,
     )
-    config_path = EXAMPLES_DIR / "swt_monthly_lake_keys_may_2026.yaml"
-    template_path = EXAMPLES_DIR / "templates" / "swt_monthly_lake.txt.j2"
-    out_path = workspace_tmpdir / "KEYSMAY26.txt"
+    config_path = workspace_tmpdir / "time_series.yaml"
+    template_path = workspace_tmpdir / "time_series.txt.j2"
+    out_path = workspace_tmpdir / "time_series.txt"
+    _write_time_series_config(config_path)
+    template_path.write_text(
+        "{{ options.title }} {{ month.label }} "
+        "value={{ fmt_float(value_at('stage', month.start), 2) }}",
+        encoding="utf-8",
+    )
 
     result = runner.invoke(
         cli,
@@ -520,13 +551,7 @@ def test_report_example_swt_monthly_lake_generates_text(
         in result.output
     )
     text = out_path.read_text(encoding="utf-8", newline="")
-    assert text.startswith(
-        "                              Keystone Lake\r\n"
-        "                           MONTHLY LAKE REPORT\r\n"
-        "                                 MAY 2026\n\n\r\n\r\n"
-    )
-    assert "TOTAL                         31000    31000" in text
-    assert text.endswith("REPORT IS SUBJECT TO CHANGE AND/OR REVISION")
+    assert text == "Example Lake MAY 2026 value=725.25"
 
 
 def test_report_generate_accepts_dataset_overrides(
@@ -564,9 +589,14 @@ def test_report_generate_accepts_dataset_overrides(
         "cwmscli.reporting.timeseries.fetch_timeseries_df",
         fake_fetch_timeseries_df,
     )
-    config_path = EXAMPLES_DIR / "swt_monthly_lake_keys_may_2026.yaml"
-    template_path = EXAMPLES_DIR / "templates" / "swt_monthly_lake.txt.j2"
-    out_path = workspace_tmpdir / "ELDRAPR26.txt"
+    config_path = workspace_tmpdir / "time_series.yaml"
+    template_path = workspace_tmpdir / "time_series.txt.j2"
+    out_path = workspace_tmpdir / "series_override.txt"
+    _write_time_series_config(config_path)
+    template_path.write_text(
+        "{{ options.title }} {{ month.abbr }} {{ month.start.year }}",
+        encoding="utf-8",
+    )
 
     result = runner.invoke(
         cli,
@@ -593,9 +623,8 @@ def test_report_generate_accepts_dataset_overrides(
     assert result.exit_code == 0, result.output
     assert "Applying 3 config override(s)" in result.output
     text = out_path.read_text(encoding="utf-8", newline="")
-    assert text.splitlines()[0].strip() == "El Dorado Lake"
-    assert "APR 2026" in text
-    assert captured[0][0] == "ELDR.Elev.Inst.1Hour.0.Ccp-Rev"
+    assert text == "El Dorado Lake APR 2026"
+    assert captured[0][0] == "ELDR.Stage.Inst.1Hour.0.Raw"
     assert captured[0][1].isoformat() == "2026-03-31T00:00:00-05:00"
     assert captured[0][2].isoformat() == "2026-05-02T00:00:00-05:00"
 
