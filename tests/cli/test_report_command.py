@@ -291,6 +291,58 @@ def test_report_generate_accepts_named_report_package_entry(
     assert "Daily Reservoir Report" in out_path.read_text(encoding="utf-8")
 
 
+def test_report_generate_uses_package_relative_text_template(
+    runner, workspace_tmpdir, fake_cwms
+):
+    package_path = workspace_tmpdir / "text-package"
+    template_dir = package_path / "templates"
+    template_dir.mkdir(parents=True)
+    config_path = package_path / "report.yaml"
+    out_path = workspace_tmpdir / "report.txt"
+    _write_minimal_config(config_path)
+    (template_dir / "report.txt.j2").write_text(
+        "PACKAGE {{ report.name }} {{ rows[0] }} {{ data[rows[0]].elev.text }}\n",
+        encoding="utf-8",
+    )
+    (package_path / "report-package.yaml").write_text(
+        "\n".join(
+            [
+                "schema: https://wmes.usace.army.mil/report-package/v1",
+                "name: example-text",
+                "version: 0.1.0",
+                "entrypoint:",
+                "  config: report.yaml",
+                "  templates:",
+                "    text: templates/report.txt.j2",
+                "outputs:",
+                "  - text",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli,
+        [
+            "report",
+            "generate",
+            "--package",
+            str(package_path),
+            "--format",
+            "text",
+            "--out",
+            str(out_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "Rendering text with user template file" in result.output
+    assert "templates" in result.output
+    assert out_path.read_text(encoding="utf-8") == (
+        "PACKAGE Daily Reservoir Report KEYS 722.34\n"
+    )
+
+
 def test_report_package_with_multiple_reports_requires_selection(
     runner, workspace_tmpdir, fake_cwms
 ):
