@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - name: Check Out Release Tag
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
 
