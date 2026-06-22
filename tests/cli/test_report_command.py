@@ -921,6 +921,105 @@ def test_report_template_supports_series_arithmetic_helpers(
     )
 
 
+def test_report_template_supports_range_and_tie_arithmetic_helpers(
+    runner, workspace_tmpdir, fake_cwms, monkeypatch
+):
+    import pandas as pd
+
+    def fake_fetch_timeseries_df(
+        tsids, office, unit, begin, end, timeout_seconds, retry_count=3
+    ):
+        return pd.DataFrame(
+            [
+                {
+                    "ts_id": tsids[0],
+                    "date-time": begin,
+                    "value": 5.0,
+                    "units": unit,
+                },
+                {
+                    "ts_id": tsids[0],
+                    "date-time": begin + timedelta(days=1),
+                    "value": 10.04,
+                    "units": unit,
+                },
+                {
+                    "ts_id": tsids[0],
+                    "date-time": begin + timedelta(days=2),
+                    "value": 10.05,
+                    "units": unit,
+                },
+                {
+                    "ts_id": tsids[0],
+                    "date-time": begin + timedelta(days=3),
+                    "value": 8.0,
+                    "units": unit,
+                },
+            ]
+        )
+
+    monkeypatch.setattr(
+        "cwmscli.reporting.timeseries.fetch_timeseries_df",
+        fake_fetch_timeseries_df,
+    )
+    config_path = workspace_tmpdir / "range_arithmetic.yaml"
+    template_path = workspace_tmpdir / "range_arithmetic.txt.j2"
+    out_path = workspace_tmpdir / "range_arithmetic.txt"
+    config_path.write_text(
+        "\n".join(
+            [
+                "office: SWT",
+                "cda_api_root: https://cwms-data.usace.army.mil/cwms-data",
+                "time_zone: UTC",
+                "dataset:",
+                "  kind: time_series",
+                "  project: KEYS",
+                '  month: "2026-05"',
+                "  series:",
+                "    release:",
+                '      tsid: "{project}.Flow-Res Out.Ave.~1Day.1Day.Rev-Regi-Flowgroup"',
+                "      unit: cfs",
+                "report:",
+                '  district: "Tulsa District"',
+                '  name: "Range Arithmetic Report"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    template_path.write_text(
+        "{% set start = month.start %}"
+        "{% set end = add_days(month.start, 1) %}"
+        "range_sum={{ fmt_float(sum_values('release', start, end), 2) }} "
+        "range_count={{ count_values('release', start, end) }} "
+        "rounded_max={{ fmt_float(max_row('release', start, end, tie='last', precision=1).value, 2) }} "
+        "rounded_max_day={{ report_day(max_row('release', start, end, tie='last', precision=1)['date-time'], month.start) }} "
+        "range_min={{ fmt_float(min_row('release', start, end).value, 2) }}",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli,
+        [
+            "report",
+            "generate",
+            "--config",
+            str(config_path),
+            "--format",
+            "text",
+            "--template-file",
+            str(template_path),
+            "--out",
+            str(out_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert out_path.read_text(encoding="utf-8") == (
+        "range_sum=20.09 range_count=2 rounded_max=10.05 "
+        "rounded_max_day=2 range_min=10.04"
+    )
+
+
 def test_report_formatters_treat_nan_and_infinity_as_missing():
     assert _format_float(math.nan, 2) == "--"
     assert _format_float(math.inf, 2) == "--"
