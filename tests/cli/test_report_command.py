@@ -501,6 +501,110 @@ def test_report_package_template_uses_custom_dataset_fields_and_helpers(
     )
 
 
+def test_named_report_package_template_uses_custom_fields_and_helpers(
+    runner, workspace_tmpdir, fake_cwms, monkeypatch
+):
+    import pandas as pd
+
+    def fake_fetch_timeseries_df(
+        tsids, office, unit, begin, end, timeout_seconds, retry_count=3
+    ):
+        return pd.DataFrame(
+            [
+                {
+                    "ts_id": tsids[0],
+                    "date-time": begin,
+                    "value": 40.0,
+                    "units": unit,
+                },
+                {
+                    "ts_id": tsids[0],
+                    "date-time": begin + timedelta(days=1),
+                    "value": 60.0,
+                    "units": unit,
+                },
+            ]
+        )
+
+    monkeypatch.setattr(
+        "cwmscli.reporting.timeseries.fetch_timeseries_df",
+        fake_fetch_timeseries_df,
+    )
+    package_path = workspace_tmpdir / "variant-package"
+    template_dir = package_path / "templates"
+    template_dir.mkdir(parents=True)
+    out_path = workspace_tmpdir / "water_supply.txt"
+    (package_path / "report-package.yaml").write_text(
+        "\n".join(
+            [
+                "name: variant-package",
+                "default_report: monthly-lake",
+                "reports:",
+                "  monthly-lake:",
+                "    config: report.yaml",
+                "    templates:",
+                "      text: templates/report.txt.j2",
+                "  monthly-water-supply:",
+                "    config: report.yaml",
+                "    templates:",
+                "      text: templates/water_supply.txt.j2",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (package_path / "report.yaml").write_text(
+        "\n".join(
+            [
+                "office: SWT",
+                "cda_api_root: https://cwms-data.usace.army.mil/cwms-data",
+                "time_zone: UTC",
+                "dataset:",
+                "  kind: time_series",
+                "  project: KEYS",
+                '  month: "2026-05"',
+                "  water_supply:",
+                "    withdrawn_acft: 12345",
+                "  series:",
+                "    release:",
+                '      tsid: "{project}.Flow-Res Out.Ave.~1Day.1Day.Rev-Regi-Flowgroup"',
+                "      unit: cfs",
+                "report:",
+                '  district: "Tulsa District"',
+                '  name: "Monthly Variant Report"',
+            ]
+        ),
+        encoding="utf-8",
+    )
+    (template_dir / "report.txt.j2").write_text("default", encoding="utf-8")
+    (template_dir / "water_supply.txt.j2").write_text(
+        "report={{ report.name }} "
+        "withdrawn={{ options.water_supply.withdrawn_acft }} "
+        "release_avg={{ round_int(avg_values('release')) }}",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli,
+        [
+            "report",
+            "generate",
+            "--package",
+            str(package_path),
+            "--report",
+            "monthly-water-supply",
+            "--format",
+            "text",
+            "--out",
+            str(out_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert out_path.read_text(encoding="utf-8") == (
+        "report=Monthly Variant Report withdrawn=12345 release_avg=50"
+    )
+
+
 def test_report_package_with_multiple_reports_requires_selection(
     runner, workspace_tmpdir, fake_cwms
 ):
