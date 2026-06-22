@@ -272,6 +272,41 @@ def test_report_generate_accepts_report_package(runner, workspace_tmpdir, fake_c
     assert "KEYS Lake" in html
 
 
+def test_report_generate_accepts_package_yml_manifest(
+    runner, workspace_tmpdir, fake_cwms
+):
+    package_path = workspace_tmpdir / "daily-package"
+    package_path.mkdir()
+    config_path = package_path / "report.yaml"
+    out_path = workspace_tmpdir / "report.html"
+    _write_minimal_config(config_path)
+    (package_path / "package.yml").write_text(
+        "\n".join(
+            [
+                "schema: https://wmes.usace.army.mil/report-package/v1",
+                "name: example-daily",
+                "version: 0.1.0",
+                "entrypoint:",
+                "  config: report.yaml",
+                "outputs:",
+                "  - html",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli,
+        ["report", "generate", "--package", str(package_path), "--out", str(out_path)],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert "[report] Loading package: example-daily" in result.output
+    html = out_path.read_text(encoding="utf-8")
+    assert "Daily Reservoir Report" in html
+    assert "KEYS Lake" in html
+
+
 def test_report_generate_accepts_named_report_package_entry(
     runner, workspace_tmpdir, fake_cwms
 ):
