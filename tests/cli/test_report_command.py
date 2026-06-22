@@ -1,4 +1,5 @@
 import importlib.metadata
+import math
 import shutil
 import sys
 import types
@@ -13,6 +14,7 @@ from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
 from cwmscli.reporting.config import Config
+from cwmscli.reporting.timeseries import _format_float, _format_int
 from cwmscli.utils import colors
 
 EXAMPLES_DIR = Path("cwmscli") / "reporting" / "examples"
@@ -630,6 +632,13 @@ def test_report_template_supports_series_arithmetic_helpers(
 
     assert result.exit_code == 0, result.output
     assert out_path.read_text(encoding="utf-8") == "sum=30 count=2 avg=15"
+
+
+def test_report_formatters_treat_nan_and_infinity_as_missing():
+    assert _format_float(math.nan, 2) == "--"
+    assert _format_float(math.inf, 2) == "--"
+    assert _format_int(math.nan) == "--"
+    assert _format_int(math.inf) == "--"
 
 
 def test_report_generate_text_output(runner, workspace_tmpdir, fake_cwms):

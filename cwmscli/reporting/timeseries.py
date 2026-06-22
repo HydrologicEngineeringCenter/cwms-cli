@@ -1,4 +1,5 @@
 import calendar
+import math
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 from zoneinfo import ZoneInfo
@@ -72,16 +73,37 @@ def _value_at(df, when: Any, tz_name: str) -> Optional[float]:
     return None if value is None else float(value)
 
 
-def _format_float(value: Optional[float], precision: int, missing: str = "--") -> str:
+def _is_missing_number(value: Optional[float]) -> bool:
     if value is None:
+        return True
+    numeric = float(value)
+    return math.isnan(numeric) or math.isinf(numeric)
+
+
+def _round_int(value: Optional[float]) -> Optional[int]:
+    if _is_missing_number(value):
+        return None
+    return int(round(float(value)))
+
+
+def _value_or_zero(value: Optional[float]) -> float:
+    if _is_missing_number(value):
+        return 0
+    return float(value)
+
+
+def _format_float(value: Optional[float], precision: int, missing: str = "--") -> str:
+    if _is_missing_number(value):
         return missing
-    return f"{float(value):.{precision}f}"
+    numeric = float(value)
+    return f"{numeric:.{precision}f}"
 
 
 def _format_int(value: Optional[float], missing: str = "--") -> str:
-    if value is None:
+    if _is_missing_number(value):
         return missing
-    return f"{int(round(float(value)))}"
+    numeric = float(value)
+    return f"{int(round(numeric))}"
 
 
 def _month_context(month_start: Optional[datetime]) -> Optional[Dict[str, Any]]:
@@ -291,9 +313,9 @@ def build_time_series_context(
         .center(72 if len(str(text)) % 2 == 0 else 73)
         .rstrip(),
         "is_even": lambda value: int(value) % 2 == 0,
-        "round_int": lambda value: (
-            int(round(float(value))) if value is not None else None
-        ),
+        "has_value": lambda value: not _is_missing_number(value),
+        "round_int": _round_int,
+        "value_or_zero": _value_or_zero,
         "base_end": end or (month["end"] if month else None),
         "rows": [],
         "columns": [],

@@ -63,17 +63,6 @@
 {%- if basin_rain is none and missing_rainfall_basin is not none -%}
 {%- set basin_rain = missing_rainfall_basin -%}
 {%- endif -%}
-{%- set inflow_rounded = round_int(inflow) -%}
-{%- set ns.power_total = ns.power_total + (power or 0) -%}
-{%- set ns.release_total = ns.release_total + (release or 0) -%}
-{%- set ns.evap_total = ns.evap_total + (evap or 0) -%}
-{%- set ns.inflow_total = ns.inflow_total + (inflow_rounded or 0) -%}
-{%- set ns.dam_rain_total = ns.dam_rain_total + (dam_rain or 0) -%}
-{%- set ns.basin_rain_total = ns.basin_rain_total + (basin_rain or 0) -%}
-{%- if elev_2400 is not none -%}
-{%- set ns.elev_total = ns.elev_total + elev_2400 -%}
-{%- set ns.elev_count = ns.elev_count + 1 -%}
-{%- endif -%}
 {%- set elev_0800_display = day_overrides.get("elevation_0800", elev_0800) -%}
 {%- set elev_2400_display = day_overrides.get("elevation_2400", elev_2400) -%}
 {%- set storage_display = day_overrides.get("storage", storage) -%}
@@ -83,6 +72,17 @@
 {%- set inflow_display = day_overrides.get("inflow", inflow) -%}
 {%- set dam_rain_display = day_overrides.get("rainfall_dam", dam_rain) -%}
 {%- set basin_rain_display = day_overrides.get("rainfall_basin", basin_rain) -%}
+{%- set inflow_rounded = round_int(inflow_display) -%}
+{%- set ns.power_total = ns.power_total + value_or_zero(power_display) -%}
+{%- set ns.release_total = ns.release_total + value_or_zero(release_display) -%}
+{%- set ns.evap_total = ns.evap_total + value_or_zero(evap_display) -%}
+{%- set ns.inflow_total = ns.inflow_total + (inflow_rounded or 0) -%}
+{%- set ns.dam_rain_total = ns.dam_rain_total + value_or_zero(dam_rain_display) -%}
+{%- set ns.basin_rain_total = ns.basin_rain_total + value_or_zero(basin_rain_display) -%}
+{%- if has_value(elev_2400_display) -%}
+{%- set ns.elev_total = ns.elev_total + elev_2400_display -%}
+{%- set ns.elev_count = ns.elev_count + 1 -%}
+{%- endif -%}
 {%- set day_text = "%d"|format(day) -%}
 {%- set elev_0800_text = fmt_float(elev_0800_display, 2) -%}
 {%- set elev_2400_text = fmt_float(elev_2400_display, 2) -%}
