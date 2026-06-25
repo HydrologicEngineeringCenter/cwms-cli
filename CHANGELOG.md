@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.4](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.7.3...v0.7.4) (2026-06-25)
+
+
+### Bug Fixes
+
+* add failback for shef infile import when tsid doesn't exist ([#218](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/218)) ([77172d2](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/77172d247e191605e27f96b04f0d9495929b2ffd))
+* github vulnerabilities (urllib, idna, pytest, black, requests, filelock, pytest) ([#223](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/223)) ([0935234](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/09352345c7b95317dbb8888ebe46f5461c383a32))
+
 ## [0.7.3](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.7.2...v0.7.3) (2026-06-04)
 
 
