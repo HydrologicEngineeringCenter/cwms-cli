@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - name: Check Out Release Tag
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
 
@@ -70,7 +70,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Sign Distribution
-        uses: sigstore/gh-action-sigstore-python@v3.3.0
+        uses: sigstore/gh-action-sigstore-python@v3.4.0
         with:
           inputs: |
             ./dist/*.tar.gz
