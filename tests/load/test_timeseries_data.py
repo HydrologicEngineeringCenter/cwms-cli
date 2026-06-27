@@ -1,4 +1,5 @@
 from types import SimpleNamespace
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -7,6 +8,15 @@ from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
 from cwmscli.load.timeseries.timeseries_data import _load_timeseries_data
+
+
+def test_timeseries_data_loader_uses_shared_cwms_session_helper():
+    source = Path("cwmscli/load/timeseries/timeseries_data.py").read_text(
+        encoding="utf-8"
+    )
+
+    assert "init_cwms_session" in source
+    assert "cwms.init_session(" not in source
 
 
 def test_load_timeseries_data_command_allows_group_without_category_filters(
