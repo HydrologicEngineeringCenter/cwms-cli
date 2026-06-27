@@ -50,6 +50,8 @@ from typing import Optional
 
 import pandas as pd
 
+from cwmscli.utils import init_cwms_session
+
 try:
     import cwms
     import cwms.api as cwms_api
@@ -761,7 +763,7 @@ def import_shef_infile(
 
     # Connect to CWMS Data API
     log.info("Connecting to API: %s", api_root)
-    cwms_api.init_session(api_root=api_root, api_key=api_key, token=token)
+    init_cwms_session(cwms, api_root=api_root, api_key=api_key, token=token)
 
     # Store / update the group
     store_group(

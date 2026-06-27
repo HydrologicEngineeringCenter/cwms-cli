@@ -65,6 +65,34 @@ def test_init_cwms_session_prefers_saved_token(monkeypatch):
     assert session.headers == {"X-CWMS-Job-Context": "job-context"}
 
 
+def test_init_cwms_session_prefers_explicit_token(monkeypatch):
+    calls = []
+    session = type("Session", (), {"headers": {}})()
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key=None, token=None):
+            calls.append((api_root, api_key, token))
+            return session
+
+    monkeypatch.setattr(
+        "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: "saved-token"
+    )
+    monkeypatch.setenv("CDA_BEARER_TOKEN", "batch-token")
+    monkeypatch.setenv("BATCH_JOB_CONTEXT_TOKEN", "job-context")
+
+    result = init_cwms_session(
+        FakeCwms,
+        api_root="https://example.test/cwms-data",
+        api_key="apikey 123",
+        token="arg-token",
+    )
+
+    assert result == session
+    assert calls == [("https://example.test/cwms-data", None, "arg-token")]
+    assert session.headers == {"X-CWMS-Job-Context": "job-context"}
+
+
 def test_init_cwms_session_prefers_batch_token_over_api_key(monkeypatch):
     calls = []
     session = type("Session", (), {"headers": {}})()

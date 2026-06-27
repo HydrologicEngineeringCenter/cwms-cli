@@ -87,6 +87,13 @@ def test_import_shef_infile_dry_run_with_desktop_file(fake_cwms, caplog, capsys)
     assert "timeseries entries:" in log_output
 
 
+def test_import_shef_infile_uses_shared_cwms_session_helper():
+    source = Path("cwmscli/commands/shef/import_infile.py").read_text(encoding="utf-8")
+
+    assert "init_cwms_session" in source
+    assert "cwms_api.init_session(" not in source
+
+
 def test_import_shef_infile_dry_run_parses_entries(fake_cwms, caplog):
     """Test that entries from the .in file are parsed correctly."""
     import logging

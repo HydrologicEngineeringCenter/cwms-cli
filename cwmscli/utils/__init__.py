@@ -214,6 +214,7 @@ def init_cwms_session(
     api_key: Optional[str] = None,
     api_key_loc: Optional[str] = None,
     anonymous: bool = False,
+    token: Optional[str] = None,
     token_file: Optional[Union[str, Path]] = None,
     provider: str = "federation-eams",
 ):
@@ -223,6 +224,11 @@ def init_cwms_session(
 
     if anonymous:
         return init_fn(api_root=api_root, api_key=None)
+
+    if token:
+        session = init_fn(api_root=api_root, token=token)
+        _add_batch_job_context_header(session)
+        return session
 
     token = get_saved_login_token(token_file=token_file, provider=provider)
     if token:
