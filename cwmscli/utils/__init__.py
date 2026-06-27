@@ -184,6 +184,8 @@ def get_saved_login_token(
 
 
 def get_batch_bearer_token() -> Optional[str]:
+    # Batch runner images expose CDA_BEARER_TOKEN for the normal CLI session
+    # helper path, keeping API keys out of job definitions.
     token = os.getenv("CDA_BEARER_TOKEN")
     if not token:
         return None
@@ -204,6 +206,8 @@ def _add_batch_job_context_header(session) -> None:
         return
     headers = getattr(session, "headers", None)
     if headers is not None:
+        # CDA uses this signed header for batch run context that does not belong
+        # inside the user's or service account's bearer token.
         headers.update({"X-CWMS-Job-Context": job_context_token})
 
 
