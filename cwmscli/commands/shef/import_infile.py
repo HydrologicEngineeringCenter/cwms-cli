@@ -588,13 +588,32 @@ def build_group_json(
 # ---------------------------------------------------------------------------
 
 
-def store_group(
+def _filter_existing_tsids(
+    entries: list[dict],
+    office_id: str,
+) -> list[dict]:
+    """Probe each TSID via cwms.get_timeseries_identifier and drop missing ones."""
+    valid: list[dict] = []
+    for e in entries:
+        try:
+            cwms.get_timeseries_identifier(ts_id=e["tsid"], office_id=office_id)
+            valid.append(e)
+        except Exception as exc:
+            log.warning(
+                "Skipping missing TSID '%s' (%s)",
+                e["tsid"],
+                type(exc).__name__,
+            )
+    return valid
+
+
+def _save(
     group_json: dict,
     group_id: str,
     office_id: str,
     fail_if_exists: bool,
 ) -> None:
-    """POST (create) or PATCH (update) the timeseries group in CWMS."""
+    """Single store/update attempt with no validation fallback."""
     try:
         cwms.store_timeseries_groups(group_json, fail_if_exists=fail_if_exists)
         log.info("SUCCESS — group stored via store_timeseries_groups.")
@@ -606,7 +625,6 @@ def store_group(
             exc,
         )
 
-    # Fallback: update, replacing all assigned timeseries
     cwms.update_timeseries_groups(
         data=group_json,
         group_id=group_id,
@@ -614,6 +632,44 @@ def store_group(
         replace_assigned_ts=True,
     )
     log.info("SUCCESS — group updated via update_timeseries_groups.")
+
+
+def store_group(
+    group_json: dict,
+    group_id: str,
+    office_id: str,
+    fail_if_exists: bool,
+    entries: Optional[list[dict]] = None,
+    category_id: str = DEFAULT_CATEGORY,
+) -> None:
+    """POST (create) or PATCH (update) the timeseries group in CWMS.
+
+    On failure, validate each TSID individually, drop any that don't exist in
+    CWMS, and retry the save with the surviving entries.
+    """
+    try:
+        _save(group_json, group_id, office_id, fail_if_exists)
+        return
+    except Exception as exc:
+        if entries is None:
+            raise
+        log.warning(
+            "Group save failed (%s: %s) — validating each TSID and retrying ...",
+            type(exc).__name__,
+            exc,
+        )
+
+    valid = _filter_existing_tsids(entries, office_id)
+    if not valid:
+        log.error("No valid TSIDs remain after validation — nothing to store.")
+        return
+    if len(valid) == len(entries):
+        log.error("All TSIDs validated but save still failed; re-raising.")
+        raise
+
+    log.info("Retrying save with %d/%d valid TSIDs.", len(valid), len(entries))
+    retry_json = build_group_json(valid, group_id, office_id, category_id)
+    _save(retry_json, group_id, office_id, fail_if_exists=False)
 
 
 # ---------------------------------------------------------------------------
@@ -713,6 +769,8 @@ def import_shef_infile(
         group_id=group_name,
         office_id=office_id,
         fail_if_exists=fail_if_exists,
+        entries=entries,
+        category_id=category_id,
     )
 
     log.info(

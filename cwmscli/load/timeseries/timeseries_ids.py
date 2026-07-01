@@ -1,4 +1,5 @@
 # cwmscli/load/timeseries_ids.py
+import logging
 from typing import Optional
 
 import click

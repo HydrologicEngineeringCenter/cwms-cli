@@ -283,7 +283,15 @@ def shef_import_crit(filename, office, api_root, api_key, api_key_loc, dry_run):
 # ================================================================================
 @shef_group.command(
     "import_infile",
-    help="Import SHEF .in file into timeseries group for SHEF file processing",
+    help=(
+        "Import a legacy exportShef .in configuration file into a CWMS "
+        "timeseries group (default category 'SHEF Export'). Each entry "
+        "becomes a group member whose alias-id encodes the SHEF location, "
+        "PE code, send code, duration, and (optionally) units. "
+        "If the bulk save fails, each TSID is validated via "
+        "get_timeseries_identifier; missing TSIDs are logged and skipped, "
+        "and the save is retried with the surviving entries."
+    ),
 )
 @click.option(
     "-f",
@@ -484,15 +492,13 @@ def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
 @click.group(
     "blob",
     help="Manage CWMS Blobs (upload, download, delete, update, list)",
-    epilog=textwrap.dedent(
-        """
+    epilog=textwrap.dedent("""
     Example Usage:\n
     - Store a PDF/image as a CWMS blob with optional description\n
     - Download a blob by id to your local filesystem\n
     - Update a blob's name/description/mime-type\n
     - Bulk list blobs for an office  
-"""
-    ),
+"""),
 )
 def blob_group():
     pass
@@ -700,14 +706,12 @@ def list_cmd(**kwargs):
 @click.group(
     "clob",
     help="Manage CWMS Clobs (upload, download, delete, update, list)",
-    epilog=textwrap.dedent(
-        """
+    epilog=textwrap.dedent("""
     Example Usage:\n
     - Download a clob by id to your local filesystem\n
     - Update a clob's name/description/mime-type\n
     - Bulk list clobs for an office  
-"""
-    ),
+"""),
 )
 @requires(reqs.cwms)
 def clob_group():
