@@ -12,6 +12,8 @@ import sys
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from cwmscli.utils.paths import config_dir
+
 
 class EnvStoreError(Exception):
     """Raised when an env file cannot be read, written, or deleted."""
@@ -19,15 +21,7 @@ class EnvStoreError(Exception):
 
 def envs_dir() -> Path:
     """Return the directory where env files live, creating it if needed."""
-    if sys.platform == "win32":
-        base = Path(os.environ.get("APPDATA") or "~/AppData/Roaming").expanduser()
-    else:
-        xdg = os.environ.get("XDG_CONFIG_HOME")
-        base = Path(xdg).expanduser() if xdg else Path("~/.config").expanduser()
-
-    path = base / "cwms-cli" / "envs"
-    path.mkdir(parents=True, exist_ok=True)
-    return path
+    return config_dir("envs", create=True)
 
 
 def _env_path(name: str) -> Path:

@@ -1,94 +1,128 @@
 Environment Manager
 ===================
 
-Secure environment management for CDA environments using system keyring storage.
+Manage named CDA environments with ``cwms-cli env``. Each environment stores
+a CDA API root URL, office code, and optional API key in a JSON file under
+``~/.config/cwms-cli/envs/`` (or ``$XDG_CONFIG_HOME/cwms-cli/envs/`` when that
+variable is set), on all platforms. Files are created with mode ``0600``
+(owner-only read/write) so only your user account can read them.
 
-Overview
---------
+This keeps API keys out of project directories, shell history, and command
+lines, and lets you reference environments by name instead of juggling
+URLs and credentials.
 
-The environment manager stores your CDA API credentials and configuration securely using your system's keyring:
-
-- **Linux**: gnome-keyring, kwallet, or secretstorage
-- **macOS**: Keychain (built-in)
-- **Windows**: Credential Manager (built-in)
-- **Solaris**: Keyring not available - use environment variables (see Headless/CI Usage below)
-
-This keeps API keys out of plaintext files and provides a consistent, secure experience across platforms.
-
-Suggested Environments
-----------------------
-
-**Pre-configured (have default URLs):**
-
-- ``cwbi-prod`` - Production CWBI (https://cwms-data.usace.army.mil/cwms-data)
-
-**Need --api-root:**
-
-- ``cwbi-dev`` - Development CWBI
-- ``cwbi-test`` - Test CWBI
-- ``localhost`` - Local development server (port varies: 8081, 8082, etc.)
-- ``onsite`` - Local non-cloud server
-- Custom environment names
 
 Quick Start
 -----------
 
-**1. Setup environments:**
+**1. Create environments:**
 
 .. code-block:: bash
 
-   # Pre-configured environment (just add key/office)
+   # Production (has a default URL — just add key and office)
    cwms-cli env setup cwbi-prod --office SWT --api-key YOUR_KEY
 
-   # Custom environments (need --api-root)
-   cwms-cli env setup cwbi-dev --api-root https://cwms-data-dev.example.mil/cwms-data --office SWT --api-key YOUR_KEY
-   cwms-cli env setup localhost --api-root http://localhost:8082/cwms-data --office DEV
+   # Development (needs --api-root)
+   cwms-cli env setup cwbi-dev \
+     --api-root https://cwms-data-dev.example.mil/cwms-data \
+     --office SWT --api-key YOUR_KEY
 
-**2. Activate an environment:**
+   # Test (needs --api-root)
+   cwms-cli env setup cwbi-test \
+     --api-root https://cwms-data-test.example.mil/cwms-data \
+     --office SWT --api-key YOUR_KEY
+
+   # Local development server
+   cwms-cli env setup localhost \
+     --api-root http://localhost:8082/cwms-data --office DEV
+
+**2. Use environments with load commands:**
 
 .. code-block:: bash
 
-   cwms-cli env activate cwbi-dev
+   cwms-cli load location ids-all \
+     --source-env cwbi-prod --target-env localhost
 
-This spawns a new shell with the environment variables set. When you're done, type ``exit`` to return to your original shell.
+   cwms-cli load timeseries data \
+     --source-env cwbi-prod --target-env localhost \
+     --ts-id "Black Butte.Flow.Inst.1Hour.0.raw-cda"
 
-**3. View environments:**
+**3. View and manage environments:**
 
 .. code-block:: bash
 
-   # List all environments with their API roots
    cwms-cli env show
+   cwms-cli env delete old-env --yes
+
+
+Using Environments with ``load``
+---------------------------------
+
+The ``--source-env`` and ``--target-env`` options resolve a named
+environment into the corresponding source/target options:
+
+- ``--source-env`` sets ``--source-cda`` and ``--source-office``
+- ``--target-env`` sets ``--target-cda`` and ``--target-api-key``
+
+These two invocations are equivalent:
+
+.. code-block:: bash
+
+   # Explicit flags
+   cwms-cli load location ids-all \
+     --source-cda https://cwms-data.usace.army.mil/cwms-data/ \
+     --source-office SWT \
+     --target-cda http://localhost:8082/cwms-data/ \
+     --target-api-key "apikey 0123456789abcdef"
+
+   # Named environments
+   cwms-cli load location ids-all \
+     --source-env cwbi-prod --target-env localhost
+
+**Rules:**
+
+- ``--source-env`` and ``--source-cda`` are mutually exclusive.
+- ``--target-env`` and ``--target-cda`` are mutually exclusive.
+- Explicit ``--source-office`` or ``--target-api-key`` flags override the
+  values from the environment file.
+
 
 Commands
 --------
 
 cwms-cli env setup <name>
-~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Create or update an environment configuration.
 
 .. code-block:: bash
 
    # Setup with all options
-   cwms-cli env setup myenv --api-root https://cwms-data-dev.example.mil/cwms-data  --api-key YOUR_KEY --office SWT
+   cwms-cli env setup myenv \
+     --api-root https://cwms-data-dev.example.mil/cwms-data \
+     --api-key YOUR_KEY --office SWT
 
-   # Update just the API key
+   # Update just the API key (other fields preserved)
    cwms-cli env setup myenv --api-key NEW_KEY
 
    # Update just the office
    cwms-cli env setup myenv --office LRD
 
-cwms-cli env show
-~~~~~~~~~~~~~~~~~~
+For ``cwbi-prod``, the ``--api-root`` defaults to the production URL.
+All other environment names require ``--api-root``.
 
-List all configured environments.
+
+cwms-cli env show
+~~~~~~~~~~~~~~~~~
+
+List all configured environments with their API root, office, and key status.
+The API key is always redacted — only ``has API key`` or ``no API key`` is shown.
 
 .. code-block:: bash
 
-   # List all environments with API roots and key status
    cwms-cli env show
 
-**Output:**
+**Example output:**
 
 .. code-block:: text
 
@@ -97,17 +131,50 @@ List all configured environments.
    Available environments:
    * cwbi-prod
        API Root: https://cwms-data.usace.army.mil/cwms-data
-       Office: SWT
-       Status: has API key
+       Office:   SWT
+       Status:   has API key
      cwbi-dev
        API Root: https://cwms-data-dev.example.mil/cwms-data
-       Office: SWT
-       Status: no API key
+       Office:   SWT
+       Status:   no API key
 
-The ``*`` marks the currently active environment.
+The ``*`` marks the currently active environment (from the ``ENVIRONMENT``
+variable).
+
+
+cwms-cli env export <name>
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Export an environment's variables to your current shell or a file.
+
+.. code-block:: bash
+
+   # Load into the current bash/zsh shell
+   eval "$(cwms-cli env export cwbi-prod --format bash)"
+
+   # Load into PowerShell
+   cwms-cli env export cwbi-prod --format powershell | Out-String | Invoke-Expression
+
+   # Write a .env file for an IDE or docker-compose
+   cwms-cli env export cwbi-prod --output .env
+
+**Formats:** ``dotenv`` (default), ``bash``, ``powershell``, ``cmd``, ``fish``.
+
+**Safety:** The API key is never printed to a terminal by default. If stdout
+is a TTY and the environment has an API key, ``export`` shows shell-specific
+recipes instead. Use ``--show-key`` to override, or ``--output FILE`` to write
+directly to disk (recommended — guarantees ``0600`` permissions and no
+scrollback exposure).
+
+**Options:**
+
+- ``--output FILE`` — write to a file with ``0600`` permissions instead of stdout.
+- ``--no-key`` — omit ``CDA_API_KEY`` (useful for templates or sharing).
+- ``--show-key`` — allow the API key to be displayed in the terminal.
+
 
 cwms-cli env activate <name>
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Activate an environment in a new shell session.
 
@@ -115,27 +182,20 @@ Activate an environment in a new shell session.
 
    cwms-cli env activate cwbi-prod
 
-The environment variables will be set in the new shell and persist until you exit:
+This spawns a child shell with the environment variables set. Type ``exit``
+or press ``Ctrl+D`` to return to your original shell.
 
-.. code-block:: bash
+.. note::
 
-   # Now in the activated environment
-   echo $CDA_API_ROOT    # Shows the API root
-   cwms-cli blob list     # Uses environment config
+   The parent shell and any already-open IDE will **not** see these variables.
+   For IDE integration, use ``cwms-cli env export <name> --output .env``
+   instead.
 
-   # Exit to return to original shell
-   exit
-
-**Benefits:**
-
-- Clean separation between environments
-- Original shell remains unchanged
-- Type ``exit`` to immediately return to original state
 
 cwms-cli env delete <name>
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Delete an environment configuration from keyring.
+Delete an environment configuration.
 
 .. code-block:: bash
 
@@ -145,49 +205,36 @@ Delete an environment configuration from keyring.
    # Delete without confirmation
    cwms-cli env delete myenv --yes
 
-How It Works
-------------
 
-**Secure storage:** Configuration is stored in your system's keyring:
+Storage and Security
+--------------------
 
-- ``~/.local/share/keyrings/`` (Linux with GNOME Keyring)
-- ``~/Library/Keychains/`` (macOS Keychain)
-- Windows Credential Manager (Windows)
+**File locations:**
 
-**Environment variables set when activated:**
+- All platforms: ``~/.config/cwms-cli/envs/<name>.json``
+  (respects ``XDG_CONFIG_HOME`` when set)
 
-- ``ENVIRONMENT`` - Environment name
-- ``CDA_API_ROOT`` - API root URL
-- ``CDA_API_KEY`` - API key (if provided)
-- ``OFFICE`` - Default office (if provided)
+**File permissions:** ``0600`` on POSIX (owner-only read/write). On Windows,
+an ACL restricts access to the current user.
 
-**Usage with other commands:**
+**Security model:** The user account is the security boundary, matching
+``aws``, ``gcloud``, ``kubectl``, and ``gh``. This feature defends against:
 
-.. code-block:: bash
+- Accidental ``git add`` of a key — files live in ``~/.config/``, not the repo
+- Key pasted into an LLM — users share ``env show`` output (always redacted)
+- Key visible in ``ps`` or shell history — users reference the env name, not values
+- Key in terminal scrollback — ``export`` refuses TTY output by default
 
-   # Activate environment (spawns new shell)
-   cwms-cli env activate cwbi-prod
+This feature does **not** defend against root access or same-user process
+reads. For encrypted-at-rest storage, use a vault (1Password CLI, HashiCorp
+Vault, AWS Secrets Manager) and feed values in via environment variables.
 
-   # Now run commands (uses environment variables automatically)
-   cwms-cli blob list
-   cwms-cli users list
 
-   # Command flags override environment variables
-   cwms-cli blob list --api-root https://cwms-data.usace.army.mil/cwms-data
+Headless and CI Usage
+---------------------
 
-   # Exit the environment shell
-   exit
-
-**Variable persistence:**
-
-- Variables persist until you ``exit`` the spawned shell
-- Variables do NOT affect your original shell
-- Variables do NOT persist across terminal restarts (activate again when needed)
-
-Headless/CI Usage (and Solaris)
---------------------------------
-
-For headless, CI, or Solaris environments where keyring is not available, set environment variables directly:
+For headless or CI environments where ``cwms-cli env`` is not practical,
+set environment variables directly:
 
 .. code-block:: bash
 
@@ -195,12 +242,8 @@ For headless, CI, or Solaris environments where keyring is not available, set en
    export CDA_API_KEY="your_key"
    export OFFICE="SWT"
 
-   # Commands will use these variables
    cwms-cli blob list
 
-The CLI will automatically fall back to reading from ``os.environ`` when keyring is unavailable.
-
-**Note for Solaris users:** Since system keyring backends are not available on Solaris, you must use this environment variable approach. The ``cwms-cli env setup`` and ``cwms-cli env activate`` commands will not work without a keyring backend. Instead, set the variables directly in your shell profile (e.g., ``~/.bashrc`` or ``~/.profile``).
 
 .. click:: cwmscli.commands.env:env_group
    :prog: cwms-cli env

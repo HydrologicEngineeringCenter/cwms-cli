@@ -17,6 +17,22 @@ to the source CDA catalog, so both options use CDA regular expression behavior.
 The CLI does not apply extra exact-match filtering. For CDA regex syntax, see
 the :doc:`CWMS Data API regular expression guide <cda_regex>`.
 
+Using Named Environments
+------------------------
+
+If you have configured environments with ``cwms-cli env setup``, use
+``--source-env`` and ``--target-env`` instead of spelling out URLs and keys:
+
+.. code-block:: shell
+
+   cwms-cli load location ids-all \
+     --source-env cwbi-prod \
+     --target-env localhost \
+     --like "^Black Butte$" \
+     --location-kind-like PROJECT
+
+See :doc:`env` for environment setup.
+
 CDA to CDA Examples
 -------------------
 
