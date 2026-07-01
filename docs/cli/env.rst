@@ -12,6 +12,30 @@ lines, and lets you reference environments by name instead of juggling
 URLs and credentials.
 
 
+Built-in Environments
+---------------------
+
+``cwbi-prod`` ships preconfigured with the production CDA URL. It is
+available immediately — no ``env setup`` required — and appears in
+``env show`` as ``(built-in)``.
+
+Because the built-in has no office or API key, you still need to pass
+``--source-office`` when using it as a source:
+
+.. code-block:: bash
+
+   cwms-cli load location ids-all \
+     --source-env cwbi-prod --source-office SWT \
+     --target-env localhost
+
+To avoid repeating ``--source-office`` every time, run ``env setup`` once
+to attach an office (and optionally an API key):
+
+.. code-block:: bash
+
+   cwms-cli env setup cwbi-prod --office SWT --api-key YOUR_KEY
+
+
 Quick Start
 -----------
 
@@ -19,7 +43,7 @@ Quick Start
 
 .. code-block:: bash
 
-   # Production (has a default URL — just add key and office)
+   # Production — customize the built-in with your office and key
    cwms-cli env setup cwbi-prod --office SWT --api-key YOUR_KEY
 
    # Development (needs --api-root)
@@ -108,8 +132,10 @@ Create or update an environment configuration.
    # Update just the office
    cwms-cli env setup myenv --office LRD
 
-For ``cwbi-prod``, the ``--api-root`` defaults to the production URL.
-All other environment names require ``--api-root``.
+``cwbi-prod`` is built-in and already has the production URL. Running
+``env setup cwbi-prod`` creates a user file that overrides the built-in,
+letting you attach an office and API key. All other environment names
+require ``--api-root``.
 
 
 cwms-cli env show
@@ -137,6 +163,9 @@ The API key is always redacted — only ``has API key`` or ``no API key`` is sho
        API Root: https://cwms-data-dev.example.mil/cwms-data
        Office:   SWT
        Status:   no API key
+
+On a fresh install (before any ``env setup``), ``cwbi-prod`` appears with
+``(built-in)`` and shows ``Office: not set``.
 
 The ``*`` marks the currently active environment (from the ``ENVIRONMENT``
 variable).

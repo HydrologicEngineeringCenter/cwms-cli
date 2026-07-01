@@ -14,6 +14,13 @@ from typing import Dict, List, Optional
 
 from cwmscli.utils.paths import config_dir
 
+ENV_DEFAULTS = {
+    "cwbi-prod": {
+        "ENVIRONMENT": "cwbi-prod",
+        "CDA_API_ROOT": "https://cwms-data.usace.army.mil/cwms-data",
+    },
+}
+
 
 class EnvStoreError(Exception):
     """Raised when an env file cannot be read, written, or deleted."""
@@ -88,11 +95,16 @@ def save_env(name: str, config: Dict[str, str]) -> Path:
     return path
 
 
+def env_exists_on_disk(name: str) -> bool:
+    """Return True if a user-created env file exists for *name*."""
+    return _env_path(name).exists()
+
+
 def load_env(name: str) -> Optional[Dict[str, str]]:
-    """Read and parse an env file. Returns None if missing or malformed."""
+    """Read and parse an env file, falling back to built-in defaults."""
     path = _env_path(name)
     if not path.exists():
-        return None
+        return dict(ENV_DEFAULTS[name]) if name in ENV_DEFAULTS else None
     try:
         with open(path, "r") as f:
             data = json.load(f)
@@ -116,5 +128,6 @@ def delete_env(name: str) -> bool:
 
 
 def list_envs() -> List[str]:
-    """Return sorted env names by listing the envs dir."""
-    return sorted(p.stem for p in envs_dir().glob("*.json"))
+    """Return sorted env names, including built-in defaults."""
+    on_disk = {p.stem for p in envs_dir().glob("*.json")}
+    return sorted(on_disk | ENV_DEFAULTS.keys())

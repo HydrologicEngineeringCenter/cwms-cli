@@ -7,18 +7,16 @@ from typing import Dict, Optional
 import click
 
 from cwmscli.utils.env_store import (
+    ENV_DEFAULTS,
     EnvStoreError,
     delete_env,
+    env_exists_on_disk,
     list_envs,
     load_env,
     save_env,
 )
 
 SENSITIVE_KEYS = {"CDA_API_KEY"}
-
-ENV_DEFAULTS = {
-    "cwbi-prod": "https://cwms-data.usace.army.mil/cwms-data",
-}
 
 
 def _stdout_is_tty() -> bool:
@@ -64,7 +62,7 @@ def setup_cmd(
     if api_root:
         env_vars["CDA_API_ROOT"] = api_root
     elif "CDA_API_ROOT" not in env_vars and env_name in ENV_DEFAULTS:
-        env_vars["CDA_API_ROOT"] = ENV_DEFAULTS[env_name]
+        env_vars["CDA_API_ROOT"] = ENV_DEFAULTS[env_name]["CDA_API_ROOT"]
 
     if api_key:
         env_vars["CDA_API_KEY"] = api_key
@@ -117,11 +115,12 @@ def show_cmd():
         if not env_config:
             continue
         marker = "* " if env_name == current_env else "  "
+        builtin = " (built-in)" if not env_exists_on_disk(env_name) else ""
         api_root = env_config.get("CDA_API_ROOT", "not set")
         office = env_config.get("OFFICE", "not set")
         has_key = "has API key" if env_config.get("CDA_API_KEY") else "no API key"
 
-        click.echo(f"{marker}{env_name}")
+        click.echo(f"{marker}{env_name}{builtin}")
         click.echo(f"    API Root: {api_root}")
         click.echo(f"    Office:   {office}")
         click.echo(f"    Status:   {has_key}")
