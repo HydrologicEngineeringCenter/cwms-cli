@@ -2,6 +2,7 @@ import os
 import shutil
 import subprocess
 import sys
+import time
 from typing import Dict, Optional
 
 import click
@@ -22,6 +23,69 @@ SENSITIVE_KEYS = {"CDA_API_KEY"}
 def _stdout_is_tty() -> bool:
     """Indirection so tests can override TTY detection."""
     return sys.stdout.isatty()
+
+
+def _check_env(env_config: Dict[str, str]) -> Dict:
+    import requests
+
+    api_root = env_config.get("CDA_API_ROOT", "").rstrip("/")
+    if not api_root:
+        return {
+            "reachable": False,
+            "latency_ms": None,
+            "auth": "skipped",
+            "error": "no API root",
+        }
+
+    url = f"{api_root}/offices"
+    try:
+        t0 = time.monotonic()
+        resp = requests.get(url, timeout=5)
+        latency_ms = int((time.monotonic() - t0) * 1000)
+    except requests.RequestException as e:
+        return {
+            "reachable": False,
+            "latency_ms": None,
+            "auth": "skipped",
+            "error": str(e),
+        }
+
+    if resp.status_code >= 400:
+        return {
+            "reachable": False,
+            "latency_ms": latency_ms,
+            "auth": "skipped",
+            "error": f"HTTP {resp.status_code}",
+        }
+
+    api_key = env_config.get("CDA_API_KEY")
+    if not api_key:
+        return {
+            "reachable": True,
+            "latency_ms": latency_ms,
+            "auth": "skipped",
+            "error": None,
+        }
+
+    try:
+        auth_resp = requests.get(url, headers={"Authorization": api_key}, timeout=5)
+    except requests.RequestException:
+        return {
+            "reachable": True,
+            "latency_ms": latency_ms,
+            "auth": "failed",
+            "error": None,
+        }
+
+    if auth_resp.status_code == 401:
+        return {
+            "reachable": True,
+            "latency_ms": latency_ms,
+            "auth": "failed",
+            "error": None,
+        }
+
+    return {"reachable": True, "latency_ms": latency_ms, "auth": "ok", "error": None}
 
 
 @click.group("env", help="Manage CDA environments and API keys")
@@ -88,11 +152,18 @@ def setup_cmd(
 
 
 @env_group.command("show", help="Show current environment and available configurations")
-def show_cmd():
+@click.option(
+    "--check",
+    is_flag=True,
+    default=False,
+    help="Test connectivity and authentication for each environment.",
+)
+def show_cmd(check: bool):
     """
     Display current environment and list all configured environments.
 
     Lists all environments with API root, office, and key status.
+    Use --check to test connectivity and API key validity (requires network).
     """
     current_env = os.environ.get("ENVIRONMENT")
 
@@ -124,6 +195,25 @@ def show_cmd():
         click.echo(f"    API Root: {api_root}")
         click.echo(f"    Office:   {office}")
         click.echo(f"    Status:   {has_key}")
+
+        if check:
+            result = _check_env(env_config)
+            if result["reachable"]:
+                latency = f" ({result['latency_ms']}ms)"
+                reach_str = click.style("reachable", fg="green") + latency
+            else:
+                err = f" — {result['error']}" if result["error"] else ""
+                reach_str = click.style("unreachable", fg="red") + err
+
+            auth_str = ""
+            if result["auth"] == "ok":
+                auth_str = click.style("authenticated", fg="green")
+            elif result["auth"] == "failed":
+                auth_str = click.style("auth failed", fg="red")
+
+            click.echo(f"    Connect:  {reach_str}")
+            if auth_str:
+                click.echo(f"    Auth:     {auth_str}")
 
 
 @env_group.command("delete", help="Delete an environment configuration")

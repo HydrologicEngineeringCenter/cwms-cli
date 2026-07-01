@@ -252,6 +252,132 @@ def test_show_marks_current_env(isolated_envs, monkeypatch):
     assert "* active" in result.output
 
 
+# ---------- env show --check ----------
+
+from cwmscli.commands.env import _check_env
+
+
+def _fake_check(result_map):
+    """Return a _check_env replacement that returns canned results by API root."""
+    default = {
+        "reachable": True,
+        "latency_ms": 42,
+        "auth": "skipped",
+        "error": None,
+    }
+
+    def _check(env_config):
+        root = env_config.get("CDA_API_ROOT", "")
+        return result_map.get(root, default)
+
+    return _check
+
+
+def test_show_check_reachable(isolated_envs, monkeypatch):
+    save_env("demo", {"CDA_API_ROOT": "https://x.mil/cwms-data"})
+    monkeypatch.setattr(
+        "cwmscli.commands.env._check_env",
+        _fake_check({}),
+    )
+    runner = CliRunner()
+    result = runner.invoke(env_group, ["show", "--check"])
+    assert result.exit_code == 0
+    assert "reachable" in result.output
+    assert "42ms)" in result.output
+
+
+def test_show_check_unreachable(isolated_envs, monkeypatch):
+    save_env("demo", {"CDA_API_ROOT": "https://x.mil/cwms-data"})
+    monkeypatch.setattr(
+        "cwmscli.commands.env._check_env",
+        _fake_check(
+            {
+                "https://x.mil/cwms-data": {
+                    "reachable": False,
+                    "latency_ms": None,
+                    "auth": "skipped",
+                    "error": "Connection refused",
+                },
+            }
+        ),
+    )
+    runner = CliRunner()
+    result = runner.invoke(env_group, ["show", "--check"])
+    assert result.exit_code == 0
+    assert "unreachable" in result.output
+    assert "Connection refused" in result.output
+
+
+def test_show_check_auth_ok(isolated_envs, monkeypatch):
+    save_env(
+        "demo",
+        {"CDA_API_ROOT": "https://x.mil/cwms-data", "CDA_API_KEY": "apikey mykey"},
+    )
+    monkeypatch.setattr(
+        "cwmscli.commands.env._check_env",
+        _fake_check(
+            {
+                "https://x.mil/cwms-data": {
+                    "reachable": True,
+                    "latency_ms": 100,
+                    "auth": "ok",
+                    "error": None,
+                },
+            }
+        ),
+    )
+    runner = CliRunner()
+    result = runner.invoke(env_group, ["show", "--check"])
+    assert result.exit_code == 0
+    assert "authenticated" in result.output
+
+
+def test_show_check_auth_failed(isolated_envs, monkeypatch):
+    save_env(
+        "demo",
+        {"CDA_API_ROOT": "https://x.mil/cwms-data", "CDA_API_KEY": "apikey bad"},
+    )
+    monkeypatch.setattr(
+        "cwmscli.commands.env._check_env",
+        _fake_check(
+            {
+                "https://x.mil/cwms-data": {
+                    "reachable": True,
+                    "latency_ms": 100,
+                    "auth": "failed",
+                    "error": None,
+                },
+            }
+        ),
+    )
+    runner = CliRunner()
+    result = runner.invoke(env_group, ["show", "--check"])
+    assert result.exit_code == 0
+    assert "auth failed" in result.output
+
+
+def test_show_check_no_key_skips_auth(isolated_envs, monkeypatch):
+    save_env("demo", {"CDA_API_ROOT": "https://x.mil/cwms-data"})
+    monkeypatch.setattr(
+        "cwmscli.commands.env._check_env",
+        _fake_check({}),
+    )
+    runner = CliRunner()
+    result = runner.invoke(env_group, ["show", "--check"])
+    assert result.exit_code == 0
+    assert "authenticated" not in result.output
+    assert "auth failed" not in result.output
+
+
+def test_show_without_check_flag_unchanged(isolated_envs):
+    save_env("demo", {"CDA_API_ROOT": "https://x.mil/cwms-data"})
+    runner = CliRunner()
+    result = runner.invoke(env_group, ["show"])
+    assert result.exit_code == 0
+    assert "Connect:" not in result.output
+    assert "Auth:" not in result.output
+
+
 # ---------- env delete ----------
 
 

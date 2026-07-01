@@ -170,6 +170,30 @@ On a fresh install (before any ``env setup``), ``cwbi-prod`` appears with
 The ``*`` marks the currently active environment (from the ``ENVIRONMENT``
 variable).
 
+**Options:**
+
+- ``--check`` — test connectivity and API key validity for each environment
+  (requires network access). Adds ``Connect`` and ``Auth`` lines to the output.
+
+.. code-block:: bash
+
+   cwms-cli env show --check
+
+.. code-block:: text
+
+   Available environments:
+   * cwbi-prod
+       API Root: https://cwms-data.usace.army.mil/cwms-data
+       Office:   SWT
+       Status:   has API key
+       Connect:  reachable (284ms)
+       Auth:     authenticated
+     cwbi-dev
+       API Root: https://cwms-data-dev.example.mil/cwms-data
+       Office:   SWT
+       Status:   no API key
+       Connect:  unreachable — Connection refused
+
 
 cwms-cli env export <name>
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
