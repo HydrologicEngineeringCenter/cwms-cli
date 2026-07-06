@@ -13,6 +13,7 @@ from cwmscli.utils import (
     format_local_download_error,
     get_api_key,
     has_invalid_chars,
+    init_cwms_session,
     log_scoped_read_hint,
     validate_default_download_dest,
 )
@@ -26,6 +27,18 @@ def _resolve_optional_api_key(api_key: Optional[str], anonymous: bool) -> Option
     if anonymous or not api_key:
         return None
     return get_api_key(api_key, None)
+
+
+def _resolve_credential_kind(api_key: Optional[str], anonymous: bool) -> Optional[str]:
+    if anonymous:
+        return None
+    from cwmscli.utils import get_saved_login_token
+
+    if get_saved_login_token():
+        return "token"
+    if _resolve_optional_api_key(api_key, anonymous):
+        return "api_key"
+    return None
 
 
 def _write_clob_content(content: str, dest: str) -> str:
@@ -116,7 +129,7 @@ def upload_cmd(
     api_root: str,
     api_key: str,
 ):
-    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
+    init_cwms_session(cwms, api_root=api_root, api_key=api_key)
     try:
         file_size = os.path.getsize(input_file)
         with open(input_file, "r", encoding="utf-8") as f:
@@ -190,8 +203,8 @@ def download_cmd(
             f"DRY RUN: would GET {api_root} clob with clob-id={clob_id} office={office}."
         )
         return
-    resolved_api_key = _resolve_optional_api_key(api_key, anonymous)
-    cwms.init_session(api_root=api_root, api_key=resolved_api_key)
+    credential_kind = _resolve_credential_kind(api_key, anonymous)
+    init_cwms_session(cwms, api_root=api_root, api_key=api_key, anonymous=anonymous)
     bid = clob_id.upper()
     logging.debug(f"Office={office} clobID={bid}")
 
@@ -215,7 +228,7 @@ def download_cmd(
         detail = getattr(e.response, "text", "") or str(e)
         logging.error(f"Failed to download (HTTP): {detail}")
         log_scoped_read_hint(
-            api_key=resolved_api_key,
+            credential_kind=credential_kind,
             anonymous=anonymous,
             office=office,
             action="download",
@@ -234,7 +247,7 @@ def delete_cmd(clob_id: str, office: str, api_root: str, api_key: str, dry_run: 
             f"DRY RUN: would DELETE {api_root} clob with clob-id={clob_id} office={office}"
         )
         return
-    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
+    init_cwms_session(cwms, api_root=api_root, api_key=api_key)
     cid = clob_id.upper()
     path_id, query_id = _clob_endpoint_id(cid)
     if query_id is None:
@@ -278,7 +291,7 @@ def update_cmd(
 
     if file_data:
         clob["value"] = file_data
-    cwms.init_session(api_root=api_root, api_key=get_api_key(api_key, None))
+    init_cwms_session(cwms, api_root=api_root, api_key=api_key)
     cid = clob_id.upper()
     path_id, query_id = _clob_endpoint_id(cid)
     if query_id is None:
@@ -305,8 +318,8 @@ def list_cmd(
     api_key: str,
     anonymous: bool = False,
 ):
-    resolved_api_key = _resolve_optional_api_key(api_key, anonymous)
-    cwms.init_session(api_root=api_root, api_key=resolved_api_key)
+    credential_kind = _resolve_credential_kind(api_key, anonymous)
+    init_cwms_session(cwms, api_root=api_root, api_key=api_key, anonymous=anonymous)
     try:
         df = list_clobs(
             office=office,
@@ -319,7 +332,7 @@ def list_cmd(
         )
     except Exception:
         log_scoped_read_hint(
-            api_key=resolved_api_key,
+            credential_kind=credential_kind,
             anonymous=anonymous,
             office=office,
             action="list",

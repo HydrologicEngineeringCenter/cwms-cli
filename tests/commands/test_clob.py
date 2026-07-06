@@ -1,6 +1,7 @@
 import logging
 import sys
 import types
+from pathlib import Path
 
 import pandas as pd
 import pytest
@@ -42,6 +43,13 @@ def test_clob_endpoint_id_uses_ignored_path_for_special_chars():
 def test_default_download_dest_strips_leading_path_separators():
     assert _default_download_dest("/REPORTS/REL-CLOB") == "REPORTS/REL-CLOB"
     assert _default_download_dest("\\REPORTS\\REL-CLOB") == "REPORTS\\REL-CLOB"
+
+
+def test_clob_commands_use_shared_cwms_session_helper():
+    source = Path("cwmscli/commands/clob.py").read_text(encoding="utf-8")
+
+    assert "init_cwms_session" in source
+    assert "cwms.init_session(" not in source
 
 
 def test_download_cmd_uses_default_dest_and_writes_text(

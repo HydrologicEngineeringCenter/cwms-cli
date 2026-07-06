@@ -5,6 +5,8 @@ from typing import Optional
 
 import click
 
+from cwmscli.utils import init_cwms_session
+
 
 def _extract_timeseries_groups(payload) -> list[dict]:
     if payload is None:
@@ -76,7 +78,7 @@ def _load_timeseries_data(
                 f"No non-null values returned for timeseries ({', '.join(current_ts_ids)}) in office {current_office}."
             )
             return
-        cwms.init_session(api_root=target_cda, api_key=target_api_key)
+        init_cwms_session(cwms, api_root=target_cda, api_key=target_api_key)
         cwms.store_multi_timeseries_df(
             data=ts_data,
             office_id=current_office,
@@ -89,7 +91,7 @@ def _load_timeseries_data(
             f"Loading timeseries data from source CDA '{source_cda}' (office '{source_office}') "
             f"to target CDA '{target_cda}'."
         )
-    cwms.init_session(api_root=source_cda, api_key=None)
+    init_cwms_session(cwms, api_root=source_cda)
     ts_id_groups: list[tuple[str, list[str]]] = []
 
     if ts_ids:

@@ -6,6 +6,19 @@ import cwmscli.load.location.location_ids as location_ids_module
 from cwmscli.load.location.location import location as location_group
 
 
+def mock_cwms_python_version(monkeypatch, version="1.0.7"):
+    import importlib.metadata
+
+    real_version = importlib.metadata.version
+
+    def version_for_package(package):
+        if package == "cwms-python":
+            return version
+        return real_version(package)
+
+    monkeypatch.setattr(importlib.metadata, "version", version_for_package)
+
+
 def test_load_locations_prefers_saved_token_for_target(monkeypatch):
     calls = []
 
@@ -221,6 +234,7 @@ def test_cli_rejects_source_csv_and_target_csv_together(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: None
     )
+    mock_cwms_python_version(monkeypatch)
     src = tmp_path / "in.csv"
     src.write_text("name,office-id,active\nLOC_A,SWT,True\n")
     out = tmp_path / "out.csv"
@@ -246,6 +260,7 @@ def test_cli_rejects_source_csv_with_explicit_source_cda(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: None
     )
+    mock_cwms_python_version(monkeypatch)
     src = tmp_path / "in.csv"
     src.write_text("name,office-id,active\nLOC_A,SWT,True\n")
 

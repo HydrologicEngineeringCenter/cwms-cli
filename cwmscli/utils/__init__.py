@@ -1,4 +1,5 @@
 import logging as py_logging
+import os
 import re
 import time
 from pathlib import Path
@@ -182,6 +183,34 @@ def get_saved_login_token(
     return access_token
 
 
+def get_batch_bearer_token() -> Optional[str]:
+    # Batch runner images expose CDA_BEARER_TOKEN for the normal CLI session
+    # helper path, keeping API keys out of job definitions.
+    token = os.getenv("CDA_BEARER_TOKEN")
+    if not token:
+        return None
+    token = token.strip()
+    if token.lower().startswith("bearer "):
+        token = token[7:].strip()
+    return token or None
+
+
+def get_batch_job_context_token() -> Optional[str]:
+    token = os.getenv("BATCH_JOB_CONTEXT_TOKEN")
+    return token.strip() if token and token.strip() else None
+
+
+def _add_batch_job_context_header(session) -> None:
+    job_context_token = get_batch_job_context_token()
+    if not job_context_token:
+        return
+    headers = getattr(session, "headers", None)
+    if headers is not None:
+        # CDA uses this signed header for batch run context that does not belong
+        # inside the user's or service account's bearer token.
+        headers.update({"X-CWMS-Job-Context": job_context_token})
+
+
 def init_cwms_session(
     cwms_module,
     *,
@@ -189,6 +218,7 @@ def init_cwms_session(
     api_key: Optional[str] = None,
     api_key_loc: Optional[str] = None,
     anonymous: bool = False,
+    token: Optional[str] = None,
     token_file: Optional[Union[str, Path]] = None,
     provider: str = "federation-eams",
 ):
@@ -199,9 +229,22 @@ def init_cwms_session(
     if anonymous:
         return init_fn(api_root=api_root, api_key=None)
 
+    if token:
+        session = init_fn(api_root=api_root, token=token)
+        _add_batch_job_context_header(session)
+        return session
+
     token = get_saved_login_token(token_file=token_file, provider=provider)
     if token:
-        return init_fn(api_root=api_root, token=token)
+        session = init_fn(api_root=api_root, token=token)
+        _add_batch_job_context_header(session)
+        return session
+
+    batch_token = get_batch_bearer_token()
+    if batch_token:
+        session = init_fn(api_root=api_root, token=batch_token)
+        _add_batch_job_context_header(session)
+        return session
 
     resolved_api_key = None
     if api_key_loc is not None or api_key is not None:
