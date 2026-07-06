@@ -370,6 +370,16 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
                         office = row["office-id"]
                         values["quality-code"] = 0
 
+
+                        # 15 minute conversion
+                        if ts_id.split(".")[3] == "15Minutes":
+                          values_dt = values.copy()
+                          values_dt['date-time'] = pd.to_datetime(values_dt['date-time'])
+                          values_dt.set_index('date-time', inplace=True)
+                          values15 = values_dt.resample('15min').first()
+                          values = values15.reset_index()
+
+
                         # write values to CWMS database
                         try:
                             data = cwms.timeseries_df_to_json(
