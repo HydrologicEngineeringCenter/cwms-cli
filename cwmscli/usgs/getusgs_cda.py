@@ -370,6 +370,7 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
                         office = row["office-id"]
                         values["quality-code"] = 0
 
+
                         # 15 minute conversion to allow storing smaller interval data (eg. 5 minute) as 15 minute data
                         if ts_id.split(".")[3] == "15Minutes":
                             values_dt = values.copy()
@@ -379,6 +380,7 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
                             values_dt.set_index("date-time", inplace=True)
                             values15 = values_dt.resample("15min").first()
                             values = values15.reset_index()
+
 
                         # write values to CWMS database
                         try:
