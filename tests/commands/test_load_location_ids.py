@@ -126,6 +126,52 @@ def test_load_locations_uses_catalog_matches_to_fetch_full_records(monkeypatch):
     assert stored == [("LOC_A", False), ("LOC_B", False)]
 
 
+def test_load_locations_reports_friendly_message_for_empty_source(monkeypatch, capsys):
+    monkeypatch.setattr(
+        "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: None
+    )
+    calls = []
+
+    class FakeCatalogResponse:
+        df = pd.DataFrame([])
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key=None):
+            calls.append(("init_session", api_root, api_key))
+
+        @staticmethod
+        def get_locations_catalog(**kwargs):
+            calls.append(("get_locations_catalog", kwargs))
+            return FakeCatalogResponse()
+
+        @staticmethod
+        def store_location(data, fail_if_exists=False):
+            calls.append(("store_location", data["name"]))
+
+    monkeypatch.setattr(location_ids_module, "cwms", FakeCwms)
+
+    location_ids_module.load_locations(
+        source_cda="https://source.example/cwms-data",
+        source_office="SWT",
+        target_cda="http://localhost:8082/cwms-data",
+        target_api_key="apikey 123",
+        verbose=0,
+        dry_run=False,
+        like="DOES_NOT_MATCH*",
+        location_kind_like=["PROJECT"],
+    )
+
+    output = capsys.readouterr().out
+    assert "No locations were returned from the source" in output
+    assert "Refine --like or --location-kind-like" in output
+    assert "CDA Swagger" in output
+    assert not [call for call in calls if call[0] == "store_location"]
+    assert [call for call in calls if call[0] == "init_session"] == [
+        ("init_session", "https://source.example/cwms-data", None)
+    ]
+
+
 def test_target_csv_writes_locations_and_skips_store(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: None

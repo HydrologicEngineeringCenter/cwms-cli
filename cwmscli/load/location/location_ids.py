@@ -57,6 +57,14 @@ def load_locations(
     if verbose:
         logger.info("Got %s locations from source", len(locations))
 
+    if not locations:
+        click.echo(
+            "No locations were returned from the source. Refine --like or "
+            "--location-kind-like and try the filter in CDA Swagger or the "
+            f"CDA regular expression guide: {CDA_REGEXP_GUIDE_URL}"
+        )
+        return
+
     if dry_run:
         for loc in locations:
             logger.info(
