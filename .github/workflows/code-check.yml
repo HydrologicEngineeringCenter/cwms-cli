@@ -25,4 +25,12 @@ jobs:
       - name: Verify generated ownership files
         run: poetry run python scripts/sync_ownership.py --check
 
-      - uses: pre-commit/action@v3.0.1
+      - name: Show quality tool versions
+        run: |
+          poetry run black --version
+          poetry run isort --version-number
+          poetry run yamlfix --version
+          poetry run pre-commit --version
+
+      - name: Run pre-commit checks
+        run: poetry run pre-commit run --all-files --show-diff-on-failure
