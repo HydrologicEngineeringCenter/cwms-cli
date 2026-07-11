@@ -307,6 +307,46 @@ def test_download_cmd_local_error_skips_scope_hint(
     assert "/cli/blob.html" not in caplog.text
 
 
+def test_download_cmd_http_error_logs_scope_hint(
+    tmp_path, monkeypatch: pytest.MonkeyPatch, caplog
+):
+    class FakeResponse:
+        text = "Forbidden"
+
+    class FakeHTTPError(Exception):
+        response = FakeResponse()
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key):
+            return None
+
+        @staticmethod
+        def get_clob(office_id, clob_id):
+            raise FakeHTTPError()
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+    monkeypatch.setattr("cwmscli.commands.clob.cwms", FakeCwms)
+    monkeypatch.setattr(
+        "cwmscli.commands.clob.requests",
+        types.SimpleNamespace(HTTPError=FakeHTTPError),
+    )
+
+    with caplog.at_level(logging.WARNING), pytest.raises(SystemExit) as exc:
+        download_cmd(
+            clob_id="test_clob",
+            dest=str(tmp_path / "downloaded.txt"),
+            office="SWT",
+            api_root="https://example.test/",
+            api_key="apikey 123",
+            dry_run=False,
+        )
+
+    assert exc.value.code == 1
+    assert "Access scope hint: an API key was sent" in caplog.text
+    assert "clob content" in caplog.text
+
+
 def test_list_cmd_initializes_session_with_api_key(monkeypatch: pytest.MonkeyPatch):
     calls = []
 
