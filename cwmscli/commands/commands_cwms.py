@@ -671,10 +671,15 @@ def update_cmd(**kwargs):
     show_default=True,
     help="Sort descending instead of ascending.",
 )
-@click.option("--limit", type=int, default=None, help="Max rows to show.")
+@click.option(
+    "--limit",
+    type=click.IntRange(min=1),
+    default=None,
+    help="Max rows to show.",
+)
 @click.option(
     "--page-size",
-    type=int,
+    type=click.IntRange(min=1),
     default=None,
     help="Max rows to request from the blob endpoint. Defaults to --limit if set, otherwise no pagination (all results in one page).",
 )
@@ -837,10 +842,15 @@ def update_cmd(**kwargs):
     show_default=True,
     help="Sort descending instead of ascending.",
 )
-@click.option("--limit", type=int, default=None, help="Max rows to show.")
+@click.option(
+    "--limit",
+    type=click.IntRange(min=1),
+    default=None,
+    help="Max rows to show.",
+)
 @click.option(
     "--page-size",
-    type=int,
+    type=click.IntRange(min=1),
     default=None,
     help="Max rows to request from the clob endpoint. Defaults to --limit when set.",
 )
