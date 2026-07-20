@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -370,15 +371,39 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
                         office = row["office-id"]
                         values["quality-code"] = 0
 
-                        # 15 minute conversion to allow storing smaller interval data (eg. 5 minute) as 15 minute data
-                        if ts_id.split(".")[3] == "15Minutes":
+                        # check for non irregular data interval and resample data to that interval
+                        if not (
+                            "~" in ts_id.split(".")[3] or ts_id.split(".")[3] == "0"
+                        ):
+                            interval_number = re.match(
+                                r"^(\d+)(.*)", ts_id.split(".")[3]
+                            ).group(1)
+                            interval_type = re.match(
+                                r"^(\d+)(.*)", ts_id.split(".")[3]
+                            ).group(2)
+                            if interval_type == "Minutes":
+                                interval_initial = "T"
+                            else:
+                                interval_initial = interval_type[0]
                             values_dt = values.copy()
                             values_dt["date-time"] = pd.to_datetime(
                                 values_dt["date-time"]
                             )
                             values_dt.set_index("date-time", inplace=True)
-                            values15 = values_dt.resample("15min").first()
-                            values = values15.reset_index()
+                            values_new = values_dt.resample(
+                                interval_number + interval_initial
+                            ).first()
+                            values = values_new.reset_index()
+
+                        # # 15 minute conversion to allow storing smaller interval data (eg. 5 minute) as 15 minute data
+                        # if ts_id.split(".")[3] == "15Minutes":
+                        #     values_dt = values.copy()
+                        #     values_dt["date-time"] = pd.to_datetime(
+                        #         values_dt["date-time"]
+                        #     )
+                        #     values_dt.set_index("date-time", inplace=True)
+                        #     values15 = values_dt.resample("15min").first()
+                        #     values = values15.reset_index()
 
                         # write values to CWMS database
                         try:
