@@ -382,7 +382,7 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
                                 r"^(\d+)(.*)", ts_id.split(".")[3]
                             ).group(2)
                             if interval_type == "Minutes":
-                                interval_initial = "T"
+                                interval_initial = "min"
                             else:
                                 interval_initial = interval_type[0]
                             values_dt = values.copy()
