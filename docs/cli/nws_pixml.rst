@@ -130,6 +130,26 @@ For each series in the PI-XML:
    Unknown parameters, unresolved locations, and underivable intervals are
    warned and skipped.
 
+If two series in one product resolve to the same TSID, only the first is
+stored; the later one is dropped and reported as an error in the run summary
+(and in the ``duplicates`` list under ``--dry-run``).  This usually means a
+sub-location series fell back to its 5-character Handbook-5 prefix — add a
+timeseries-group alias for it to disambiguate.
+
+Time zones
+~~~~~~~~~~
+
+Event times in PI-XML carry no offset of their own; they are all expressed in
+the document-level ``<timeZone>``, an offset from UTC in hours.  The loader
+reads that element and converts every value to UTC before storing.  An absent
+or unparsable ``<timeZone>`` is treated as UTC.
+
+Version dates taken from the document (``creation_date``, ``forecast_date``)
+are converted the same way.  A ``filename_timestamp`` is a naming convention
+outside the document and is read as UTC.  ``version_snap_time`` is applied in
+the source's own time zone — so it keeps naming the same calendar day — and
+the result is stored as UTC.
+
 Environment variables
 ---------------------
 

@@ -19,7 +19,7 @@ import logging
 import os
 import re
 import zipfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import urlparse
 from xml.etree import ElementTree as ET
@@ -27,6 +27,7 @@ from xml.etree import ElementTree as ET
 import cwms
 import pandas as pd
 import requests
+from cwms.api import ApiError
 
 from cwmscli.utils import init_cwms_session
 from cwmscli.utils.intervals import ALL_INTERVAL_PARAMETERS
@@ -129,10 +130,37 @@ def fetch_xml(input_: str) -> bytes:
 # --------------------------------------------------------------------------- #
 # Parse
 # --------------------------------------------------------------------------- #
-def parse_series(xml_bytes: bytes, namespace: str) -> list:
-    """Parse a PI-XML document into a list of series dicts."""
+def _document_timezone(root, ns) -> timezone:
+    """Return the timezone that every time in a PI-XML document is expressed in.
+
+    ``<timeZone>`` is a document-level offset from UTC in (possibly fractional)
+    hours, e.g. ``0.0`` for UTC or ``-6.0`` for CST. It is optional; PI-XML
+    treats an absent element as UTC.
+    """
+    element = root.find("pi:timeZone", ns)
+    text = element.text.strip() if element is not None and element.text else None
+    if not text:
+        return timezone.utc
+    try:
+        hours = float(text)
+    except ValueError:
+        logger.warning("Unparsable <timeZone> %r - assuming UTC", text)
+        return timezone.utc
+    if hours:
+        logger.info("Document times are UTC%+g; converting to UTC", hours)
+    return timezone(timedelta(hours=hours))
+
+
+def parse_series(xml_bytes: bytes, namespace: str) -> tuple:
+    """Parse a PI-XML document into ``(series_dicts, document_timezone)``.
+
+    Event date/times carry no offset of their own - they are all in the
+    document's ``<timeZone>``, which the caller needs in order to convert them
+    to UTC before storing.
+    """
     ns = {"pi": namespace}
     root = ET.fromstring(xml_bytes)
+    doc_tz = _document_timezone(root, ns)
     series_list = []
     for series in root.findall("pi:series", ns):
         header = series.find("pi:header", ns)
@@ -172,7 +200,7 @@ def parse_series(xml_bytes: bytes, namespace: str) -> list:
                 "events": events,
             }
         )
-    return series_list
+    return series_list, doc_tz
 
 
 def _forecast_datetime(header, ns) -> Optional[str]:
@@ -381,16 +409,25 @@ def _filename_timestamp(filename: str) -> Optional[datetime]:
 
 
 def compute_version_date(
-    run: dict, series: list, filename_dt: Optional[datetime]
+    run: dict, series: list, filename_dt: Optional[datetime], doc_tz: timezone
 ) -> Optional[datetime]:
-    """Compute the version date for a run, or None if unversioned."""
+    """Compute the version date for a run, or None if unversioned.
+
+    Dates read out of the document (``creation_date``, ``forecast_date``) are in
+    the document's timezone; a filename timestamp is a naming convention outside
+    the document and is taken as UTC. ``version_snap_time`` is applied in the
+    source's own timezone - so it keeps naming the same calendar day - and the
+    result is converted to UTC.
+    """
     if not run.get("versioned"):
         return None
 
     source = run.get("version_source", "filename_timestamp")
     base: Optional[datetime] = None
+    base_tz = doc_tz
     if source == "filename_timestamp":
         base = filename_dt
+        base_tz = timezone.utc
     elif source == "creation_date":
         base = _first_creation_datetime(series)
     elif source == "forecast_date":
@@ -403,11 +440,12 @@ def compute_version_date(
         logger.warning("Could not determine version date (source=%s)", source)
         return None
 
+    base = base.replace(tzinfo=base_tz)
     snap = run.get("version_snap_time")
     if snap:
         h, m, s = (int(x) for x in snap.split(":"))
         base = base.replace(hour=h, minute=m, second=s, microsecond=0)
-    return base.replace(tzinfo=timezone.utc)
+    return base.astimezone(timezone.utc)
 
 
 def _first_creation_datetime(series: list) -> Optional[datetime]:
@@ -498,34 +536,55 @@ def _build_blob_document(config: dict, existing: dict, update: dict) -> dict:
     return doc
 
 
+def _read_issued_blob(office: str, blob_id: str) -> Optional[dict]:
+    """Return the existing issued-time document, or None if the blob does not exist.
+
+    Only a clean "not found" counts as absent. This write is a full-document
+    rewrite, so treating a transient read failure (auth, 5xx, network) as an
+    empty document would blank every other watershed's recorded times - the
+    caller must see those failures instead.
+    """
+    cwms_logger = logging.getLogger("cwms")
+    prev_level = cwms_logger.level
+    cwms_logger.setLevel(logging.CRITICAL)
+    try:
+        raw = cwms.get_blob(blob_id=blob_id, office_id=office)
+    except ApiError as error:
+        if getattr(error.response, "status_code", None) != 404:
+            raise
+        logger.debug("Blob %s not found, will create", blob_id)
+        return None
+    finally:
+        cwms_logger.setLevel(prev_level)
+
+    if isinstance(raw, dict):
+        return raw
+    try:
+        existing = json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        # cwms.get_blob wraps the response with str(), which yields a Python
+        # repr (single quotes) when the API already deserialized the JSON.
+        try:
+            existing = ast.literal_eval(raw)
+        except (ValueError, SyntaxError) as error:
+            raise ValueError(
+                f"Blob {blob_id} exists but could not be parsed as a JSON "
+                f"document ({error}); refusing to overwrite it."
+            ) from error
+    if not isinstance(existing, dict):
+        raise ValueError(
+            f"Blob {blob_id} exists but holds {type(existing).__name__}, not a "
+            "JSON object; refusing to overwrite it."
+        )
+    return existing
+
+
 def _merge_issued_blob(config: dict, office: str, update: dict) -> None:
     """Read the consolidated issued-time blob, merge this update, and write it back."""
     blob_id = update["blob_id"]
-    existing: dict = {}
-    exists = False
-    try:
-        cwms_logger = logging.getLogger("cwms")
-        prev_level = cwms_logger.level
-        cwms_logger.setLevel(logging.CRITICAL)
-        try:
-            raw = cwms.get_blob(blob_id=blob_id, office_id=office)
-            exists = True
-        finally:
-            cwms_logger.setLevel(prev_level)
-        if isinstance(raw, dict):
-            existing = raw
-        else:
-            try:
-                existing = json.loads(raw)
-            except (json.JSONDecodeError, TypeError):
-                import ast
+    existing = _read_issued_blob(office, blob_id)
 
-                existing = ast.literal_eval(raw)
-    except Exception:
-        logger.debug("Blob %s not found, will create", blob_id)
-        existing = {}
-
-    doc = _build_blob_document(config, existing, update)
+    doc = _build_blob_document(config, existing or {}, update)
     payload = {
         "office-id": office,
         "id": blob_id,
@@ -535,16 +594,16 @@ def _merge_issued_blob(config: dict, office: str, update: dict) -> None:
         ),
         "value": json.dumps(doc, indent=2, sort_keys=True),
     }
-    if exists:
-        cwms.update_blob(payload)
-    else:
+    if existing is None:
         cwms.store_blobs(payload, fail_if_exists=False)
+    else:
+        cwms.update_blob(payload)
 
 
 # --------------------------------------------------------------------------- #
 # Series -> CWMS store
 # --------------------------------------------------------------------------- #
-def _series_dataframe(record: dict) -> pd.DataFrame:
+def _series_dataframe(record: dict, doc_tz: timezone) -> pd.DataFrame:
     miss = record["missVal"]
     rows = []
     for dt_str, value in record["events"]:
@@ -553,7 +612,10 @@ def _series_dataframe(record: dict) -> pd.DataFrame:
         else:
             rows.append((dt_str, float(value), CWMS_GOOD_QUALITY))
     df = pd.DataFrame(rows, columns=["date-time", "value", "quality-code"])
-    df["date-time"] = pd.to_datetime(df["date-time"]).dt.tz_localize("UTC")
+    # Event times are naive and expressed in the document's timezone.
+    df["date-time"] = (
+        pd.to_datetime(df["date-time"]).dt.tz_localize(doc_tz).dt.tz_convert("UTC")
+    )
     return df
 
 
@@ -583,13 +645,13 @@ def load_pixml(
     config = load_config(config_file, config_blob, office)
     namespace = config.get("pi_namespace", DEFAULT_PI_NAMESPACE)
 
-    series = parse_series(fetch_xml(input_), namespace)
+    series, doc_tz = parse_series(fetch_xml(input_), namespace)
     logger.info("Parsed %d series", len(series))
 
     run = select_run(config, filename)
     version_part = run.get("version_part", "")
     filename_dt = _filename_timestamp(filename)
-    version_date = compute_version_date(run, series, filename_dt)
+    version_date = compute_version_date(run, series, filename_dt, doc_tz)
     logger.info(
         "Run version part=%r versioned=%s version_date=%s",
         version_part,
@@ -604,16 +666,35 @@ def load_pixml(
     skipped = 0
     errors = []
     planned = []
+    duplicates = []
+    seen: dict = {}
     for record in series:
         tsid = resolve_tsid(record, config, nws_to_loc, tsgroup_map, version_part)
         if tsid is None:
             skipped += 1
             continue
+        source = f"{record['locationId']}.{record['parameterId']}"
+        # Distinct PI-XML series can resolve to one id (e.g. a sub-location
+        # series falling back to its 5-char Handbook-5 prefix). Storing both
+        # would silently overwrite the first, so drop the later one loudly.
+        if tsid in seen:
+            logger.error(
+                "Duplicate timeseries id %s: already resolved from %s, "
+                "dropping %s. Add a timeseries-group alias to disambiguate.",
+                tsid,
+                seen[tsid],
+                source,
+            )
+            duplicates.append(
+                {"timeseries_id": tsid, "kept": seen[tsid], "dropped": source}
+            )
+            continue
+        seen[tsid] = source
         planned.append((tsid, record["units"]))
         if dry_run:
             continue
         try:
-            df = _series_dataframe(record)
+            df = _series_dataframe(record, doc_tz)
             data_json = cwms.timeseries_df_to_json(
                 data=df,
                 ts_id=tsid,
@@ -640,6 +721,7 @@ def load_pixml(
                     "version_date": version_date.isoformat() if version_date else None,
                     "resolved_timeseries": [t for t, _ in planned],
                     "skipped": skipped,
+                    "duplicates": duplicates,
                     "issued_update": issued_update,
                 },
                 indent=2,
@@ -656,17 +738,25 @@ def load_pixml(
             issued_update["blob_id"],
         )
 
-    total = stored + len(errors) + skipped
-    if errors:
+    total = stored + len(errors) + skipped + len(duplicates)
+    if errors or duplicates:
         logger.error(
-            "Summary: %d/%d stored, %d FAILED, %d skipped",
+            "Summary: %d/%d stored, %d FAILED, %d skipped, %d duplicate ids dropped",
             stored,
             total,
             len(errors),
             skipped,
+            len(duplicates),
         )
         for tsid, err in errors:
             logger.error("  FAILED: %s — %s", tsid, err)
+        for dup in duplicates:
+            logger.error(
+                "  DUPLICATE: %s — kept %s, dropped %s",
+                dup["timeseries_id"],
+                dup["kept"],
+                dup["dropped"],
+            )
     else:
         logger.info(
             "Summary: %d/%d stored, 0 failed, %d skipped",

@@ -1,11 +1,27 @@
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pandas as pd
+import pytest
+from cwms.api import ApiError
 
 import cwmscli.nws.load_pixml as mod
 
 CONFIG = Path(__file__).parents[2] / "docs" / "nws" / "mvp.example.json"
+
+
+def _api_error(status_code: int) -> ApiError:
+    """An ApiError shaped like the one cwms.api.get raises for a bad response."""
+    return ApiError(
+        SimpleNamespace(
+            url="http://cda.example/cwms-data/blobs/X",
+            status_code=status_code,
+            reason="Not Found" if status_code == 404 else "Server Error",
+            content=b"",
+        )
+    )
+
 
 # Minimal MVP-style PI-XML: a clean flow series, an odd-suffix series resolved via
 # the timeseries-group alias, a precip series, and an unknown-parameter series.
@@ -56,8 +72,17 @@ PIXML = """<?xml version="1.0" encoding="UTF-8"?>
 BASE_NAME = "MSR_2024091612_MSR_main_m10_mississippi_river.20240916142934"
 AUTO_NAME = "MSR_2024091612_MSR_main_auto_m10_mississippi_river.20240916142934"
 
+# Same product declared in CST rather than UTC.
+PIXML_CST = PIXML.replace("<timeZone>0.0</timeZone>", "<timeZone>-6.0</timeZone>")
 
-def _make_fake_cwms(calls):
+
+def _make_fake_cwms(calls, tsgroup_rows=None, blob=None):
+    """Build a stand-in for the ``cwms`` module.
+
+    ``tsgroup_rows`` overrides the timeseries-group rows (pass ``[]`` for a group
+    with no alias entries). ``blob`` controls ``get_blob``: an exception instance
+    is raised, anything else is returned; the default is a 404, i.e. no blob yet.
+    """
     hb5 = type(
         "D",
         (),
@@ -68,21 +93,25 @@ def _make_fake_cwms(calls):
         },
     )
     empty = type("D", (), {"df": pd.DataFrame(columns=["location-id", "alias-id"])})
+    if tsgroup_rows is None:
+        tsgroup_rows = [
+            {
+                "timeseries-id": "Wabasha.Flow-Local.Inst.6Hours.0.Fcst-NCRFC-CHIPS",
+                "alias-id": "WABM5LOC.SQIN",
+                "office-id": "MVP",
+            }
+        ]
     tsgroup = type(
         "D",
         (),
         {
             "df": pd.DataFrame(
-                [
-                    {
-                        "timeseries-id": "Wabasha.Flow-Local.Inst.6Hours.0.Fcst-NCRFC-CHIPS",
-                        "alias-id": "WABM5LOC.SQIN",
-                        "office-id": "MVP",
-                    }
-                ]
+                tsgroup_rows,
+                columns=["timeseries-id", "alias-id", "office-id"],
             )
         },
     )
+    blob_result = _api_error(404) if blob is None else blob
 
     class FakeCwms:
         @staticmethod
@@ -101,10 +130,14 @@ def _make_fake_cwms(calls):
 
         @staticmethod
         def get_blob(blob_id=None, office_id=None):
-            raise Exception("not found")  # simulate first-time write
+            calls.append(("get_blob", blob_id, office_id))
+            if isinstance(blob_result, Exception):
+                raise blob_result
+            return blob_result
 
         @staticmethod
         def timeseries_df_to_json(data, ts_id, units, office_id, version_date=None):
+            calls.append(("df_to_json", ts_id, data))
             return {"name": ts_id, "units": units, "version-date": version_date}
 
         @staticmethod
@@ -117,17 +150,29 @@ def _make_fake_cwms(calls):
 
         @staticmethod
         def update_blob(data, fail_if_not_exists=True):
-            calls.append(("update_blob", data["id"]))
+            calls.append(("update_blob", data["id"], data["value"]))
 
     return FakeCwms
 
 
-def _run(monkeypatch, tmp_path, filename, dry_run):
+def _run(
+    monkeypatch,
+    tmp_path,
+    filename,
+    dry_run,
+    xml=PIXML,
+    tsgroup_rows=None,
+    blob=None,
+    calls=None,
+):
     monkeypatch.setattr("cwmscli.utils.get_saved_login_token", lambda *a, **k: None)
-    calls = []
-    monkeypatch.setattr(mod, "cwms", _make_fake_cwms(calls))
+    if calls is None:
+        calls = []
+    monkeypatch.setattr(
+        mod, "cwms", _make_fake_cwms(calls, tsgroup_rows=tsgroup_rows, blob=blob)
+    )
     xml_path = tmp_path / filename
-    xml_path.write_text(PIXML)
+    xml_path.write_text(xml)
     mod.load_pixml(
         input_=str(xml_path),
         config_file=str(CONFIG),
@@ -204,6 +249,93 @@ def test_base_store_passes_version_date_and_writes_blob(monkeypatch, tmp_path):
     # Other configured watersheds are seeded (mapping present, times null).
     assert doc["min"]["cwms_watershed"] == "MinnesotaRiver"
     assert doc["min"]["base"] is None
+
+
+def test_colliding_series_are_dropped_not_silently_overwritten(
+    monkeypatch, tmp_path, capsys
+):
+    # With no alias entry for WABM5LOC, it falls back to its 5-char Handbook-5
+    # prefix and builds the same TSID as WABM5. The second series must be
+    # dropped and reported rather than overwriting the first.
+    _run(monkeypatch, tmp_path, BASE_NAME, dry_run=True, tsgroup_rows=[])
+    out = json.loads(capsys.readouterr().out)
+
+    tsid = "Wabasha.Flow-Sim.Inst.6Hours.0.Fcst-NCRFC-CHIPS"
+    assert out["resolved_timeseries"].count(tsid) == 1
+    assert out["duplicates"] == [
+        {"timeseries_id": tsid, "kept": "WABM5.SQIN", "dropped": "WABM5LOC.SQIN"}
+    ]
+
+
+def test_colliding_series_are_not_stored(monkeypatch, tmp_path):
+    calls = _run(monkeypatch, tmp_path, BASE_NAME, dry_run=False, tsgroup_rows=[])
+
+    stored = [c[1] for c in calls if c[0] == "store_timeseries"]
+    assert stored == [
+        "Wabasha.Flow-Sim.Inst.6Hours.0.Fcst-NCRFC-CHIPS",
+        "Wabasha.Precip-RainAndMelt.Total.6Hours.6Hours.Fcst-NCRFC-CHIPS",
+    ]
+
+
+def test_event_times_use_document_timezone(monkeypatch, tmp_path):
+    calls = _run(monkeypatch, tmp_path, BASE_NAME, dry_run=False, xml=PIXML_CST)
+
+    frames = {c[1]: c[2] for c in calls if c[0] == "df_to_json"}
+    df = frames["Wabasha.Flow-Sim.Inst.6Hours.0.Fcst-NCRFC-CHIPS"]
+    # 12:00 and 18:00 declared in UTC-6 are 18:00 and 00:00 (next day) in UTC.
+    assert [str(t) for t in df["date-time"]] == [
+        "2024-09-05 18:00:00+00:00",
+        "2024-09-06 00:00:00+00:00",
+    ]
+
+
+def test_utc_document_times_are_unshifted(monkeypatch, tmp_path):
+    calls = _run(monkeypatch, tmp_path, BASE_NAME, dry_run=False)
+
+    frames = {c[1]: c[2] for c in calls if c[0] == "df_to_json"}
+    df = frames["Wabasha.Flow-Sim.Inst.6Hours.0.Fcst-NCRFC-CHIPS"]
+    assert [str(t) for t in df["date-time"]] == [
+        "2024-09-05 12:00:00+00:00",
+        "2024-09-05 18:00:00+00:00",
+    ]
+
+
+def test_unreadable_issued_blob_aborts_instead_of_clobbering(monkeypatch, tmp_path):
+    # A 500 on the read must not be mistaken for "no blob yet": the write is a
+    # full-document rewrite and would blank every other watershed's times.
+    calls = []
+    with pytest.raises(ApiError):
+        _run(
+            monkeypatch,
+            tmp_path,
+            BASE_NAME,
+            dry_run=False,
+            blob=_api_error(500),
+            calls=calls,
+        )
+
+    assert not [c for c in calls if c[0] in ("store_blobs", "update_blob")]
+
+
+def test_existing_issued_blob_is_merged_not_replaced(monkeypatch, tmp_path):
+    existing = json.dumps(
+        {
+            "min": {
+                "label": "Minnesota River",
+                "cwms_watershed": "MinnesotaRiver",
+                "base": "2024-09-15 13:00:00",
+            }
+        }
+    )
+    calls = _run(monkeypatch, tmp_path, BASE_NAME, dry_run=False, blob=existing)
+
+    writes = [c for c in calls if c[0] in ("store_blobs", "update_blob")]
+    assert [c[0] for c in writes] == ["update_blob"]
+    doc = json.loads(writes[0][2])
+    # This run's watershed is recorded...
+    assert doc["m10_mississippi_river"]["base"] == "2024-09-16 14:29:34"
+    # ...without discarding a time already recorded for another watershed.
+    assert doc["min"]["base"] == "2024-09-15 13:00:00"
 
 
 def test_cli_smoke_dry_run(monkeypatch, tmp_path):
