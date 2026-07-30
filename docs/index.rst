@@ -24,12 +24,12 @@ Task Guides
 -----------
 
 - :doc:`csv2cwms <cli/csv2cwms>` to load CSV time series into CDA
-- :doc:`NWS PI-XML loader <cli/nws_pixml>` to load NWS/RFC Delft-FEWS
-  PI-XML forecast products into CDA
 - :doc:`Blob commands <cli/blob>` to upload, download, list, delete, and
   update blobs
 - :doc:`Load Locations <cli/load_location_ids_all>` to copy locations from a
   source CDA catalog or location group into a target CDA or CSV file
+- :doc:`NWS PI-XML loader <cli/nws_pixml>` to load NWS/RFC Delft-FEWS
+  PI-XML forecast products into CDA
 - :doc:`Update command <cli/update>` to update the installed package with pip
 - :doc:`Version argument <cli/version>` to print the installed version and see
   upgrade guidance
@@ -61,12 +61,12 @@ Contents
    :caption: Command Guides
 
    cli/csv2cwms
-   cli/nws_pixml
    cli/blob
    cli/login
    cli/clob
    cli/users
    cli/load_location_ids_all
+   cli/nws_pixml
    cli/update
    cli/version
 
