@@ -8,11 +8,24 @@ from cwmscli.dss.compat import _normalize_legacy_args
 from cwmscli.dss.transfer import TransferSummary
 from cwmscli.utils import colors
 
+API_ROOT_ARGS = ["-a", "https://example.test/cwms-data"]
+
 
 def test_canonical_help_is_lazy():
     runner = CliRunner()
     assert runner.invoke(cli, ["dss", "import", "--help"]).exit_code == 0
     assert runner.invoke(cli, ["dss", "export", "--help"]).exit_code == 0
+
+
+def test_dss_commands_use_shared_required_api_options(tmp_path):
+    result = CliRunner().invoke(
+        export_cmd,
+        ["-o", "SWT", "-dss", str(tmp_path / "data.dss"), "-p", "1"],
+        env={"CDA_API_ROOT": ""},
+    )
+
+    assert result.exit_code == 2
+    assert "Missing option '-a' / '--api-root'" in result.output
 
 
 def test_legacy_db_option_has_targeted_error(tmp_path):
@@ -21,6 +34,7 @@ def test_legacy_db_option_has_targeted_error(tmp_path):
         [
             "-o",
             "SWT",
+            *API_ROOT_ARGS,
             "-dss",
             str(tmp_path / "data.dss"),
             "-p",
@@ -34,7 +48,15 @@ def test_legacy_db_option_has_targeted_error(tmp_path):
 
 
 def test_monitor_and_identifier_have_targeted_errors(tmp_path):
-    base = ["-o", "SWT", "-dss", str(tmp_path / "data.dss"), "-p", "1"]
+    base = [
+        "-o",
+        "SWT",
+        *API_ROOT_ARGS,
+        "-dss",
+        str(tmp_path / "data.dss"),
+        "-p",
+        "1",
+    ]
 
     monitor = CliRunner().invoke(export_cmd, [*base, "-m"])
     identifier = CliRunner().invoke(import_cmd, [*base, "-id", "job"])
@@ -47,7 +69,8 @@ def test_monitor_and_identifier_have_targeted_errors(tmp_path):
 
 def test_time_window_is_required(tmp_path):
     result = CliRunner().invoke(
-        export_cmd, ["-o", "SWT", "-dss", str(tmp_path / "data.dss")]
+        export_cmd,
+        ["-o", "SWT", *API_ROOT_ARGS, "-dss", str(tmp_path / "data.dss")],
     )
     assert result.exit_code == 2
     assert "Specify either" in result.output
@@ -59,6 +82,7 @@ def test_invalid_dss_time_zone_is_rejected(tmp_path):
         [
             "-o",
             "SWT",
+            *API_ROOT_ARGS,
             "-dss",
             str(tmp_path / "data.dss"),
             "-p",
@@ -81,6 +105,7 @@ def test_mapping_and_filter_are_mutually_exclusive(tmp_path):
         [
             "-o",
             "SWT",
+            *API_ROOT_ARGS,
             "-dss",
             str(tmp_path / "data.dss"),
             "-p",

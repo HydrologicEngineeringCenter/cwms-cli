@@ -19,8 +19,7 @@ from cwmscli.dss.naming import (
     read_filters,
     read_import_rules,
 )
-from cwmscli.utils import colors, get_api_key, get_saved_login_token, to_uppercase
-from cwmscli.utils.auth import DEFAULT_CDA_API_ROOT
+from cwmscli.utils import api_key_loc_option, colors, common_api_options
 from cwmscli.utils.deps import requires
 
 
@@ -31,14 +30,6 @@ def dss_group() -> None:
 
 def _common_options(function):
     options = [
-        click.option(
-            "-o",
-            "--office",
-            required=True,
-            envvar="OFFICE",
-            callback=to_uppercase,
-            help="CWMS office identifier.",
-        ),
         click.option(
             "-dss",
             "--dss-file",
@@ -66,21 +57,6 @@ def _common_options(function):
         ),
         click.option("--start", help="Inclusive ISO-8601 start time."),
         click.option("--end", help="Inclusive ISO-8601 end time."),
-        click.option(
-            "-a",
-            "--api-root",
-            envvar="CDA_API_ROOT",
-            default=DEFAULT_CDA_API_ROOT,
-            show_default=True,
-            help="CWMS Data API root.",
-        ),
-        click.option("-k", "--api-key", envvar="CDA_API_KEY", help="CDA API key."),
-        click.option(
-            "-kl",
-            "--api-key-loc",
-            type=click.Path(exists=True, dir_okay=False, readable=True, path_type=Path),
-            help="File containing a CDA API key.",
-        ),
         click.option("--dry-run", is_flag=True, help="Validate without writing."),
         click.option(
             "-v",
@@ -115,6 +91,8 @@ def _common_options(function):
 
 
 @dss_group.command("import", help="Transfer time-series data from DSS to CWMS.")
+@common_api_options
+@api_key_loc_option
 @_common_options
 @click.option(
     "-id",
@@ -132,7 +110,7 @@ def import_cmd(
     end: Optional[str],
     api_root: str,
     api_key: Optional[str],
-    api_key_loc: Optional[Path],
+    api_key_loc: Optional[str],
     dry_run: bool,
     verbosity: int,
     log_dir: Optional[Path],
@@ -151,7 +129,6 @@ def import_cmd(
         resolver = ImportResolver(
             read_import_rules(mapping_file), read_filters(filter_file)
         )
-        resolved_key, token = _credentials(api_key, api_key_loc)
         from cwmscli.dss.transfer import (
             CwmsSink,
             DssSource,
@@ -166,7 +143,7 @@ def import_cmd(
             sink = (
                 NullSink()
                 if dry_run
-                else CwmsSink(api_root, office, resolved_key, token)
+                else CwmsSink(api_root, office, api_key, api_key_loc)
             )
             summary = transfer_all(
                 source=source,
@@ -186,6 +163,8 @@ def import_cmd(
 
 
 @dss_group.command("export", help="Transfer time-series data from CWMS to DSS.")
+@common_api_options
+@api_key_loc_option
 @_common_options
 @click.option(
     "-tz",
@@ -205,7 +184,7 @@ def export_cmd(
     end: Optional[str],
     api_root: str,
     api_key: Optional[str],
-    api_key_loc: Optional[Path],
+    api_key_loc: Optional[str],
     dry_run: bool,
     verbosity: int,
     log_dir: Optional[Path],
@@ -223,7 +202,6 @@ def export_cmd(
         resolver = ExportResolver(
             read_export_rules(mapping_file), read_filters(filter_file)
         )
-        resolved_key, token = _credentials(api_key, api_key_loc)
         from cwmscli.dss.transfer import (
             CwmsSource,
             DssSink,
@@ -232,7 +210,9 @@ def export_cmd(
             transform_export,
         )
 
-        source = CwmsSource(api_root, office, start_time, end_time, resolved_key, token)
+        source = CwmsSource(
+            api_root, office, start_time, end_time, api_key, api_key_loc
+        )
         sink = None
         try:
             sink = NullSink() if dry_run else DssSink(str(dss_file))
@@ -253,14 +233,6 @@ def export_cmd(
     except MappingError as error:
         raise click.ClickException(str(error)) from error
     _finish(summary, verbosity)
-
-
-def _credentials(
-    api_key: Optional[str], api_key_loc: Optional[Path]
-) -> tuple[Optional[str], Optional[str]]:
-    if api_key is not None or api_key_loc is not None:
-        return get_api_key(api_key, str(api_key_loc) if api_key_loc else None), None
-    return None, get_saved_login_token()
 
 
 def _reject_unsupported(

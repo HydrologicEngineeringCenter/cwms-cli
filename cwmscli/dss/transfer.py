@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable, Iterable, Optional, Protocol
 
 from cwmscli.dss.naming import ExportRule, ImportRule
-from cwmscli.utils import colors
+from cwmscli.utils import colors, init_cwms_session
 
 logger = logging.getLogger(__name__)
 
@@ -157,7 +157,7 @@ class CwmsSource:
         start: datetime,
         end: datetime,
         api_key: Optional[str],
-        token: Optional[str],
+        api_key_loc: Optional[str],
     ):
         from hec import CwmsDataStore
 
@@ -169,7 +169,7 @@ class CwmsSource:
             time_zone="UTC",
         )
         self._store = CwmsDataStore.open(api_root, **kwargs)
-        _apply_credentials(api_root, api_key, token)
+        _initialize_cwms_session(api_root, api_key, api_key_loc)
 
     def catalog(self):
         return self._store.catalog("timeseries")
@@ -187,13 +187,13 @@ class CwmsSink:
         api_root: str,
         office: str,
         api_key: Optional[str],
-        token: Optional[str],
+        api_key_loc: Optional[str],
     ):
         from hec import CwmsDataStore
 
         kwargs = dict(office=office, read_only=False, time_zone="UTC")
         self._store = CwmsDataStore.open(api_root, **kwargs)
-        _apply_credentials(api_root, api_key, token)
+        _initialize_cwms_session(api_root, api_key, api_key_loc)
 
     def store(self, timeseries):
         self._store.store(timeseries)
@@ -202,22 +202,14 @@ class CwmsSink:
         self._store.close()
 
 
-def _apply_credentials(
-    api_root: str, api_key: Optional[str], token: Optional[str]
+def _initialize_cwms_session(
+    api_root: str, api_key: Optional[str], api_key_loc: Optional[str]
 ) -> None:
     import cwms
 
-    # CwmsDataStore reads CDA_API_KEY during construction and currently turns
-    # it into an Authorization header. Reinitialize unconditionally so an
-    # unrelated environment key is never leaked to a different CDA instance.
-    session = cwms.init_session(api_root=api_root, token=token)
-    session.headers.pop("x-api-key", None)
-    session.headers.pop("Authorization", None)
-    if token:
-        token_value = token.strip()
-        if token_value.lower().startswith("bearer "):
-            token_value = token_value.split(maxsplit=1)[1]
-        session.headers["Authorization"] = f"Bearer {token_value}"
-        return
-    if api_key:
-        session.headers["Authorization"] = f"apikey {api_key}"
+    init_cwms_session(
+        cwms,
+        api_root=api_root,
+        api_key=api_key,
+        api_key_loc=api_key_loc,
+    )

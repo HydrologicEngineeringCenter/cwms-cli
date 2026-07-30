@@ -13,6 +13,8 @@ from cwmscli.dss.naming import (
     read_import_rules,
 )
 
+EXAMPLES = Path(__file__).parents[2] / "docs" / "examples"
+
 
 @pytest.mark.parametrize(
     "tsid",
@@ -84,3 +86,12 @@ def test_bad_mapping_is_not_silently_ignored(tmp_path: Path):
 
     with pytest.raises(MappingError, match="expected"):
         read_import_rules(mapping)
+
+
+def test_documented_mapping_samples_are_matching_real_series():
+    export_rule = read_export_rules(EXAMPLES / "dss-export-mapping.csv")[0]
+    import_rule = read_import_rules(EXAMPLES / "dss-import-mapping.csv")[0]
+
+    assert export_rule.tsid == "AARK.Flow.Inst.1Hour.0.Ccp-Rev"
+    assert import_rule.tsid == export_rule.tsid
+    assert import_rule.pathname == export_rule.pathname
