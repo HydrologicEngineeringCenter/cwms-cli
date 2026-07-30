@@ -12,6 +12,7 @@ from cwmscli.load import __main__ as load
 from cwmscli.usgs import usgs_group
 from cwmscli.utils.click_help import add_version_to_help_tree
 from cwmscli.utils.friendly_errors import to_user_facing_error
+from cwmscli.utils.links import BUG_REPORT_URL
 from cwmscli.utils.logging import (
     LoggingConfig,
     apply_logging_policies,
@@ -131,7 +132,8 @@ def main() -> None:
                 friendly_error.show()
                 raise SystemExit(friendly_error.exit_code)
 
-        # If debug is enabled (or it's not a cert verify error), keep the normal failure behavior.
+        click.echo(f"Unexpected error. Report it at {BUG_REPORT_URL}", err=True)
+        # Preserve the traceback so the report includes useful diagnostic details.
         raise
 
 

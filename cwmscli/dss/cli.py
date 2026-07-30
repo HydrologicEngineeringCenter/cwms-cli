@@ -21,11 +21,24 @@ from cwmscli.dss.naming import (
 )
 from cwmscli.utils import api_key_loc_option, colors, common_api_options
 from cwmscli.utils.deps import requires
+from cwmscli.utils.links import DSS_FEATURE_ISSUE_URL
 
 
 @click.group("dss", help="Transfer time-series data between HEC-DSS and CWMS.")
 def dss_group() -> None:
     pass
+
+
+def _unsupported_legacy_option(label: str, guidance: str):
+    def reject(ctx: click.Context, param: click.Parameter, value: object) -> object:
+        if value not in (None, False):
+            raise click.UsageError(
+                f"{label} is a legacy option that is no longer supported. "
+                f"{guidance} Follow or comment on {DSS_FEATURE_ISSUE_URL}."
+            )
+        return value
+
+    return reject
 
 
 def _common_options(function):
@@ -41,13 +54,13 @@ def _common_options(function):
             "-f",
             "--mapping-file",
             type=click.Path(exists=True, dir_okay=False, readable=True, path_type=Path),
-            help="Legacy direction-specific mapping CSV.",
+            help="Direction-specific mapping CSV.",
         ),
         click.option(
             "-f2",
             "--filter-file",
             type=click.Path(exists=True, dir_okay=False, readable=True, path_type=Path),
-            help="Legacy wildcard filter file.",
+            help="Wildcard filter file.",
         ),
         click.option(
             "-p",
@@ -64,25 +77,36 @@ def _common_options(function):
             type=click.IntRange(0, 2),
             default=1,
             show_default=True,
-            help="Legacy output level: 0=quiet, 1=normal, 2=debug.",
+            help="Output level: 0=quiet, 1=normal, 2=debug.",
         ),
         click.option(
             "-l",
             "--log-dir",
             type=click.Path(exists=True, file_okay=False, path_type=Path),
-            help="Append to a legacy-style dated log file in this directory.",
+            help="Append to a dated log file in this directory.",
         ),
         click.option(
             "-db",
             "--db-file",
             type=click.Path(path_type=Path),
-            help="Unsupported legacy direct-database connection file.",
+            hidden=True,
+            expose_value=False,
+            callback=_unsupported_legacy_option(
+                "-db/--db-file",
+                "This utility uses CDA; pass --api-root and authenticate with "
+                "cwms-cli login, --api-key, or --api-key-loc.",
+            ),
         ),
         click.option(
             "-m",
             "--monitor",
             is_flag=True,
-            help="Unsupported legacy continuous-monitoring mode.",
+            hidden=True,
+            expose_value=False,
+            callback=_unsupported_legacy_option(
+                "-m/--monitor",
+                "Transfers run in batch mode.",
+            ),
         ),
     ]
     for option in reversed(options):
@@ -97,7 +121,12 @@ def _common_options(function):
 @click.option(
     "-id",
     "--identifier",
-    help="Unsupported legacy shadow-file checkpoint identifier.",
+    hidden=True,
+    expose_value=False,
+    callback=_unsupported_legacy_option(
+        "-id/--identifier",
+        "Shadow-file checkpointing is unavailable without monitoring.",
+    ),
 )
 @requires(reqs.hec, reqs.hecdss, reqs.cwms)
 def import_cmd(
@@ -114,11 +143,7 @@ def import_cmd(
     dry_run: bool,
     verbosity: int,
     log_dir: Optional[Path],
-    db_file: Optional[Path],
-    monitor: bool,
-    identifier: Optional[str],
 ) -> None:
-    _reject_unsupported(db_file=db_file, monitor=monitor, identifier=identifier)
     _validate_files(mapping_file, filter_file)
     if not dss_file.is_file():
         raise click.UsageError(f"DSS source file does not exist: {dss_file}")
@@ -188,11 +213,8 @@ def export_cmd(
     dry_run: bool,
     verbosity: int,
     log_dir: Optional[Path],
-    db_file: Optional[Path],
-    monitor: bool,
     dss_time_zone: str,
 ) -> None:
-    _reject_unsupported(db_file=db_file, monitor=monitor)
     _validate_files(mapping_file, filter_file)
     _validate_time_zone(dss_time_zone)
     start_time, end_time = _time_window(lookback_hours, start, end)
@@ -233,27 +255,6 @@ def export_cmd(
     except MappingError as error:
         raise click.ClickException(str(error)) from error
     _finish(summary, verbosity)
-
-
-def _reject_unsupported(
-    *,
-    db_file: Optional[Path],
-    monitor: bool,
-    identifier: Optional[str] = None,
-) -> None:
-    if db_file is not None:
-        raise click.UsageError(
-            "-db/--db-file is not supported. This port uses CDA; pass --api-root "
-            "and authenticate with cwms-cli login, --api-key, or --api-key-loc."
-        )
-    if monitor:
-        raise click.UsageError(
-            "-m/--monitor is not supported in the batch-only first release."
-        )
-    if identifier is not None:
-        raise click.UsageError(
-            "-id/--identifier shadow-file checkpointing is deferred with monitoring."
-        )
 
 
 def _validate_files(mapping_file: Optional[Path], filter_file: Optional[Path]) -> None:

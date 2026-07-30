@@ -6,7 +6,8 @@ from cwmscli.__main__ import cli
 from cwmscli.dss.cli import _finish, _PlainTextFormatter, export_cmd, import_cmd
 from cwmscli.dss.compat import _normalize_legacy_args
 from cwmscli.dss.transfer import TransferSummary
-from cwmscli.utils import colors
+from cwmscli.utils import colors, to_uppercase
+from cwmscli.utils.links import DSS_FEATURE_ISSUE_URL
 
 API_ROOT_ARGS = ["-a", "https://example.test/cwms-data"]
 
@@ -28,6 +29,33 @@ def test_dss_commands_use_shared_required_api_options(tmp_path):
     assert "Missing option '-a' / '--api-root'" in result.output
 
 
+def test_dss_commands_use_shared_office_option():
+    for command in (import_cmd, export_cmd):
+        office = next(param for param in command.params if param.name == "office")
+        assert office.opts == ["-o", "--office"]
+        assert office.required
+        assert office.envvar == "OFFICE"
+        assert office.callback is to_uppercase
+
+
+def test_unsupported_legacy_options_are_hidden_from_help():
+    for command in (import_cmd, export_cmd):
+        result = CliRunner().invoke(command, ["--help"])
+        assert result.exit_code == 0
+        assert "-db" not in result.output
+        assert "--monitor" not in result.output
+        assert "--identifier" not in result.output
+
+
+def test_unsupported_legacy_options_fail_before_required_modern_options():
+    result = CliRunner().invoke(import_cmd, ["-db", "legacy.conf"])
+
+    assert result.exit_code == 2
+    assert "no longer supported" in result.output
+    assert DSS_FEATURE_ISSUE_URL in result.output
+    assert "Missing option" not in result.output
+
+
 def test_legacy_db_option_has_targeted_error(tmp_path):
     result = CliRunner().invoke(
         import_cmd,
@@ -44,7 +72,9 @@ def test_legacy_db_option_has_targeted_error(tmp_path):
         ],
     )
     assert result.exit_code == 2
-    assert "This port uses CDA" in result.output
+    assert "no longer supported" in result.output
+    assert "This utility uses CDA" in result.output
+    assert DSS_FEATURE_ISSUE_URL in result.output
 
 
 def test_monitor_and_identifier_have_targeted_errors(tmp_path):
@@ -62,9 +92,11 @@ def test_monitor_and_identifier_have_targeted_errors(tmp_path):
     identifier = CliRunner().invoke(import_cmd, [*base, "-id", "job"])
 
     assert monitor.exit_code == 2
-    assert "batch-only" in monitor.output
+    assert "no longer supported" in monitor.output
+    assert DSS_FEATURE_ISSUE_URL in monitor.output
     assert identifier.exit_code == 2
-    assert "checkpointing is deferred" in identifier.output
+    assert "no longer supported" in identifier.output
+    assert DSS_FEATURE_ISSUE_URL in identifier.output
 
 
 def test_time_window_is_required(tmp_path):

@@ -105,7 +105,9 @@ round-trip pathname convention.
 Compatibility limits
 --------------------
 
-This release is batch-only. Legacy ``-db`` direct Oracle connections, ``-m``
-monitoring, and ``-id`` shadow-file checkpoints are recognized but return
-migration guidance. The commands do not create missing CWMS locations or
-propagate deletes and renames.
+This release is batch-only. Unsupported legacy-only modes are recognized for
+paste compatibility but are intentionally omitted from command help. They
+return migration guidance and a link to
+`issue #94 <https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/94>`_.
+The commands do not create missing CWMS locations or propagate deletes and
+renames.

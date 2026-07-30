@@ -4,6 +4,7 @@ import sys
 import pytest
 
 import cwmscli.__main__ as cli_main
+from cwmscli.utils.links import BUG_REPORT_URL
 
 
 class _FakeResponse:
@@ -14,7 +15,7 @@ class _FakeResponse:
         *,
         reason="",
         url="https://example.test/cwms-data/resource",
-        incident=None
+        incident=None,
     ):
         self.status_code = status_code
         self.reason = reason
@@ -129,7 +130,7 @@ def test_main_formats_server_error_with_incident_identifier(monkeypatch, capsys)
     assert "incidentIdentifier 12345" in captured.err
 
 
-def test_main_preserves_raw_exception_when_debug_enabled(monkeypatch):
+def test_main_preserves_raw_exception_and_prints_report_link(monkeypatch, capsys):
     def fake_cli(*args, **kwargs):
         raise RuntimeError("boom")
 
@@ -139,3 +140,5 @@ def test_main_preserves_raw_exception_when_debug_enabled(monkeypatch):
 
     with pytest.raises(RuntimeError, match="boom"):
         cli_main.main()
+
+    assert f"Unexpected error. Report it at {BUG_REPORT_URL}" in capsys.readouterr().err
