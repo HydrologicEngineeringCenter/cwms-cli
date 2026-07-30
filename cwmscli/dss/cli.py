@@ -21,7 +21,7 @@ from cwmscli.dss.naming import (
 )
 from cwmscli.utils import api_key_loc_option, colors, common_api_options
 from cwmscli.utils.deps import requires
-from cwmscli.utils.links import DSS_FEATURE_ISSUE_URL
+from cwmscli.utils.links import NEW_ISSUE_URL
 
 
 @click.group("dss", help="Transfer time-series data between HEC-DSS and CWMS.")
@@ -34,7 +34,7 @@ def _unsupported_legacy_option(label: str, guidance: str):
         if value not in (None, False):
             raise click.UsageError(
                 f"{label} is a legacy option that is no longer supported. "
-                f"{guidance} Follow or comment on {DSS_FEATURE_ISSUE_URL}."
+                f"{guidance} Submit an issue at {NEW_ISSUE_URL}."
             )
         return value
 

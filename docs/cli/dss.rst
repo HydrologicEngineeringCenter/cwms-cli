@@ -108,6 +108,6 @@ Compatibility limits
 This release is batch-only. Unsupported legacy-only modes are recognized for
 paste compatibility but are intentionally omitted from command help. They
 return migration guidance and a link to
-`issue #94 <https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/94>`_.
+`submit a new issue <https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/new>`_.
 The commands do not create missing CWMS locations or propagate deletes and
 renames.

@@ -7,7 +7,7 @@ from cwmscli.dss.cli import _finish, _PlainTextFormatter, export_cmd, import_cmd
 from cwmscli.dss.compat import _normalize_legacy_args
 from cwmscli.dss.transfer import TransferSummary
 from cwmscli.utils import colors, to_uppercase
-from cwmscli.utils.links import DSS_FEATURE_ISSUE_URL
+from cwmscli.utils.links import NEW_ISSUE_URL
 
 API_ROOT_ARGS = ["-a", "https://example.test/cwms-data"]
 
@@ -52,7 +52,7 @@ def test_unsupported_legacy_options_fail_before_required_modern_options():
 
     assert result.exit_code == 2
     assert "no longer supported" in result.output
-    assert DSS_FEATURE_ISSUE_URL in result.output
+    assert NEW_ISSUE_URL in result.output
     assert "Missing option" not in result.output
 
 
@@ -74,7 +74,7 @@ def test_legacy_db_option_has_targeted_error(tmp_path):
     assert result.exit_code == 2
     assert "no longer supported" in result.output
     assert "This utility uses CDA" in result.output
-    assert DSS_FEATURE_ISSUE_URL in result.output
+    assert NEW_ISSUE_URL in result.output
 
 
 def test_monitor_and_identifier_have_targeted_errors(tmp_path):
@@ -93,10 +93,10 @@ def test_monitor_and_identifier_have_targeted_errors(tmp_path):
 
     assert monitor.exit_code == 2
     assert "no longer supported" in monitor.output
-    assert DSS_FEATURE_ISSUE_URL in monitor.output
+    assert NEW_ISSUE_URL in monitor.output
     assert identifier.exit_code == 2
     assert "no longer supported" in identifier.output
-    assert DSS_FEATURE_ISSUE_URL in identifier.output
+    assert NEW_ISSUE_URL in identifier.output
 
 
 def test_time_window_is_required(tmp_path):
