@@ -1,0 +1,26 @@
+{
+  "name": "cwms-cli",
+  "build": {
+    "dockerfile": "Dockerfile",
+    "args": {
+      "POETRY_VERSION": "2.0.1"
+    }
+  },
+  "remoteUser": "vscode",
+  "containerEnv": {
+    "TZ": "Etc/UTC",
+    "VIRTUAL_ENV": "/opt/venv",
+    "POETRY_VIRTUALENVS_CREATE": "false"
+  },
+  "postCreateCommand": "git config --global --add safe.directory \"$(pwd)\" && poetry install --with dev --no-interaction",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/opt/venv/bin/python"
+      }
+    }
+  }
+}
