@@ -66,3 +66,15 @@ class TemplateSpec:
     source: str = "builtin"
     path: Optional[str] = None
     options: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class LayoutSpec:
+    mode: str = "flow"
+    columns: int = 12
+    rows: int = 16
+    page: Dict[str, Any] = field(default_factory=dict)
+    blocks: List[Dict[str, Any]] = field(default_factory=list)
+    groups: List[Dict[str, Any]] = field(default_factory=list)
+    presentation: Optional[str] = None
+    options: Dict[str, Any] = field(default_factory=dict)

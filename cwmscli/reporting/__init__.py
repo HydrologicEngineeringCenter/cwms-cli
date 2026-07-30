@@ -190,6 +190,10 @@ def _build_context(config_path: str, config_overrides=()):
         "report": dataclasses_asdict(config.report),
         "dataset": dataclasses_asdict(config.dataset),
         "template": dataclasses_asdict(config.template),
+        "layout": {
+            **dataclasses_asdict(config.layout),
+            **dataclasses_asdict(config.layout.options),
+        },
         "base_date": base_date,
         "generated_at": datetime.now(timezone.utc),
         "header": dataclasses_asdict(config.header),

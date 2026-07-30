@@ -214,6 +214,52 @@ def test_report_config_parses_template_and_columns(workspace_tmpdir):
     assert config.columns[0].tsid == "{project}.Elev.Inst.1Hour.0.Ccp-Rev"
 
 
+def test_report_config_preserves_builder_layout_page_and_blocks(workspace_tmpdir):
+    config_path = workspace_tmpdir / "report.yaml"
+    _write_minimal_config(config_path)
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8")
+        + "\n"
+        + "\n".join(
+            [
+                "layout:",
+                "  mode: grid",
+                "  columns: 12",
+                "  rows: 20",
+                "  page:",
+                "    label: Monthly lake report page",
+                "    width: 1040",
+                "    minHeight: 1120",
+                "    showGrid: true",
+                "    fixedWidth:",
+                "      enabled: true",
+                "      columns: 82",
+                "      lineHeight: 16",
+                "  blocks:",
+                "    - id: notice",
+                "      type: fixedText",
+                "      text: REPORT IS SUBJECT TO CHANGE",
+                "      grid:",
+                "        x: 1",
+                "        y: 1",
+                "        w: 12",
+                "        h: 2",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    config = Config.from_yaml(str(config_path))
+
+    assert config.layout.mode == "grid"
+    assert config.layout.columns == 12
+    assert config.layout.rows == 20
+    assert config.layout.page["label"] == "Monthly lake report page"
+    assert config.layout.page["fixedWidth"]["columns"] == 82
+    assert config.layout.blocks[0]["type"] == "fixedText"
+    assert config.layout.blocks[0]["grid"]["w"] == 12
+
+
 def test_report_generate_html_uses_builtin_template(
     runner, workspace_tmpdir, fake_cwms
 ):
@@ -236,6 +282,60 @@ def test_report_generate_html_uses_builtin_template(
     assert "Daily Reservoir Report" in html
     assert "KEYS Lake" in html
     assert "722.34" in html
+
+
+def test_report_template_receives_builder_layout_context(
+    runner, workspace_tmpdir, fake_cwms
+):
+    config_path = workspace_tmpdir / "report.yaml"
+    out_path = workspace_tmpdir / "report.txt"
+    template_path = workspace_tmpdir / "layout.txt.j2"
+    _write_minimal_config(config_path)
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8")
+        + "\n"
+        + "\n".join(
+            [
+                "layout:",
+                "  mode: grid",
+                "  columns: 12",
+                "  rows: 20",
+                "  page:",
+                "    fixedWidth:",
+                "      enabled: true",
+                "      columns: 82",
+                "  blocks:",
+                "    - id: notice",
+                "      type: fixedText",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    template_path.write_text(
+        "mode={{ layout.mode }} columns={{ layout.columns }} "
+        "fixed={{ layout.page.fixedWidth.columns }} block={{ layout.blocks[0].type }}\n",
+        encoding="utf-8",
+    )
+
+    result = runner.invoke(
+        cli,
+        [
+            "report",
+            "generate",
+            "--config",
+            str(config_path),
+            "--out",
+            str(out_path),
+            "--template-file",
+            str(template_path),
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert (
+        out_path.read_text(encoding="utf-8")
+        == "mode=grid columns=12 fixed=82 block=fixedText"
+    )
 
 
 def test_report_generate_accepts_report_package(runner, workspace_tmpdir, fake_cwms):
@@ -760,9 +860,28 @@ def test_report_time_series_config_generates_text_with_template(
     template_path = workspace_tmpdir / "time_series.txt.j2"
     out_path = workspace_tmpdir / "time_series.txt"
     _write_time_series_config(config_path)
+    config_path.write_text(
+        config_path.read_text(encoding="utf-8")
+        + "\n"
+        + "\n".join(
+            [
+                "layout:",
+                "  mode: grid",
+                "  page:",
+                "    fixedWidth:",
+                "      enabled: true",
+                "      columns: 82",
+                "  blocks:",
+                "    - id: stage-text",
+                "      type: fixedText",
+            ]
+        ),
+        encoding="utf-8",
+    )
     template_path.write_text(
         "{{ options.title }} {{ month.label }} "
-        "value={{ fmt_float(value_at('stage', month.start), 2) }}",
+        "value={{ fmt_float(value_at('stage', month.start), 2) }} "
+        "layout={{ layout.mode }}/{{ layout.page.fixedWidth.columns }}/{{ layout.blocks[0].type }}",
         encoding="utf-8",
     )
 
@@ -788,7 +907,7 @@ def test_report_time_series_config_generates_text_with_template(
         in result.output
     )
     text = out_path.read_text(encoding="utf-8", newline="")
-    assert text == "Example Lake MAY 2026 value=725.25"
+    assert text == "Example Lake MAY 2026 value=725.25 layout=grid/82/fixedText"
 
 
 def test_report_generate_accepts_dataset_overrides(

@@ -8,6 +8,7 @@ from cwmscli.reporting.models import (
     ColumnSpec,
     DatasetSpec,
     HeaderCellSpec,
+    LayoutSpec,
     ProjectSpec,
     ReportSpec,
     TableHeaderSpec,
@@ -48,6 +49,7 @@ class Config:
     dataset: DatasetSpec = field(default_factory=DatasetSpec)
     template: TemplateSpec = field(default_factory=TemplateSpec)
     report: Optional[Union[ReportSpec, Dict[str, Any]]] = None
+    layout: LayoutSpec = field(default_factory=LayoutSpec)
     projects: List[ProjectSpec] = field(default_factory=list)
     columns: List[ColumnSpec] = field(default_factory=list)
     header: Optional[TableHeaderSpec] = None
@@ -103,6 +105,38 @@ class Config:
             logo_right=report_block.get("logo_right"),
             title_lines=list(report_block.get("title_lines") or []),
             footer_lines=list(report_block.get("footer_lines") or []),
+        )
+
+        layout_block = raw.get("layout") or {}
+        if not isinstance(layout_block, dict):
+            raise click.BadParameter("Invalid layout configuration.")
+        page_block = dict(layout_block.get("page") or {})
+        columns_value = layout_block.get("columns") or page_block.get("columns") or 12
+        rows_value = layout_block.get("rows") or page_block.get("rows") or 16
+        page_block.setdefault("columns", int(columns_value))
+        page_block.setdefault("rows", int(rows_value))
+        layout = LayoutSpec(
+            mode=layout_block.get("mode") or page_block.get("mode") or "flow",
+            columns=int(columns_value),
+            rows=int(rows_value),
+            page=page_block,
+            blocks=list(layout_block.get("blocks") or []),
+            groups=list(layout_block.get("groups") or []),
+            presentation=layout_block.get("presentation"),
+            options={
+                key: value
+                for key, value in layout_block.items()
+                if key
+                not in {
+                    "mode",
+                    "columns",
+                    "rows",
+                    "page",
+                    "blocks",
+                    "groups",
+                    "presentation",
+                }
+            },
         )
 
         columns: List[ColumnSpec] = []
@@ -170,6 +204,7 @@ class Config:
             dataset=dataset,
             template=template,
             report=report,
+            layout=layout,
             projects=projects,
             columns=columns,
             header=header,
