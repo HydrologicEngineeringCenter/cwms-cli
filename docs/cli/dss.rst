@@ -24,8 +24,8 @@ Use ``dss import`` to store DSS time series in CWMS through CDA, and
 The installed ``dss2cwms`` and ``cwms2dss`` commands accept the same
 direction-specific options for compatibility with legacy jobs.
 
-Real public-CDA round trip
---------------------------
+Examples
+--------
 
 These examples use the real public SWT time series
 ``AARK.Flow.Inst.1Hour.0.Ccp-Rev``. Download the
