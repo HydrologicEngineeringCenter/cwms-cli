@@ -9,7 +9,8 @@
   "remoteUser": "vscode",
   "containerEnv": {
     "TZ": "Etc/UTC",
-    "VIRTUAL_ENV": "/opt/venv",
+    "POETRY_HOME": "/opt/poetry",
+    "VIRTUAL_ENV": "/home/vscode/.venv",
     "POETRY_VIRTUALENVS_CREATE": "false"
   },
   "postCreateCommand": "git config --global --add safe.directory \"$(pwd)\" && poetry install --with dev --no-interaction",
@@ -19,7 +20,7 @@
         "ms-python.python"
       ],
       "settings": {
-        "python.defaultInterpreterPath": "/opt/venv/bin/python"
+        "python.defaultInterpreterPath": "/home/vscode/.venv/bin/python"
       }
     }
   }
