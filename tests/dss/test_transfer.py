@@ -1,4 +1,6 @@
+from datetime import datetime, timedelta
 from functools import partial
+from zoneinfo import ZoneInfo
 
 import pytest
 
@@ -33,7 +35,7 @@ def test_import_transform_preserves_quality_and_applies_factor():
     assert result.name == rule.tsid
     assert result.values[0] == 2
     assert result.qualities == [0, 5]
-    assert result.time_zone == "UTC"
+    assert ZoneInfo(result.time_zone).utcoffset(datetime(2026, 1, 1)) == timedelta(0)
 
 
 def test_export_transform_preserves_legacy_name_and_timezone():
