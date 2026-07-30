@@ -1,16 +1,27 @@
 """Installed compatibility entry points for the legacy command names."""
 
+import os
 import sys
 
+from colorama import just_fix_windows_console
+
 from cwmscli.dss.cli import export_cmd, import_cmd
+from cwmscli.utils import colors
 
 
 def dss2cwms_main() -> None:
+    _enable_terminal_colors()
     import_cmd.main(args=_normalize_legacy_args(sys.argv[1:]), prog_name="dss2cwms")
 
 
 def cwms2dss_main() -> None:
+    _enable_terminal_colors()
     export_cmd.main(args=_normalize_legacy_args(sys.argv[1:]), prog_name="cwms2dss")
+
+
+def _enable_terminal_colors() -> None:
+    just_fix_windows_console()
+    colors.set_enabled(sys.stdout.isatty() and "NO_COLOR" not in os.environ)
 
 
 def _normalize_legacy_args(args: list[str]) -> list[str]:

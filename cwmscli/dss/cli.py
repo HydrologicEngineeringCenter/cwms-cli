@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
@@ -18,7 +19,7 @@ from cwmscli.dss.naming import (
     read_filters,
     read_import_rules,
 )
-from cwmscli.utils import get_api_key, get_saved_login_token, to_uppercase
+from cwmscli.utils import colors, get_api_key, get_saved_login_token, to_uppercase
 from cwmscli.utils.auth import DEFAULT_CDA_API_ROOT
 from cwmscli.utils.deps import requires
 
@@ -339,7 +340,7 @@ def _configure_legacy_logging(
         return
     filename = log_dir / f"{program}.{datetime.now():%Y.%m.%d}.log"
     handler = logging.FileHandler(filename, mode="a", encoding="utf-8")
-    handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(message)s"))
+    handler.setFormatter(_PlainTextFormatter("%(asctime)s %(levelname)s %(message)s"))
     root.addHandler(handler)
 
 
@@ -360,8 +361,10 @@ def _validate_time_zone(value: str) -> None:
 
 def _finish(summary, verbosity: int) -> None:
     message = (
-        f"Discovered: {summary.discovered}; transferred: {summary.transferred}; "
-        f"skipped: {summary.skipped}; failed: {summary.failed}"
+        f"{colors.c('Discovered', 'cyan', bright=True)}: {summary.discovered}; "
+        f"{colors.c('transferred', 'green', bright=True)}: {summary.transferred}; "
+        f"{colors.c('skipped', 'yellow', bright=True)}: {summary.skipped}; "
+        f"{colors.c('failed', 'red', bright=bool(summary.failed))}: {summary.failed}"
     )
     if verbosity > 0 or summary.failed:
         click.echo(message, err=bool(summary.failed))
@@ -369,3 +372,11 @@ def _finish(summary, verbosity: int) -> None:
         raise click.ClickException(
             f"Transfer completed with {summary.failed} failed time series."
         )
+
+
+_ANSI_ESCAPE = re.compile(r"\x1b\[[0-?]*[ -/]*[@-~]")
+
+
+class _PlainTextFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        return _ANSI_ESCAPE.sub("", super().format(record))

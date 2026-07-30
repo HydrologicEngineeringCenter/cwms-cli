@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Callable, Iterable, Optional, Protocol
 
 from cwmscli.dss.naming import ExportRule, ImportRule
+from cwmscli.utils import colors
 
 logger = logging.getLogger(__name__)
 
@@ -50,19 +51,29 @@ def transfer_all(
             rule = resolve(identifier)
             if rule is None:
                 summary.skipped += 1
-                logger.debug("Skipped unmapped time series %s", identifier)
+                logger.debug(
+                    "Skipped unmapped time series %s", colors.warn(str(identifier))
+                )
                 continue
             timeseries = source.retrieve(identifier)
             timeseries = transform(timeseries, rule)
             if dry_run:
-                logger.info("Would transfer %s -> %s", identifier, timeseries.name)
+                logger.info(
+                    "Would transfer %s -> %s",
+                    colors.c(str(identifier), "cyan"),
+                    colors.c(str(timeseries.name), "blue", bright=True),
+                )
             else:
                 sink.store(timeseries)
-                logger.info("Transferred %s -> %s", identifier, timeseries.name)
+                logger.info(
+                    "Transferred %s -> %s",
+                    colors.ok(str(identifier)),
+                    colors.c(str(timeseries.name), "cyan", bright=True),
+                )
             summary.transferred += 1
         except Exception:
             summary.failed += 1
-            logger.exception("Failed to transfer %s", identifier)
+            logger.exception("Failed to transfer %s", colors.err(str(identifier)))
     return summary
 
 
