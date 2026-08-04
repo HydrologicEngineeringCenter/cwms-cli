@@ -15,7 +15,7 @@ Overview
 
 - loading a single PI-XML file or URL (``.gz``/``.zip`` auto-unzipped)
 - config-driven NWS→CWMS parameter mapping
-- TSID resolution via timeseries-group alias override with built fallback
+- TSID resolution via timeseries-group alias override with optional built fallback
 - run selection by filename pattern (e.g. base / auto / CRF)
 - per-run versioning control (versioned or unversioned)
 - issued-time tracking via a consolidated JSON blob
@@ -91,6 +91,10 @@ Top-level keys:
 - ``location_alias_groups[]`` — location alias groups used to resolve NWS
   location IDs to CWMS location IDs; later groups override earlier ones
 - ``timeseries_group`` — the TS group used for alias-based TSID override
+- ``build_missing_timeseries`` — opt in to building TSIDs from
+  ``parameter_map`` when no timeseries-group match exists; when omitted or
+  falsey, series without a timeseries-group match are skipped instead of
+  being built
 - ``parameter_map`` — NWS parameter → CWMS parameter name mapping
   (e.g. ``SQIN`` → ``Flow-Sim``)
 - ``param_type_rules[]`` — rules that set type and duration when the CWMS
@@ -124,17 +128,26 @@ For each series in the PI-XML:
    ``{locationId}.{parameterId}``), look it up in the configured timeseries
    group.  If the run defines a ``version_part``, swap it into the 6th TSID
    segment so one alias serves base/auto/CRF.
-2. **Built fallback** — construct
+2. **Built fallback (optional)** — if ``build_missing_timeseries`` is true,
+   construct
    ``{cwms_loc}.{param}.{type}.{interval}.{duration}.{version_part}`` from
    the mapped parameter, derived interval, and configured defaults.
    Unknown parameters, unresolved locations, and underivable intervals are
-   warned and skipped.
+   warned and skipped.  If ``build_missing_timeseries`` is false or omitted,
+   unmatched series are skipped instead of being built from the config.
 
 If two series in one product resolve to the same TSID, only the first is
 stored; the later one is dropped and reported as an error in the run summary
 (and in the ``duplicates`` list under ``--dry-run``).  This usually means a
 sub-location series fell back to its 5-character Handbook-5 prefix — add a
 timeseries-group alias for it to disambiguate.
+
+Under ``--dry-run``, the JSON report includes summary counts such as
+``resolved_count``, ``skipped_by_reason``, and ``duplicate_count``.  Duplicate
+entries keep compact ``kept``/``dropped`` source strings plus short
+``kept_summary``/``ignored_summary`` fields so repeated
+``locationId.parameterId`` headers can still be told apart without expanding
+the report into nested per-series objects.
 
 Time zones
 ~~~~~~~~~~

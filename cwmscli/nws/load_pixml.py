@@ -19,6 +19,7 @@ import logging
 import os
 import re
 import zipfile
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from urllib.parse import urlparse
@@ -319,6 +320,70 @@ def derive_interval(
     return None
 
 
+def _series_source(record: dict) -> str:
+    return f"{record['locationId']}.{record['parameterId']}"
+
+
+def _series_detail(record: dict, series_number: int) -> dict:
+    return {
+        "series_number": series_number,
+        "source": _series_source(record),
+        "location_id": record["locationId"],
+        "parameter_id": record["parameterId"],
+        "ensemble_id": record.get("ensembleId"),
+        "time_step": {
+            "unit": record.get("timeStep_unit"),
+            "multiplier": record.get("timeStep_multiplier"),
+        },
+        "interval": derive_interval(
+            record.get("timeStep_unit"), record.get("timeStep_multiplier")
+        ),
+        "event_count": len(record.get("events", [])),
+    }
+
+
+def _build_missing_timeseries(config: dict) -> bool:
+    """Return True only when TSID building is explicitly enabled.
+
+    This makes TSID construction from ``parameter_map`` a strict opt-in:
+    nothing is built unless ``build_missing_timeseries`` is truthy in the
+    config, regardless of whether a timeseries group is configured.
+    """
+
+    return bool(config.get("build_missing_timeseries"))
+
+
+def _format_time_step(detail: dict) -> str:
+    time_step = detail["time_step"]
+    unit = time_step.get("unit")
+    multiplier = time_step.get("multiplier")
+    if unit and multiplier:
+        return f"{multiplier} {unit}"
+    if unit:
+        return unit
+    if multiplier:
+        return str(multiplier)
+    return "unknown"
+
+
+def _format_series_detail(detail: dict) -> str:
+    ensemble = detail.get("ensemble_id")
+    interval = detail.get("interval") or _format_time_step(detail)
+    parts = [interval, f"{detail['event_count']} values"]
+    if ensemble:
+        parts.append(ensemble)
+    return f"series #{detail['series_number']} {detail['source']} ({', '.join(parts)})"
+
+
+def _series_summary(detail: dict) -> str:
+    interval = detail.get("interval") or _format_time_step(detail)
+    return f"#{detail['series_number']} {interval} {detail['event_count']} values"
+
+
+def _skip(reason: str, message: str) -> dict:
+    return {"reason": reason, "message": message}
+
+
 def _param_type_and_duration(config: dict, param: str) -> tuple:
     d_type = config.get("default_type", "Inst")
     duration = config.get("default_duration", "0")
@@ -335,52 +400,74 @@ def resolve_tsid(
     nws_to_loc: dict,
     tsgroup_map: dict,
     version_part: str,
-) -> Optional[str]:
-    """Resolve a series to a CWMS timeseries id, or None (with a warning) to skip."""
+) -> tuple[Optional[str], Optional[dict]]:
+    """Resolve a series to a CWMS timeseries id, or return a structured skip."""
     location_id = record["locationId"]
     parameter_id = record["parameterId"]
 
     # (1) Timeseries-group override (handles odd/aliased cases). When the run
     # defines a version part, swap it into the resolved id so one alias entry
     # serves every run (base/auto/CRF); otherwise (e.g. MVM) use it verbatim.
-    if tsgroup_map:
-        template = config.get("timeseries_group", {}).get(
-            "alias_key_template", "{locationId}.{parameterId}"
-        )
+    tg = config.get("timeseries_group")
+    if tg:
+        template = tg.get("alias_key_template", "{locationId}.{parameterId}")
         key = template.format(locationId=location_id, parameterId=parameter_id)
         if key in tsgroup_map:
             tsid = tsgroup_map[key]
-            if version_part:
-                parts = tsid.split(".")
-                if len(parts) == 6:
+
+            # When both the PI-XML series and the resolved TSID carry a
+            # regular CWMS interval, require them to agree; otherwise treat
+            # this as a non-match and fall back to the configured
+            # build/skip behavior instead of silently mapping 1Hour data
+            # into a 6Hours series (or vice versa).
+            record_interval = derive_interval(
+                record.get("timeStep_unit"), record.get("timeStep_multiplier")
+            )
+            parts = tsid.split(".")
+            tsid_interval = parts[3] if len(parts) >= 4 else None
+
+            if record_interval and tsid_interval and record_interval != tsid_interval:
+                if not _build_missing_timeseries(config):
+                    return None, _skip(
+                        "not_in_timeseries_group",
+                        f"No timeseries-group match for {location_id}.{parameter_id}",
+                    )
+            else:
+                if version_part and len(parts) == 6:
                     parts[5] = version_part
                     tsid = ".".join(parts)
-            return tsid
+                return tsid, None
+        if not _build_missing_timeseries(config):
+            return None, _skip(
+                "not_in_timeseries_group",
+                f"No timeseries-group match for {location_id}.{parameter_id}",
+            )
 
     # (2) Built fallback.
     param = config.get("parameter_map", {}).get(parameter_id)
     if param is None:
-        logger.warning(
-            "Unknown parameter %s at %s - skipping", parameter_id, location_id
+        return None, _skip(
+            "unknown_parameter",
+            f"Unknown parameter {parameter_id} at {location_id}",
         )
-        return None
 
     cwms_loc = _lookup_location(location_id, nws_to_loc)
     if cwms_loc is None:
-        logger.warning("No CWMS location for %s - skipping", location_id)
-        return None
+        return None, _skip("unresolved_location", f"No CWMS location for {location_id}")
 
     interval = derive_interval(record["timeStep_unit"], record["timeStep_multiplier"])
     if interval is None:
-        logger.warning(
-            "Could not derive interval for %s (%s) - skipping",
-            location_id,
-            record["timeStep_multiplier"],
+        return None, _skip(
+            "underivable_interval",
+            f"Could not derive interval for {location_id} "
+            f"({record['timeStep_multiplier']})",
         )
-        return None
 
     d_type, duration = _param_type_and_duration(config, param)
-    return f"{cwms_loc}.{param}.{d_type}.{interval}.{duration}.{version_part}"
+    return (
+        f"{cwms_loc}.{param}.{d_type}.{interval}.{duration}.{version_part}",
+        None,
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -666,31 +753,53 @@ def load_pixml(
     skipped = 0
     errors = []
     planned = []
+    skipped_by_reason = Counter()
     duplicates = []
     seen: dict = {}
-    for record in series:
-        tsid = resolve_tsid(record, config, nws_to_loc, tsgroup_map, version_part)
+    for series_number, record in enumerate(series, start=1):
+        series_detail = _series_detail(record, series_number)
+        tsid, skip = resolve_tsid(record, config, nws_to_loc, tsgroup_map, version_part)
         if tsid is None:
             skipped += 1
+            skipped_by_reason[skip["reason"]] += 1
+            if not dry_run:
+                logger.warning(
+                    "%s - skipping %s",
+                    skip["message"],
+                    _format_series_detail(series_detail),
+                )
             continue
-        source = f"{record['locationId']}.{record['parameterId']}"
         # Distinct PI-XML series can resolve to one id (e.g. a sub-location
         # series falling back to its 5-char Handbook-5 prefix). Storing both
         # would silently overwrite the first, so drop the later one loudly.
         if tsid in seen:
-            logger.error(
-                "Duplicate timeseries id %s: already resolved from %s, "
-                "dropping %s. Add a timeseries-group alias to disambiguate.",
-                tsid,
-                seen[tsid],
-                source,
-            )
+            kept = seen[tsid]
+            if not dry_run:
+                logger.error(
+                    "Duplicate timeseries id %s: keeping %s, dropping %s. "
+                    "Add a timeseries-group alias to disambiguate.",
+                    tsid,
+                    _format_series_detail(kept),
+                    _format_series_detail(series_detail),
+                )
             duplicates.append(
-                {"timeseries_id": tsid, "kept": seen[tsid], "dropped": source}
+                {
+                    "timeseries_id": tsid,
+                    "kept": kept["source"],
+                    "dropped": series_detail["source"],
+                    "kept_summary": _series_summary(kept),
+                    "ignored_summary": _series_summary(series_detail),
+                }
             )
             continue
-        seen[tsid] = source
-        planned.append((tsid, record["units"]))
+        seen[tsid] = series_detail
+        planned.append(
+            {
+                "timeseries_id": tsid,
+                "units": record["units"],
+                "series": series_detail,
+            }
+        )
         if dry_run:
             continue
         try:
@@ -705,8 +814,19 @@ def load_pixml(
             cwms.store_timeseries(data=data_json)
             stored += 1
         except Exception as error:  # noqa: BLE001 - collected and reported below
-            errors.append((tsid, str(error)))
-            logger.error("Failed to store %s: %s", tsid, error)
+            errors.append(
+                {
+                    "timeseries_id": tsid,
+                    "series": series_detail,
+                    "error": str(error),
+                }
+            )
+            logger.error(
+                "Failed to store %s from %s: %s",
+                tsid,
+                _format_series_detail(series_detail),
+                error,
+            )
 
     issued_update = build_issued_update(config, run, filename, filename_dt)
 
@@ -719,8 +839,11 @@ def load_pixml(
                     "version_part": version_part,
                     "versioned": run.get("versioned", False),
                     "version_date": version_date.isoformat() if version_date else None,
-                    "resolved_timeseries": [t for t, _ in planned],
+                    "resolved_count": len(planned),
+                    "resolved_timeseries": [item["timeseries_id"] for item in planned],
                     "skipped": skipped,
+                    "skipped_by_reason": dict(skipped_by_reason),
+                    "duplicate_count": len(duplicates),
                     "duplicates": duplicates,
                     "issued_update": issued_update,
                 },
@@ -748,14 +871,26 @@ def load_pixml(
             skipped,
             len(duplicates),
         )
-        for tsid, err in errors:
-            logger.error("  FAILED: %s — %s", tsid, err)
+        if skipped_by_reason:
+            logger.warning(
+                "  SKIPPED: %s",
+                ", ".join(
+                    f"{reason}={count}" for reason, count in skipped_by_reason.items()
+                ),
+            )
+        for err in errors:
+            logger.error(
+                "  FAILED: %s — %s — %s",
+                err["timeseries_id"],
+                _format_series_detail(err["series"]),
+                err["error"],
+            )
         for dup in duplicates:
             logger.error(
                 "  DUPLICATE: %s — kept %s, dropped %s",
                 dup["timeseries_id"],
-                dup["kept"],
-                dup["dropped"],
+                f"{dup['kept']} ({dup['kept_summary']})",
+                f"{dup['dropped']} ({dup['ignored_summary']})",
             )
     else:
         logger.info(
@@ -764,3 +899,10 @@ def load_pixml(
             total,
             skipped,
         )
+        if skipped_by_reason:
+            logger.warning(
+                "  SKIPPED: %s",
+                ", ".join(
+                    f"{reason}={count}" for reason, count in skipped_by_reason.items()
+                ),
+            )

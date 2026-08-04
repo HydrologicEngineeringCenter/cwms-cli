@@ -24,6 +24,7 @@
     "alias_key_template": "{locationId}.{parameterId}",
     "derived": false
   },
+  "build_missing_timeseries": true,
   "parameter_map": {
     "SQIN": "Flow-Sim",
     "QINE": "Flow",

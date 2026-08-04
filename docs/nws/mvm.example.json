@@ -22,6 +22,7 @@
     "alias_key_template": "{locationId}.{parameterId}",
     "derived": true
   },
+  "build_missing_timeseries": false,
   "parameter_map": {},
   "default_type": "Inst",
   "default_duration": "0",

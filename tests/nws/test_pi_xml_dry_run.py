@@ -75,6 +75,30 @@ AUTO_NAME = "MSR_2024091612_MSR_main_auto_m10_mississippi_river.20240916142934"
 # Same product declared in CST rather than UTC.
 PIXML_CST = PIXML.replace("<timeZone>0.0</timeZone>", "<timeZone>-6.0</timeZone>")
 
+PIXML_SAME_SOURCE_ALIAS_COLLISION = """<?xml version="1.0" encoding="UTF-8"?>
+<TimeSeries xmlns="http://www.wldelft.nl/fews/PI" version="1.5">
+  <timeZone>0.0</timeZone>
+  <series>
+    <header>
+      <type>instantaneous</type><locationId>WABM5</locationId>
+      <parameterId>SQIN</parameterId>
+      <timeStep unit="second" multiplier="21600"/>
+      <missVal>-999</missVal><units>CFS</units>
+    </header>
+    <event date="2024-09-05" time="12:00:00" value="864.1" flag="0"/>
+  </series>
+  <series>
+    <header>
+      <type>instantaneous</type><locationId>WABM5</locationId>
+      <parameterId>SQIN</parameterId>
+      <timeStep unit="second" multiplier="3600"/>
+      <missVal>-999</missVal><units>CFS</units>
+    </header>
+    <event date="2024-09-05" time="12:00:00" value="865.0" flag="0"/>
+  </series>
+</TimeSeries>
+"""
+
 
 def _make_fake_cwms(calls, tsgroup_rows=None, blob=None):
     """Build a stand-in for the ``cwms`` module.
@@ -160,6 +184,7 @@ def _run(
     tmp_path,
     filename,
     dry_run,
+    config_file=CONFIG,
     xml=PIXML,
     tsgroup_rows=None,
     blob=None,
@@ -175,7 +200,7 @@ def _run(
     xml_path.write_text(xml)
     mod.load_pixml(
         input_=str(xml_path),
-        config_file=str(CONFIG),
+        config_file=str(config_file),
         config_blob=None,
         office="MVP",
         api_key="test-key",
@@ -189,12 +214,15 @@ def test_base_dry_run_resolves_and_versions(monkeypatch, tmp_path, capsys):
     calls = _run(monkeypatch, tmp_path, BASE_NAME, dry_run=True)
     out = json.loads(capsys.readouterr().out)
 
+    assert out["resolved_count"] == 3
     assert set(out["resolved_timeseries"]) == {
         "Wabasha.Flow-Sim.Inst.6Hours.0.Fcst-NCRFC-CHIPS",  # built, interval from timeStep
         "Wabasha.Flow-Local.Inst.6Hours.0.Fcst-NCRFC-CHIPS",  # ts-group alias override
         "Wabasha.Precip-RainAndMelt.Total.6Hours.6Hours.Fcst-NCRFC-CHIPS",  # precip type rule
     }
     assert out["skipped"] == 1  # PELV unknown parameter
+    assert out["skipped_by_reason"] == {"unknown_parameter": 1}
+    assert out["duplicate_count"] == 0
     assert out["versioned"] is True
     assert out["version_date"].startswith("2024-09-16T01:11:00")  # filename ts, snapped
     upd = out["issued_update"]
@@ -263,8 +291,94 @@ def test_colliding_series_are_dropped_not_silently_overwritten(
     tsid = "Wabasha.Flow-Sim.Inst.6Hours.0.Fcst-NCRFC-CHIPS"
     assert out["resolved_timeseries"].count(tsid) == 1
     assert out["duplicates"] == [
-        {"timeseries_id": tsid, "kept": "WABM5.SQIN", "dropped": "WABM5LOC.SQIN"}
+        {
+            "timeseries_id": tsid,
+            "kept": "WABM5.SQIN",
+            "dropped": "WABM5LOC.SQIN",
+            "kept_summary": "#1 6Hours 2 values",
+            "ignored_summary": "#2 6Hours 2 values",
+        }
     ]
+
+
+def test_duplicate_report_distinguishes_same_source_headers(
+    monkeypatch, tmp_path, capsys
+):
+    _run(
+        monkeypatch,
+        tmp_path,
+        BASE_NAME,
+        dry_run=True,
+        xml=PIXML_SAME_SOURCE_ALIAS_COLLISION,
+        tsgroup_rows=[
+            {
+                "timeseries-id": "Wabasha.Flow-Sim.Inst.6Hours.0.Fcst-NCRFC-CHIPS",
+                "alias-id": "WABM5.SQIN",
+                "office-id": "MVP",
+            }
+        ],
+    )
+    out = json.loads(capsys.readouterr().out)
+
+    # With interval-aware alias resolution, the 6-hour and 1-hour series
+    # resolve to distinct TSIDs instead of colliding on the same id.
+    assert out["duplicate_count"] == 0
+    assert out["duplicates"] == []
+    assert sorted(out["resolved_timeseries"]) == [
+        "Wabasha.Flow-Sim.Inst.1Hour.0.Fcst-NCRFC-CHIPS",
+        "Wabasha.Flow-Sim.Inst.6Hours.0.Fcst-NCRFC-CHIPS",
+    ]
+
+
+def test_group_only_is_default_when_timeseries_group_is_configured(
+    monkeypatch, tmp_path, capsys
+):
+    config = json.loads(CONFIG.read_text())
+    config.pop("build_missing_timeseries", None)
+    config_path = tmp_path / "group-only.json"
+    config_path.write_text(json.dumps(config))
+
+    _run(
+        monkeypatch,
+        tmp_path,
+        BASE_NAME,
+        dry_run=True,
+        config_file=config_path,
+    )
+    out = json.loads(capsys.readouterr().out)
+
+    assert out["resolved_count"] == 1
+    assert out["resolved_timeseries"] == [
+        "Wabasha.Flow-Local.Inst.6Hours.0.Fcst-NCRFC-CHIPS"
+    ]
+    assert out["skipped"] == 3
+    assert out["skipped_by_reason"] == {
+        "not_in_timeseries_group": 3,
+    }
+
+
+def test_group_only_skips_when_timeseries_group_is_empty(monkeypatch, tmp_path, capsys):
+    config = json.loads(CONFIG.read_text())
+    config.pop("build_missing_timeseries", None)
+    config_path = tmp_path / "group-only-empty.json"
+    config_path.write_text(json.dumps(config))
+
+    _run(
+        monkeypatch,
+        tmp_path,
+        BASE_NAME,
+        dry_run=True,
+        config_file=config_path,
+        tsgroup_rows=[],
+    )
+    out = json.loads(capsys.readouterr().out)
+
+    assert out["resolved_count"] == 0
+    assert out["resolved_timeseries"] == []
+    assert out["skipped"] == 4
+    assert out["skipped_by_reason"] == {
+        "not_in_timeseries_group": 4,
+    }
 
 
 def test_colliding_series_are_not_stored(monkeypatch, tmp_path):
