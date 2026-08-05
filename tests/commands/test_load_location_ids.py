@@ -267,6 +267,9 @@ def test_cli_rejects_source_csv_and_target_csv_together(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: None
     )
+    monkeypatch.setattr(
+        "cwmscli.load.root._validate_cda_api_root", lambda *a, **k: None
+    )
     src = tmp_path / "in.csv"
     src.write_text("name,office-id,active\nLOC_A,SWT,True\n")
     out = tmp_path / "out.csv"
@@ -292,6 +295,9 @@ def test_cli_rejects_source_csv_with_explicit_source_cda(tmp_path, monkeypatch):
     monkeypatch.setattr(
         "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: None
     )
+    monkeypatch.setattr(
+        "cwmscli.load.root._validate_cda_api_root", lambda *a, **k: None
+    )
     src = tmp_path / "in.csv"
     src.write_text("name,office-id,active\nLOC_A,SWT,True\n")
 
@@ -312,3 +318,61 @@ def test_cli_rejects_source_csv_with_explicit_source_cda(tmp_path, monkeypatch):
     )
     assert result.exit_code != 0
     assert "mutually exclusive" in result.output
+
+
+def test_cli_can_skip_target_cda_check_with_flag(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "cwmscli.load.root._validate_cda_api_root",
+        lambda *a, **k: (_ for _ in ()).throw(
+            AssertionError("target check should be skipped")
+        ),
+    )
+    src = tmp_path / "in.csv"
+    src.write_text("name,office-id,active\nLOC_A,SWT,True\n")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        location_group,
+        [
+            "ids-all",
+            "--source-csv",
+            str(src),
+            "--source-office",
+            "SWT",
+            "--target-cda",
+            "http://not-cda.example/cwms-data",
+            "--skip-target-cda-check",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+
+
+def test_cli_can_skip_target_cda_check_with_env_var(tmp_path, monkeypatch):
+    monkeypatch.setenv("CWMS_CLI_SKIP_TARGET_CDA_CHECK", "1")
+    monkeypatch.setattr(
+        "cwmscli.load.root._validate_cda_api_root",
+        lambda *a, **k: (_ for _ in ()).throw(
+            AssertionError("target check should be skipped")
+        ),
+    )
+    src = tmp_path / "in.csv"
+    src.write_text("name,office-id,active\nLOC_A,SWT,True\n")
+
+    runner = CliRunner()
+    result = runner.invoke(
+        location_group,
+        [
+            "ids-all",
+            "--source-csv",
+            str(src),
+            "--source-office",
+            "SWT",
+            "--target-cda",
+            "http://not-cda.example/cwms-data",
+            "--dry-run",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output

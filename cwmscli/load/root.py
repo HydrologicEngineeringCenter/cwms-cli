@@ -4,14 +4,16 @@ import functools
 import logging
 from dataclasses import dataclass
 from typing import Optional
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import click
+import requests
 
 from cwmscli import requirements as reqs
 from cwmscli.utils.deps import requires
 
 logger = logging.getLogger(__name__)
+CDA_PROBE_TIMEOUT_SECONDS = 2.5
 
 CONTEXT = dict(
     help_option_names=["-h", "--help"],
@@ -40,11 +42,74 @@ def _norm_office(o: Optional[str]) -> str:
     return (o or "").strip().upper()
 
 
+def _swagger_docs_url(api_root: str) -> str:
+    return urljoin(f"{api_root.rstrip('/')}/", "swagger-docs")
+
+
+def _looks_like_cda_landing_page(response: requests.Response) -> bool:
+    # Some local CDA builds serve the UI but not the generated OpenAPI route.
+    server = response.headers.get("Server", "").lower()
+    if "cwms-data-api" in server:
+        return True
+
+    content_type = response.headers.get("Content-Type", "").lower()
+    if "html" not in content_type:
+        return False
+    return "CDA - CWMS Data API" in response.text
+
+
+def _validate_cda_api_root(api_root: str, *, role: str) -> None:
+    parsed = urlparse(api_root)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise click.ClickException(
+            f"{role} CDA URL must be an absolute http(s) URL, got {api_root!r}."
+        )
+
+    url = _swagger_docs_url(api_root)
+    try:
+        response = requests.get(
+            url,
+            headers={"Accept": "application/json"},
+            timeout=CDA_PROBE_TIMEOUT_SECONDS,
+        )
+        response.raise_for_status()
+        document = response.json()
+        if isinstance(document, dict) and (
+            document.get("openapi") or document.get("swagger")
+        ):
+            return
+    except (requests.RequestException, ValueError) as openapi_error:
+        logger.debug(
+            "CDA OpenAPI probe for %s at %s did not succeed: %s",
+            role,
+            url,
+            openapi_error,
+        )
+
+    try:
+        response = requests.get(api_root, timeout=CDA_PROBE_TIMEOUT_SECONDS)
+        response.raise_for_status()
+    except requests.Timeout as e:
+        raise click.ClickException(
+            f"Could not validate {role} CDA at {api_root}: timed out fetching {api_root}."
+        ) from e
+    except requests.RequestException as e:
+        raise click.ClickException(
+            f"Could not validate {role} CDA at {api_root}: failed to fetch {api_root}: {e}"
+        ) from e
+
+    if not _looks_like_cda_landing_page(response):
+        raise click.ClickException(
+            f"{role} URL {api_root} did not return a CDA OpenAPI document or CDA landing page."
+        )
+
+
 def validate_cda_targets(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         source_csv = kwargs.get("source_csv")
         target_csv = kwargs.get("target_csv")
+        skip_target_cda_check = kwargs.pop("skip_target_cda_check", False)
 
         if source_csv and target_csv:
             raise click.ClickException(
@@ -92,6 +157,10 @@ def validate_cda_targets(func):
                 "This is allowed, but double-check intent.",
             )
 
+        # Dry-runs still need a real target; otherwise users can validate a bad load command.
+        if target_cda and not skip_target_cda_check:
+            _validate_cda_api_root(target_cda, role="Target")
+
         src_label = source_csv or source_cda or "-"
         tgt_label = target_csv or target_cda or "-"
         logger.info(
@@ -133,6 +202,14 @@ def shared_source_target_options(f):
         "--target-api-key",
         envvar="CDA_API_KEY",
         help="Target API key used when no saved cwms-cli login token is available.",
+    )(f)
+    f = click.option(
+        "--skip-target-cda-check",
+        envvar="CWMS_CLI_SKIP_TARGET_CDA_CHECK",
+        is_flag=True,
+        default=False,
+        show_default=True,
+        help="Skip the preflight check that --target-cda points to a CDA service.",
     )(f)
     f = click.option(
         "--dry-run/--no-dry-run",
