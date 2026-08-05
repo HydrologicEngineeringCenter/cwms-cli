@@ -99,6 +99,138 @@ PIXML_SAME_SOURCE_ALIAS_COLLISION = """<?xml version="1.0" encoding="UTF-8"?>
 </TimeSeries>
 """
 
+PIXML_LOCATION_SUFFIX_PARAMETER_RULES = """<?xml version="1.0" encoding="UTF-8"?>
+<TimeSeries xmlns="http://www.wldelft.nl/fews/PI" version="1.5">
+  <timeZone>0.0</timeZone>
+  <series>
+    <header>
+      <type>instantaneous</type><locationId>WABM5LOC</locationId>
+      <parameterId>SQIN</parameterId>
+      <timeStep unit="second" multiplier="21600"/>
+      <missVal>-999</missVal><units>CFS</units>
+    </header>
+    <event date="2024-09-05" time="12:00:00" value="12.3" flag="0"/>
+  </series>
+  <series>
+    <header>
+      <type>instantaneous</type><locationId>WABM5IN</locationId>
+      <parameterId>SQIN</parameterId>
+      <timeStep unit="second" multiplier="21600"/>
+      <missVal>-999</missVal><units>CFS</units>
+    </header>
+    <event date="2024-09-05" time="12:00:00" value="864.1" flag="0"/>
+  </series>
+</TimeSeries>
+"""
+
+PIXML_LEGACY_MVP_PARAMETER_RULES = """<?xml version="1.0" encoding="UTF-8"?>
+<TimeSeries xmlns="http://www.wldelft.nl/fews/PI" version="1.5">
+  <timeZone>0.0</timeZone>
+  <series>
+    <header>
+      <type>instantaneous</type><locationId>WABM5</locationId>
+      <parameterId>SPEL</parameterId>
+      <timeStep unit="second" multiplier="21600"/>
+      <missVal>-999</missVal><units>FT</units>
+    </header>
+    <event date="2024-09-05" time="12:00:00" value="100.0" flag="0"/>
+  </series>
+  <series>
+    <header>
+      <type>instantaneous</type><locationId>WABM5INQ</locationId>
+      <parameterId>SQIN</parameterId>
+      <timeStep unit="second" multiplier="21600"/>
+      <missVal>-999</missVal><units>CFS</units>
+    </header>
+    <event date="2024-09-05" time="12:00:00" value="864.1" flag="0"/>
+  </series>
+  <series>
+    <header>
+      <type>instantaneous</type><locationId>WABM5LOC</locationId>
+      <parameterId>SQIN</parameterId>
+      <timeStep unit="second" multiplier="21600"/>
+      <missVal>-999</missVal><units>CFS</units>
+    </header>
+    <event date="2024-09-05" time="12:00:00" value="12.3" flag="0"/>
+  </series>
+  <series>
+    <header>
+      <type>instantaneous</type><locationId>WABM5OUT</locationId>
+      <parameterId>QINE</parameterId>
+      <timeStep unit="second" multiplier="21600"/>
+      <missVal>-999</missVal><units>CFS</units>
+    </header>
+    <event date="2024-09-05" time="12:00:00" value="100.1" flag="0"/>
+  </series>
+  <series>
+    <header>
+      <type>instantaneous</type><locationId>WABM5ROR</locationId>
+      <parameterId>SQIN</parameterId>
+      <timeStep unit="second" multiplier="21600"/>
+      <missVal>-999</missVal><units>CFS</units>
+    </header>
+    <event date="2024-09-05" time="12:00:00" value="0.0" flag="0"/>
+  </series>
+  <series>
+    <header>
+      <type>accumulative</type><locationId>WABM5ROR</locationId>
+      <parameterId>MAP</parameterId>
+      <timeStep unit="second" multiplier="21600"/>
+      <missVal>-999</missVal><units>IN</units>
+    </header>
+    <event date="2024-09-05" time="12:00:00" value="0.1" flag="0"/>
+  </series>
+  <series>
+    <header>
+      <type>accumulative</type><locationId>WABM5</locationId>
+      <parameterId>RAIM</parameterId>
+      <timeStep unit="second" multiplier="21600"/>
+      <missVal>-999</missVal><units>IN</units>
+    </header>
+    <event date="2024-09-05" time="12:00:00" value="0.2" flag="0"/>
+  </series>
+</TimeSeries>
+"""
+
+PIXML_ROR_PRECIP_PREFERENCE = """<?xml version="1.0" encoding="UTF-8"?>
+<TimeSeries xmlns="http://www.wldelft.nl/fews/PI" version="1.5">
+  <timeZone>0.0</timeZone>
+  <series>
+    <header>
+      <type>accumulative</type><locationId>WABM5</locationId>
+      <parameterId>RAIM</parameterId>
+      <timeStep unit="second" multiplier="21600"/>
+      <missVal>-999</missVal><units>IN</units>
+    </header>
+    <event date="2024-09-05" time="12:00:00" value="0.2" flag="0"/>
+  </series>
+  <series>
+    <header>
+      <type>accumulative</type><locationId>WABM5ROR</locationId>
+      <parameterId>RAIM</parameterId>
+      <timeStep unit="second" multiplier="21600"/>
+      <missVal>-999</missVal><units>IN</units>
+    </header>
+    <event date="2024-09-05" time="12:00:00" value="0.1" flag="0"/>
+  </series>
+</TimeSeries>
+"""
+
+PIXML_NON_CONTRIB_PARAMETER_SUFFIX = """<?xml version="1.0" encoding="UTF-8"?>
+<TimeSeries xmlns="http://www.wldelft.nl/fews/PI" version="1.5">
+  <timeZone>0.0</timeZone>
+  <series>
+    <header>
+      <type>accumulative</type><locationId>WABM5NON</locationId>
+      <parameterId>RAIM</parameterId>
+      <timeStep unit="second" multiplier="21600"/>
+      <missVal>-999</missVal><units>IN</units>
+    </header>
+    <event date="2024-09-05" time="12:00:00" value="0.2" flag="0"/>
+  </series>
+</TimeSeries>
+"""
+
 
 def _make_fake_cwms(calls, tsgroup_rows=None, blob=None):
     """Build a stand-in for the ``cwms`` module.
@@ -210,18 +342,30 @@ def _run(
     return calls
 
 
+def _write_config(tmp_path, *, strip_parameter_rules=False):
+    config = json.loads(CONFIG.read_text())
+    if strip_parameter_rules:
+        config.pop("parameter_rules", None)
+    config_path = tmp_path / (
+        "mvp-no-parameter-rules.json" if strip_parameter_rules else "mvp-config.json"
+    )
+    config_path.write_text(json.dumps(config))
+    return config_path
+
+
 def test_base_dry_run_resolves_and_versions(monkeypatch, tmp_path, capsys):
     calls = _run(monkeypatch, tmp_path, BASE_NAME, dry_run=True)
     out = json.loads(capsys.readouterr().out)
 
-    assert out["resolved_count"] == 3
+    assert out["resolved_count"] == 4
     assert set(out["resolved_timeseries"]) == {
         "Wabasha.Flow-Sim.Inst.6Hours.0.Fcst-NCRFC-CHIPS",  # built, interval from timeStep
         "Wabasha.Flow-Local.Inst.6Hours.0.Fcst-NCRFC-CHIPS",  # ts-group alias override
+        "Wabasha.Elev.Inst.6Hours.0.Fcst-NCRFC-CHIPS",  # PELV pool elevation
         "Wabasha.Precip-RainAndMelt.Total.6Hours.6Hours.Fcst-NCRFC-CHIPS",  # precip type rule
     }
-    assert out["skipped"] == 1  # PELV unknown parameter
-    assert out["skipped_by_reason"] == {"unknown_parameter": 1}
+    assert out["skipped"] == 0
+    assert out["skipped_by_reason"] == {}
     assert out["duplicate_count"] == 0
     assert out["versioned"] is True
     assert out["version_date"].startswith("2024-09-16T01:11:00")  # filename ts, snapped
@@ -260,7 +404,7 @@ def test_base_store_passes_version_date_and_writes_blob(monkeypatch, tmp_path):
     calls = _run(monkeypatch, tmp_path, BASE_NAME, dry_run=False)
 
     stores = [c for c in calls if c[0] == "store_timeseries"]
-    assert len(stores) == 3
+    assert len(stores) == 4
     # Base run is versioned: every store carries a version date.
     assert all(c[2] is not None for c in stores)
 
@@ -282,10 +426,17 @@ def test_base_store_passes_version_date_and_writes_blob(monkeypatch, tmp_path):
 def test_colliding_series_are_dropped_not_silently_overwritten(
     monkeypatch, tmp_path, capsys
 ):
-    # With no alias entry for WABM5LOC, it falls back to its 5-char Handbook-5
+    # Without the MVP suffix rules, WABM5LOC falls back to its 5-char Handbook-5
     # prefix and builds the same TSID as WABM5. The second series must be
     # dropped and reported rather than overwriting the first.
-    _run(monkeypatch, tmp_path, BASE_NAME, dry_run=True, tsgroup_rows=[])
+    _run(
+        monkeypatch,
+        tmp_path,
+        BASE_NAME,
+        dry_run=True,
+        config_file=_write_config(tmp_path, strip_parameter_rules=True),
+        tsgroup_rows=[],
+    )
     out = json.loads(capsys.readouterr().out)
 
     tsid = "Wabasha.Flow-Sim.Inst.6Hours.0.Fcst-NCRFC-CHIPS"
@@ -299,6 +450,117 @@ def test_colliding_series_are_dropped_not_silently_overwritten(
             "ignored_summary": "#2 6Hours 2 values",
         }
     ]
+
+
+def test_location_suffix_parameter_rules_split_in_and_loc(
+    monkeypatch, tmp_path, capsys
+):
+    _run(
+        monkeypatch,
+        tmp_path,
+        BASE_NAME,
+        dry_run=True,
+        config_file=_write_config(tmp_path),
+        xml=PIXML_LOCATION_SUFFIX_PARAMETER_RULES,
+        tsgroup_rows=[],
+    )
+    out = json.loads(capsys.readouterr().out)
+
+    assert out["duplicate_count"] == 0
+    assert out["duplicates"] == []
+    assert sorted(out["resolved_timeseries"]) == [
+        "Wabasha.Flow-In.Inst.6Hours.0.Fcst-NCRFC-CHIPS",
+        "Wabasha.Flow-Local.Inst.6Hours.0.Fcst-NCRFC-CHIPS",
+    ]
+
+
+def test_legacy_mvp_suffix_patterns_resolve_to_distinct_parameters(
+    monkeypatch, tmp_path, capsys
+):
+    _run(
+        monkeypatch,
+        tmp_path,
+        BASE_NAME,
+        dry_run=True,
+        config_file=_write_config(tmp_path),
+        xml=PIXML_LEGACY_MVP_PARAMETER_RULES,
+        tsgroup_rows=[],
+    )
+    out = json.loads(capsys.readouterr().out)
+
+    assert out["duplicate_count"] == 0
+    assert out["duplicates"] == []
+    assert sorted(out["resolved_timeseries"]) == [
+        "Wabasha.Elev.Inst.6Hours.0.Fcst-NCRFC-CHIPS",
+        "Wabasha.Flow-In.Inst.6Hours.0.Fcst-NCRFC-CHIPS",
+        "Wabasha.Flow-Local.Inst.6Hours.0.Fcst-NCRFC-CHIPS",
+        "Wabasha.Flow-Out.Inst.6Hours.0.Fcst-NCRFC-CHIPS",
+        "Wabasha.Flow-Sim-RainOnPool.Inst.6Hours.0.Fcst-NCRFC-CHIPS",
+        "Wabasha.Precip-Rain.Total.6Hours.6Hours.Fcst-NCRFC-CHIPS",
+        "Wabasha.Precip-RainAndMelt.Total.6Hours.6Hours.Fcst-NCRFC-CHIPS",
+    ]
+
+
+def test_ror_precip_duplicate_preference_keeps_reservoir_series(
+    monkeypatch, tmp_path, capsys
+):
+    _run(
+        monkeypatch,
+        tmp_path,
+        BASE_NAME,
+        dry_run=True,
+        config_file=_write_config(tmp_path),
+        xml=PIXML_ROR_PRECIP_PREFERENCE,
+        tsgroup_rows=[],
+    )
+    out = json.loads(capsys.readouterr().out)
+
+    assert out["resolved_timeseries"] == [
+        "Wabasha.Precip-RainAndMelt.Total.6Hours.6Hours.Fcst-NCRFC-CHIPS"
+    ]
+    assert out["duplicates"] == [
+        {
+            "timeseries_id": "Wabasha.Precip-RainAndMelt.Total.6Hours.6Hours.Fcst-NCRFC-CHIPS",
+            "kept": "WABM5ROR.RAIM",
+            "dropped": "WABM5.RAIM",
+            "kept_summary": "#2 6Hours 1 values",
+            "ignored_summary": "#1 6Hours 1 values",
+        }
+    ]
+
+
+def test_ror_precip_duplicate_preference_stores_reservoir_values(monkeypatch, tmp_path):
+    calls = _run(
+        monkeypatch,
+        tmp_path,
+        BASE_NAME,
+        dry_run=False,
+        config_file=_write_config(tmp_path),
+        xml=PIXML_ROR_PRECIP_PREFERENCE,
+        tsgroup_rows=[],
+    )
+
+    frames = {c[1]: c[2] for c in calls if c[0] == "df_to_json"}
+    df = frames["Wabasha.Precip-RainAndMelt.Total.6Hours.6Hours.Fcst-NCRFC-CHIPS"]
+    assert list(df["value"]) == [0.1]
+
+
+def test_non_contrib_parameter_suffix_is_applied(monkeypatch, tmp_path, capsys):
+    _run(
+        monkeypatch,
+        tmp_path,
+        BASE_NAME,
+        dry_run=True,
+        config_file=_write_config(tmp_path),
+        xml=PIXML_NON_CONTRIB_PARAMETER_SUFFIX,
+        tsgroup_rows=[],
+    )
+    out = json.loads(capsys.readouterr().out)
+
+    assert out["resolved_timeseries"] == [
+        "Wabasha.Precip-RainAndMelt-Non_contrib.Total.6Hours.6Hours.Fcst-NCRFC-CHIPS"
+    ]
+    assert out["duplicate_count"] == 0
 
 
 def test_duplicate_report_distinguishes_same_source_headers(
@@ -382,12 +644,20 @@ def test_group_only_skips_when_timeseries_group_is_empty(monkeypatch, tmp_path, 
 
 
 def test_colliding_series_are_not_stored(monkeypatch, tmp_path):
-    calls = _run(monkeypatch, tmp_path, BASE_NAME, dry_run=False, tsgroup_rows=[])
+    calls = _run(
+        monkeypatch,
+        tmp_path,
+        BASE_NAME,
+        dry_run=False,
+        config_file=_write_config(tmp_path, strip_parameter_rules=True),
+        tsgroup_rows=[],
+    )
 
     stored = [c[1] for c in calls if c[0] == "store_timeseries"]
     assert stored == [
         "Wabasha.Flow-Sim.Inst.6Hours.0.Fcst-NCRFC-CHIPS",
         "Wabasha.Precip-RainAndMelt.Total.6Hours.6Hours.Fcst-NCRFC-CHIPS",
+        "Wabasha.Elev.Inst.6Hours.0.Fcst-NCRFC-CHIPS",
     ]
 
 

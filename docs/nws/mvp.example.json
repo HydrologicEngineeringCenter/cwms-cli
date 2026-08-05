@@ -25,9 +25,25 @@
     "derived": false
   },
   "build_missing_timeseries": true,
+  "parameter_rules": [
+    {"parameter_id": "SQIN", "location_id_suffix": "LOC", "cwms_parameter": "Flow-Local"},
+    {"parameter_id": "SQIN", "location_id_suffix": "INQ", "cwms_parameter": "Flow-In"},
+    {"parameter_id": "SQIN", "location_id_suffix": "IN", "cwms_parameter": "Flow-In"},
+    {"parameter_id": "SQIN", "location_id_suffix": "OUT", "cwms_parameter": "Flow-Out"},
+    {"parameter_id": "QINE", "location_id_suffix": "OUT", "cwms_parameter": "Flow-Out"},
+    {"parameter_id": "SQIN", "location_id_suffix": "ROR", "cwms_parameter": "Flow-Sim-RainOnPool"}
+  ],
+  "parameter_suffix_rules": [
+    {"location_id_suffix": "NON", "cwms_parameter_suffix": "-Non_contrib"}
+  ],
+  "duplicate_preference_rules": [
+    {"parameter_id": "MAP", "location_id_suffix": "ROR", "priority": 100},
+    {"parameter_id": "RAIM", "location_id_suffix": "ROR", "priority": 100}
+  ],
   "parameter_map": {
     "SQIN": "Flow-Sim",
     "QINE": "Flow",
+    "PELV": "Elev",
     "SPEL": "Elev",
     "RAIM": "Precip-RainAndMelt",
     "MAP": "Precip-Rain",

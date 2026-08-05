@@ -95,6 +95,17 @@ Top-level keys:
   ``parameter_map`` when no timeseries-group match exists; when omitted or
   falsey, series without a timeseries-group match are skipped instead of
   being built
+- ``parameter_rules[]`` — optional location-sensitive overrides for the CWMS
+  parameter name before the plain ``parameter_map`` fallback (for example,
+  ``SQIN`` + ``location_id_suffix=LOC`` → ``Flow-Local`` or
+  ``SQIN`` + ``location_id_suffix=INQ`` → ``Flow-In``)
+- ``parameter_suffix_rules[]`` — optional suffixes appended after parameter
+  resolution (for example, ``location_id_suffix=NON`` →
+  ``-Non_contrib`` so ``RAIM`` becomes ``Precip-RainAndMelt-Non_contrib``)
+- ``duplicate_preference_rules[]`` — optional duplicate tie-breakers used when
+  two PI-XML series still resolve to the same TSID; higher ``priority`` wins
+  (for example, prefer ``RAIM`` at ``location_id_suffix=ROR`` over plain
+  ``RAIM`` at the base location)
 - ``parameter_map`` — NWS parameter → CWMS parameter name mapping
   (e.g. ``SQIN`` → ``Flow-Sim``)
 - ``param_type_rules[]`` — rules that set type and duration when the CWMS

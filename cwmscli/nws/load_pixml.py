@@ -384,6 +384,47 @@ def _skip(reason: str, message: str) -> dict:
     return {"reason": reason, "message": message}
 
 
+def _series_rule_matches(rule: dict, location_id: str, parameter_id: str) -> bool:
+    expected_parameter = rule.get("parameter_id")
+    if expected_parameter and expected_parameter != parameter_id:
+        return False
+    expected_location = rule.get("location_id")
+    if expected_location and expected_location != location_id:
+        return False
+    location_suffix = rule.get("location_id_suffix")
+    if location_suffix and not location_id.endswith(location_suffix):
+        return False
+    return True
+
+
+def _resolve_parameter_name(
+    config: dict, location_id: str, parameter_id: str
+) -> Optional[str]:
+    param = None
+    for rule in config.get("parameter_rules", []):
+        if _series_rule_matches(rule, location_id, parameter_id):
+            param = rule.get("cwms_parameter") or rule.get("parameter")
+            if param:
+                break
+    if param is None:
+        param = config.get("parameter_map", {}).get(parameter_id)
+    if param is None:
+        return None
+    for rule in config.get("parameter_suffix_rules", []):
+        if _series_rule_matches(rule, location_id, parameter_id):
+            suffix = rule.get("cwms_parameter_suffix") or rule.get("parameter_suffix")
+            if suffix:
+                param = f"{param}{suffix}"
+    return param
+
+
+def _duplicate_priority(config: dict, detail: dict) -> int:
+    for rule in config.get("duplicate_preference_rules", []):
+        if _series_rule_matches(rule, detail["location_id"], detail["parameter_id"]):
+            return int(rule.get("priority", 0))
+    return 0
+
+
 def _param_type_and_duration(config: dict, param: str) -> tuple:
     d_type = config.get("default_type", "Inst")
     duration = config.get("default_duration", "0")
@@ -444,7 +485,7 @@ def resolve_tsid(
             )
 
     # (2) Built fallback.
-    param = config.get("parameter_map", {}).get(parameter_id)
+    param = _resolve_parameter_name(config, location_id, parameter_id)
     if param is None:
         return None, _skip(
             "unknown_parameter",
@@ -756,6 +797,7 @@ def load_pixml(
     skipped_by_reason = Counter()
     duplicates = []
     seen: dict = {}
+    planned_index: dict[str, int] = {}
     for series_number, record in enumerate(series, start=1):
         series_detail = _series_detail(record, series_number)
         tsid, skip = resolve_tsid(record, config, nws_to_loc, tsgroup_map, version_part)
@@ -772,61 +814,45 @@ def load_pixml(
         # Distinct PI-XML series can resolve to one id (e.g. a sub-location
         # series falling back to its 5-char Handbook-5 prefix). Storing both
         # would silently overwrite the first, so drop the later one loudly.
+        entry = {
+            "timeseries_id": tsid,
+            "units": record["units"],
+            "series": series_detail,
+            "record": record,
+        }
         if tsid in seen:
             kept = seen[tsid]
+            kept_detail = kept["series"]
+            dropped_detail = series_detail
+            if _duplicate_priority(config, series_detail) > _duplicate_priority(
+                config, kept_detail
+            ):
+                kept_detail = series_detail
+                dropped_detail = kept["series"]
+                seen[tsid] = entry
+                planned[planned_index[tsid]] = entry
             if not dry_run:
                 logger.error(
                     "Duplicate timeseries id %s: keeping %s, dropping %s. "
-                    "Add a timeseries-group alias to disambiguate.",
+                    "Add a timeseries-group alias or duplicate-preference rule "
+                    "to control collisions.",
                     tsid,
-                    _format_series_detail(kept),
-                    _format_series_detail(series_detail),
+                    _format_series_detail(kept_detail),
+                    _format_series_detail(dropped_detail),
                 )
             duplicates.append(
                 {
                     "timeseries_id": tsid,
-                    "kept": kept["source"],
-                    "dropped": series_detail["source"],
-                    "kept_summary": _series_summary(kept),
-                    "ignored_summary": _series_summary(series_detail),
+                    "kept": kept_detail["source"],
+                    "dropped": dropped_detail["source"],
+                    "kept_summary": _series_summary(kept_detail),
+                    "ignored_summary": _series_summary(dropped_detail),
                 }
             )
             continue
-        seen[tsid] = series_detail
-        planned.append(
-            {
-                "timeseries_id": tsid,
-                "units": record["units"],
-                "series": series_detail,
-            }
-        )
-        if dry_run:
-            continue
-        try:
-            df = _series_dataframe(record, doc_tz)
-            data_json = cwms.timeseries_df_to_json(
-                data=df,
-                ts_id=tsid,
-                units=record["units"],
-                office_id=office,
-                version_date=version_date,
-            )
-            cwms.store_timeseries(data=data_json)
-            stored += 1
-        except Exception as error:  # noqa: BLE001 - collected and reported below
-            errors.append(
-                {
-                    "timeseries_id": tsid,
-                    "series": series_detail,
-                    "error": str(error),
-                }
-            )
-            logger.error(
-                "Failed to store %s from %s: %s",
-                tsid,
-                _format_series_detail(series_detail),
-                error,
-            )
+        seen[tsid] = entry
+        planned_index[tsid] = len(planned)
+        planned.append(entry)
 
     issued_update = build_issued_update(config, run, filename, filename_dt)
 
@@ -851,6 +877,33 @@ def load_pixml(
             )
         )
         return
+
+    for item in planned:
+        try:
+            df = _series_dataframe(item["record"], doc_tz)
+            data_json = cwms.timeseries_df_to_json(
+                data=df,
+                ts_id=item["timeseries_id"],
+                units=item["units"],
+                office_id=office,
+                version_date=version_date,
+            )
+            cwms.store_timeseries(data=data_json)
+            stored += 1
+        except Exception as error:  # noqa: BLE001 - collected and reported below
+            errors.append(
+                {
+                    "timeseries_id": item["timeseries_id"],
+                    "series": item["series"],
+                    "error": str(error),
+                }
+            )
+            logger.error(
+                "Failed to store %s from %s: %s",
+                item["timeseries_id"],
+                _format_series_detail(item["series"]),
+                error,
+            )
 
     if issued_update:
         _merge_issued_blob(config, office, issued_update)
