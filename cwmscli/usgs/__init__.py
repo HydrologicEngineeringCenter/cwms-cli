@@ -41,8 +41,17 @@ days_back_option = click.option(
     type=str,
     help='Backfill timeseries ids, use list of timeseries ids (e.g. "ts_id1, ts_id2") to attempt to backfill a subset of timeseries with USGS data',
 )
+@click.option(
+    "-bv",
+    "--backfill-version",
+    default=None,
+    type=str,
+    help='Backfill version, save data to a different version of the timeseries (e.g. "Rev-USGS" instead of "Raw-USGS")',
+)
 @requires(reqs.cwms, reqs.requests)
-def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc, backfill):
+def getusgs_timeseries(
+    office, days_back, api_root, api_key, api_key_loc, backfill, backfill_version
+):
     from cwmscli.usgs.getusgs_cda import getusgs_cda
 
     if backfill is not None:
@@ -57,6 +66,52 @@ def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc, backfi
         days_back=days_back,
         api_key=api_key,
         backfill_tsids=backfill_list,
+        backfill_version=backfill_version,
+    )
+
+
+@usgs_group.command(
+    "timeseries-v2",
+    help="Get USGS timeseries values using the new OGC API and store into CWMS database",
+)
+@office_option
+@days_back_option
+@api_root_option
+@api_key_option
+@api_key_loc_option
+@click.option(
+    "-b",
+    "--backfill",
+    default=None,
+    type=str,
+    help='Backfill timeseries ids, use list of timeseries ids (e.g. "ts_id1, ts_id2") to attempt to backfill a subset of timeseries with USGS data',
+)
+@click.option(
+    "-bv",
+    "--backfill-version",
+    default=None,
+    type=str,
+    help='Backfill version, save data to a different version of the timeseries (e.g. "Rev-USGS" instead of "Raw-USGS")',
+)
+@requires(reqs.cwms, reqs.requests)
+def getusgs_timeseries_v2(
+    office, days_back, api_root, api_key, api_key_loc, backfill, backfill_version
+):
+    from cwmscli.usgs.getusgs_cda import getusgs_cda_ogc
+
+    if backfill is not None:
+        backfill_list = [item.strip() for item in backfill.split(",") if item.strip()]
+    else:
+        backfill_list = None
+
+    api_key = get_api_key(api_key, api_key_loc)
+    getusgs_cda_ogc(
+        api_root=api_root,
+        office_id=office,
+        days_back=days_back,
+        api_key=api_key,
+        backfill_tsids=backfill_list,
+        backfill_version=backfill_version,
     )
 
 
