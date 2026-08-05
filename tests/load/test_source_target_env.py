@@ -17,6 +17,9 @@ def isolated_envs(monkeypatch, tmp_path):
     monkeypatch.delenv("CDA_TARGET_URL", raising=False)
     monkeypatch.delenv("CDA_SOURCE_OFFICE", raising=False)
     monkeypatch.delenv("CDA_API_KEY", raising=False)
+    monkeypatch.setattr(
+        "cwmscli.load.root._validate_cda_api_root", lambda *a, **k: None
+    )
     return tmp_path
 
 
