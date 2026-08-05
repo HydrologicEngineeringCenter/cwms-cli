@@ -2,7 +2,6 @@
 
 - Never push to `origin` unless the user explicitly says they are ready for
   that push.
-- Never name branches `codex` or use `codex` as a branch-name prefix.
 - Use JDK 21 or newer for new work that is not intended to run on T7 systems.
   On Windows, use JDK 21 at `C:\Program Files\Java\jdk-21`. On Linux or other
   Unix-like systems, select an installed JDK 21 or newer through `JAVA_HOME`.
