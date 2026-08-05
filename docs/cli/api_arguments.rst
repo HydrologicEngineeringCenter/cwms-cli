@@ -91,10 +91,16 @@ Example:
 If you were looking for a ``--debug-level`` flag, use ``--log-level DEBUG``
 instead.
 
+When CDA returns ``details.stackTraceLines`` in an authenticated error response,
+debug mode displays that server stack trace with terminal-friendly formatting.
+The trace is only available when CDA is configured to return it and the
+authenticated user has CDA's ``SHOW STACK TRACE`` role. Normal log levels keep
+the concise user-facing error and incident identifier.
+
 For certain exception paths, ``cwms-cli`` also checks ``CWMS_CLI_DEBUG``. When
 that environment variable is set to ``1``, ``true``, ``yes``, or ``on``, the
-CLI keeps the normal exception behavior instead of suppressing some friendly
-error handling paths.
+CLI enables the same debug exception behavior. If CDA does not provide a server
+stack trace, cwms-cli keeps the raw local exception behavior for diagnosis.
 
 See also
 --------
