@@ -1,9 +1,10 @@
 import urllib.parse
 from http.client import HTTPConnection
-from threading import Thread
+from threading import Event, Thread
 
 import pytest
 
+from cwmscli.utils import auth as auth_utils
 from cwmscli.utils.auth import (
     CallbackBindError,
     OIDCLoginConfig,
@@ -88,9 +89,18 @@ def test_receive_callback_reports_port_already_in_use(monkeypatch):
     )
 
 
-def test_receive_callback_serves_branded_html_page():
-    config = OIDCLoginConfig(redirect_port=5567, timeout_seconds=5)
+def test_receive_callback_serves_branded_html_page(monkeypatch):
+    config = OIDCLoginConfig(redirect_port=0, timeout_seconds=5)
     captured = {}
+    server_ready = Event()
+
+    class ReadySingleRequestServer(auth_utils._SingleRequestServer):
+        def server_activate(self):
+            super().server_activate()
+            captured["server_address"] = self.server_address
+            server_ready.set()
+
+    monkeypatch.setattr(auth_utils, "_SingleRequestServer", ReadySingleRequestServer)
 
     def receive_callback():
         captured["params"] = _receive_callback(config)
@@ -98,13 +108,16 @@ def test_receive_callback_serves_branded_html_page():
     thread = Thread(target=receive_callback, daemon=True)
     thread.start()
 
-    connection = HTTPConnection(config.redirect_host, config.redirect_port, timeout=5)
+    assert server_ready.wait(timeout=5), "callback server did not become ready"
+    host, port = captured["server_address"]
+    connection = HTTPConnection(host, port, timeout=5)
     connection.request("GET", "/?state=example-state&code=example-code")
     response = connection.getresponse()
     body = response.read().decode("utf-8")
     connection.close()
     thread.join(timeout=5)
 
+    assert not thread.is_alive()
     assert response.status == 200
     assert response.getheader("Content-Type") == "text/html; charset=utf-8"
     assert "U.S. Army Corps of Engineers" in body
