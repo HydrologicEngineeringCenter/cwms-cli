@@ -27,6 +27,22 @@ the running ``cwms-cli.exe`` does not block its own replacement.
    manually, use the full Python executable displayed by ``cwms-cli update``
    with ``-m pip install --upgrade cwms-cli``.
 
+Linux externally managed environments
+-------------------------------------
+
+Some Linux distributions mark their system Python installation as externally
+managed under PEP 668. If pip reports ``externally-managed-environment``,
+``cwms-cli update`` explains that the selected Python installation cannot be
+changed safely and recommends installing ``cwms-cli`` in a virtual environment
+or with pipx. The updater does not automatically pass
+``--break-system-packages``, because doing so can conflict with packages managed
+by the operating system.
+
+A correctly created virtual environment is not subject to the system Python's
+externally managed restriction. Confirm that the displayed Python executable
+and environment prefix both point into the intended virtual environment before
+continuing.
+
 Editable installations
 ----------------------
 

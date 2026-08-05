@@ -27,6 +27,7 @@ from cwmscli.utils.update import (
     build_update_package_spec,
     get_update_environment,
     launch_windows_update,
+    looks_like_externally_managed_environment,
     looks_like_missing_version,
 )
 from cwmscli.utils.version import get_cwms_cli_version
@@ -496,6 +497,16 @@ def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
 
     if result.returncode != 0:
         pip_output = "\n".join(part for part in [result.stdout, result.stderr] if part)
+        if looks_like_externally_managed_environment(pip_output):
+            raise click.ClickException(
+                colors.err(
+                    "The selected Python installation is externally managed, so pip "
+                    "refused to update cwms-cli. Install cwms-cli in a virtual "
+                    "environment or with pipx, then run that installation's "
+                    "cwms-cli update command. cwms-cli will not use "
+                    "--break-system-packages automatically."
+                )
+            )
         if target_version and looks_like_missing_version(pip_output, package_spec):
             raise click.ClickException(
                 colors.err(

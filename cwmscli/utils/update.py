@@ -106,6 +106,10 @@ def looks_like_missing_version(pip_output: str, package_spec: str) -> bool:
     ) and package_spec in pip_output
 
 
+def looks_like_externally_managed_environment(pip_output: str) -> bool:
+    return "externally-managed-environment" in pip_output.lower()
+
+
 def write_windows_update_script(cmd: List[str]) -> str:
     quoted_cmd = subprocess.list2cmdline(cmd)
     script = "\r\n".join(

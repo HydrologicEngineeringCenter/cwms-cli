@@ -147,6 +147,25 @@ def test_update_command_surfaces_missing_target_version(monkeypatch):
     assert "Requested cwms-cli version '9.9.9' was not found." in result.output
 
 
+def test_update_command_explains_externally_managed_environment(monkeypatch):
+    def fake_run(cmd, check=False, capture_output=False, text=False):
+        return _DummyResult(
+            1,
+            stderr="error: externally-managed-environment\n",
+        )
+
+    _set_update_os(monkeypatch, "posix")
+    monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["update", "--yes"])
+
+    assert result.exit_code == 1
+    assert "selected Python installation is externally managed" in result.output
+    assert "virtual environment or with pipx" in result.output
+    assert "will not use --break-system-packages automatically" in result.output
+
+
 def test_update_command_cancelled_by_user(monkeypatch):
     calls = []
 
