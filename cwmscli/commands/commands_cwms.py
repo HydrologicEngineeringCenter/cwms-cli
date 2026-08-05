@@ -1,7 +1,6 @@
 import logging
 import os
 import subprocess
-import sys
 import textwrap
 from pathlib import Path
 from typing import Optional
@@ -26,6 +25,7 @@ from cwmscli.utils.auth import DEFAULT_REDIRECT_HOST, DEFAULT_REDIRECT_PORT
 from cwmscli.utils.deps import requires
 from cwmscli.utils.update import (
     build_update_package_spec,
+    get_update_environment,
     launch_windows_update,
     looks_like_missing_version,
 )
@@ -416,6 +416,7 @@ def csv2cwms_cmd(**kwargs):
 def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
     current_version = get_cwms_cli_version()
     package_spec = build_update_package_spec(target_version)
+    update_environment = get_update_environment()
 
     click.echo(
         "Current cwms-cli version: " f"{colors.c(current_version, 'cyan', bright=True)}"
@@ -428,12 +429,30 @@ def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
     else:
         click.echo("Requested cwms-cli version: latest available release")
 
-    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", package_spec]
+    click.echo("Update environment:")
+    click.echo(f"  Python executable: {update_environment.python_executable}")
+    click.echo(
+        f"  Environment: {update_environment.environment_prefix} "
+        f"({update_environment.environment_type})"
+    )
+    click.echo(f"  Package location: {update_environment.package_location}")
+
+    cmd = [
+        update_environment.python_executable,
+        "-m",
+        "pip",
+        "install",
+        "--upgrade",
+        package_spec,
+    ]
     if pre:
         cmd.append("--pre")
 
     if not yes:
-        proceed = click.confirm("Proceed with updating cwms-cli via pip?", default=True)
+        proceed = click.confirm(
+            "Proceed with updating cwms-cli in this environment via pip?",
+            default=True,
+        )
         if not proceed:
             click.echo(colors.warn("Update canceled."))
             return

@@ -14,13 +14,18 @@ Note: You may need to run `python -m pip install cwms-cli` if PIP is not in your
 
 ### Update
 ```sh
-pip install cwms-cli --upgrade
+python -m pip install --upgrade cwms-cli
 ```
 
 Or as of version `0.3.0+`
 ```sh
 cwms-cli update
 ```
+
+`cwms-cli update` displays the Python executable, environment, and package
+location it will update before asking for confirmation. It runs pip through the
+same Python interpreter that is running `cwms-cli`, avoiding accidental updates
+to a different Python installation or virtual environment.
 
 To install a specific version:
 ```sh

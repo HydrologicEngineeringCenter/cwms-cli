@@ -3,6 +3,7 @@ import sys
 from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
+from cwmscli.utils.update import UpdateEnvironment
 
 
 class _DummyResult:
@@ -14,6 +15,12 @@ class _DummyResult:
 
 def test_update_command_runs_pip_upgrade(monkeypatch):
     calls = []
+    update_environment = UpdateEnvironment(
+        python_executable=r"C:\Python\python.exe",
+        environment_prefix=r"C:\Python",
+        environment_type="Python installation",
+        package_location=r"C:\Python\Lib\site-packages",
+    )
 
     def fake_run(cmd, check=False, capture_output=False, text=False):
         calls.append((cmd, check, capture_output, text))
@@ -24,16 +31,26 @@ def test_update_command_runs_pip_upgrade(monkeypatch):
     monkeypatch.setattr(
         "cwmscli.commands.commands_cwms.get_cwms_cli_version", lambda: "1.2.3"
     )
+    monkeypatch.setattr(
+        "cwmscli.commands.commands_cwms.get_update_environment",
+        lambda: update_environment,
+    )
 
     runner = CliRunner()
     result = runner.invoke(cli, ["update"], input="y\n")
 
     assert result.exit_code == 0
     assert "Current cwms-cli version: 1.2.3" in result.output
+    assert "Python executable: C:\\Python\\python.exe" in result.output
+    assert "Environment: C:\\Python (Python installation)" in result.output
+    assert "Package location: C:\\Python\\Lib\\site-packages" in result.output
+    assert result.output.index("Update environment:") < result.output.index(
+        "Proceed with updating"
+    )
     assert "Update complete" in result.output
     assert len(calls) == 1
     assert calls[0][0] == [
-        sys.executable,
+        r"C:\Python\python.exe",
         "-m",
         "pip",
         "install",
