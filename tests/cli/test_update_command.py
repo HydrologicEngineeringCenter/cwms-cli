@@ -26,6 +26,7 @@ def test_update_command_runs_pip_upgrade(monkeypatch):
         environment_prefix=r"C:\Python",
         environment_type="Python installation",
         package_location=r"C:\Python\Lib\site-packages",
+        editable_project_location=r"C:\src\cwms-cli",
     )
 
     def fake_run(cmd, check=False, capture_output=False, text=False):
@@ -49,7 +50,8 @@ def test_update_command_runs_pip_upgrade(monkeypatch):
     assert "Current cwms-cli version: 1.2.3" in result.output
     assert "Python executable: C:\\Python\\python.exe" in result.output
     assert "Environment: C:\\Python (Python installation)" in result.output
-    assert "Package location: C:\\Python\\Lib\\site-packages" in result.output
+    assert "Package metadata location: C:\\Python\\Lib\\site-packages" in result.output
+    assert "Editable project location: C:\\src\\cwms-cli" in result.output
     assert result.output.index("Update environment:") < result.output.index(
         "Proceed with updating"
     )

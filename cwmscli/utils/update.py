@@ -1,10 +1,13 @@
 import importlib.metadata
+import json
 import os
 import subprocess
 import sys
 import tempfile
 from dataclasses import dataclass
 from typing import List, Optional
+from urllib.parse import unquote, urlparse
+from urllib.request import url2pathname
 
 
 @dataclass(frozen=True)
@@ -13,6 +16,7 @@ class UpdateEnvironment:
     environment_prefix: str
     environment_type: str
     package_location: str
+    editable_project_location: Optional[str] = None
 
 
 def _absolute_path(path: str) -> str:
@@ -23,6 +27,37 @@ def _same_path(left: str, right: str) -> bool:
     return os.path.normcase(_absolute_path(left)) == os.path.normcase(
         _absolute_path(right)
     )
+
+
+def _editable_project_location(
+    distribution: importlib.metadata.Distribution,
+) -> Optional[str]:
+    direct_url_text = distribution.read_text("direct_url.json")
+    if not direct_url_text:
+        return None
+
+    try:
+        direct_url = json.loads(direct_url_text)
+    except (json.JSONDecodeError, TypeError):
+        return None
+
+    if not isinstance(direct_url, dict):
+        return None
+    directory_info = direct_url.get("dir_info")
+    if not isinstance(directory_info, dict) or not directory_info.get("editable"):
+        return None
+
+    url = direct_url.get("url")
+    if not isinstance(url, str):
+        return None
+    parsed_url = urlparse(url)
+    if parsed_url.scheme != "file":
+        return None
+
+    project_path = url2pathname(unquote(parsed_url.path))
+    if parsed_url.netloc and parsed_url.netloc != "localhost":
+        project_path = f"//{parsed_url.netloc}{project_path}"
+    return _absolute_path(project_path)
 
 
 def get_update_environment() -> UpdateEnvironment:
@@ -41,17 +76,20 @@ def get_update_environment() -> UpdateEnvironment:
     try:
         distribution = importlib.metadata.distribution("cwms-cli")
         package_location = os.path.realpath(os.fspath(distribution.locate_file("")))
+        editable_project_location = _editable_project_location(distribution)
     except importlib.metadata.PackageNotFoundError:
         # This can happen when the CLI is invoked directly from a source checkout.
         package_location = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         )
+        editable_project_location = None
 
     return UpdateEnvironment(
         python_executable=python_executable,
         environment_prefix=environment_prefix,
         environment_type=environment_type,
         package_location=package_location,
+        editable_project_location=editable_project_location,
     )
 
 

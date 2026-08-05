@@ -435,7 +435,12 @@ def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
         f"  Environment: {update_environment.environment_prefix} "
         f"({update_environment.environment_type})"
     )
-    click.echo(f"  Package location: {update_environment.package_location}")
+    click.echo(f"  Package metadata location: {update_environment.package_location}")
+    if update_environment.editable_project_location:
+        click.echo(
+            "  Editable project location: "
+            f"{update_environment.editable_project_location}"
+        )
 
     cmd = [
         update_environment.python_executable,
