@@ -43,9 +43,9 @@ from cwmscli.usgs.getUSGS_ratings_cda import getusgs_rating_cda
 
 ## Development environment
 
-The repository includes a Linux/Python 3.12 development container matching the
-primary CI test environment. Open the repository with the VS Code Dev
-Containers extension, or use the Dev Container CLI:
+The repository includes a Linux/Python 3.12 development container exercised by
+a dedicated CI job. Open the repository with the VS Code Dev Containers
+extension, or use the Dev Container CLI:
 
 ```sh
 devcontainer up --workspace-folder .
@@ -56,5 +56,5 @@ The container installs project dependencies with Poetry and uses
 `/home/vscode/.venv`, so it does not reuse a host operating system's `.venv`.
 Poetry itself is kept in a separate `/opt/poetry` environment. Use the container
 for changes involving time zones, paths, native libraries, or other
-operating-system-dependent behavior. Python 3.9 compatibility remains covered
-by a separate CI job.
+operating-system-dependent behavior. Standard Python 3.9 and Python 3.12
+installations remain covered by the existing CI matrix.
