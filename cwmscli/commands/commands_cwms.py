@@ -492,13 +492,15 @@ def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
 @click.group(
     "blob",
     help="Manage CWMS Blobs (upload, download, delete, update, list)",
-    epilog=textwrap.dedent("""
+    epilog=textwrap.dedent(
+        """
     Example Usage:\n
     - Store a PDF/image as a CWMS blob with optional description\n
     - Download a blob by id to your local filesystem\n
     - Update a blob's name/description/mime-type\n
     - Bulk list blobs for an office  
-"""),
+"""
+    ),
 )
 def blob_group():
     pass
@@ -671,10 +673,15 @@ def update_cmd(**kwargs):
     show_default=True,
     help="Sort descending instead of ascending.",
 )
-@click.option("--limit", type=int, default=None, help="Max rows to show.")
+@click.option(
+    "--limit",
+    type=click.IntRange(min=1),
+    default=None,
+    help="Max rows to show.",
+)
 @click.option(
     "--page-size",
-    type=int,
+    type=click.IntRange(min=1),
     default=None,
     help="Max rows to request from the blob endpoint. Defaults to --limit if set, otherwise no pagination (all results in one page).",
 )
@@ -706,12 +713,14 @@ def list_cmd(**kwargs):
 @click.group(
     "clob",
     help="Manage CWMS Clobs (upload, download, delete, update, list)",
-    epilog=textwrap.dedent("""
+    epilog=textwrap.dedent(
+        """
     Example Usage:\n
     - Download a clob by id to your local filesystem\n
     - Update a clob's name/description/mime-type\n
     - Bulk list clobs for an office  
-"""),
+"""
+    ),
 )
 @requires(reqs.cwms)
 def clob_group():
@@ -837,10 +846,15 @@ def update_cmd(**kwargs):
     show_default=True,
     help="Sort descending instead of ascending.",
 )
-@click.option("--limit", type=int, default=None, help="Max rows to show.")
+@click.option(
+    "--limit",
+    type=click.IntRange(min=1),
+    default=None,
+    help="Max rows to show.",
+)
 @click.option(
     "--page-size",
-    type=int,
+    type=click.IntRange(min=1),
     default=None,
     help="Max rows to request from the clob endpoint. Defaults to --limit when set.",
 )
