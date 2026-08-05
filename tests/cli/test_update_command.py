@@ -1,4 +1,5 @@
 import sys
+from types import SimpleNamespace
 
 from click.testing import CliRunner
 
@@ -11,6 +12,11 @@ class _DummyResult:
         self.returncode = returncode
         self.stdout = stdout
         self.stderr = stderr
+
+
+def _set_update_os(monkeypatch, name):
+    """Set the updater OS without changing the process-wide ``os`` module."""
+    monkeypatch.setattr("cwmscli.commands.commands_cwms.os", SimpleNamespace(name=name))
 
 
 def test_update_command_runs_pip_upgrade(monkeypatch):
@@ -26,7 +32,7 @@ def test_update_command_runs_pip_upgrade(monkeypatch):
         calls.append((cmd, check, capture_output, text))
         return _DummyResult(0)
 
-    monkeypatch.setattr("cwmscli.commands.commands_cwms.os.name", "posix")
+    _set_update_os(monkeypatch, "posix")
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
     monkeypatch.setattr(
         "cwmscli.commands.commands_cwms.get_cwms_cli_version", lambda: "1.2.3"
@@ -69,7 +75,7 @@ def test_update_command_includes_pre_flag(monkeypatch):
         calls.append((cmd, check, capture_output, text))
         return _DummyResult(0)
 
-    monkeypatch.setattr("cwmscli.commands.commands_cwms.os.name", "posix")
+    _set_update_os(monkeypatch, "posix")
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
 
     runner = CliRunner()
@@ -86,7 +92,7 @@ def test_update_command_targets_specific_version(monkeypatch):
         calls.append((cmd, check, capture_output, text))
         return _DummyResult(0)
 
-    monkeypatch.setattr("cwmscli.commands.commands_cwms.os.name", "posix")
+    _set_update_os(monkeypatch, "posix")
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
 
     runner = CliRunner()
@@ -108,7 +114,7 @@ def test_update_command_surfaces_pip_failure(monkeypatch):
     def fake_run(cmd, check=False, capture_output=False, text=False):
         return _DummyResult(1)
 
-    monkeypatch.setattr("cwmscli.commands.commands_cwms.os.name", "posix")
+    _set_update_os(monkeypatch, "posix")
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
 
     runner = CliRunner()
@@ -129,7 +135,7 @@ def test_update_command_surfaces_missing_target_version(monkeypatch):
             ),
         )
 
-    monkeypatch.setattr("cwmscli.commands.commands_cwms.os.name", "posix")
+    _set_update_os(monkeypatch, "posix")
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
 
     runner = CliRunner()
@@ -146,7 +152,7 @@ def test_update_command_cancelled_by_user(monkeypatch):
         calls.append((cmd, check, capture_output, text))
         return _DummyResult(0)
 
-    monkeypatch.setattr("cwmscli.commands.commands_cwms.os.name", "posix")
+    _set_update_os(monkeypatch, "posix")
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
 
     runner = CliRunner()
@@ -167,7 +173,7 @@ def test_update_command_defers_to_separate_process_on_windows(monkeypatch):
     def fake_run(*args, **kwargs):
         raise AssertionError("subprocess.run should not be used on Windows update")
 
-    monkeypatch.setattr("cwmscli.commands.commands_cwms.os.name", "nt")
+    _set_update_os(monkeypatch, "nt")
     monkeypatch.setattr(
         "cwmscli.commands.commands_cwms.launch_windows_update", fake_launch
     )
