@@ -6,6 +6,10 @@ email = "charles.r.graham@usace.army.mil"
 name = "Eric Novotny"
 email = "eric.v.novotny@usace.army.mil"
 
+[people.mitch]
+name = "Mitch Weier"
+email = "mitchell.s.weier@usace.army.mil"
+
 [poetry]
 authors = ["eric", "charles"]
 
@@ -81,3 +85,7 @@ owners = ["eric"]
 pattern = "/cwmscli/commands/commands_cwms.py"
 owners = ["charles", "eric"]
 comment = "Shared Click wrappers span commands owned by both maintainers"
+
+[[codeowners.rule]]
+pattern = "/cwmscli/commands/env.py"
+owners = ["mitch"]
