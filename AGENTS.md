@@ -20,3 +20,30 @@ Guidance for coding agents working in `HydrologicEngineeringCenter/cwms-cli`.
 - When testing colored output, cover the plain-text behavior first. Enable the
   shared color helper explicitly only in tests that need to assert escape codes,
   and restore its state afterward.
+
+## Ownership metadata
+
+- Use `maintainers.toml` as the primary configuration file for maintainer names,
+  CLI ownership, documentation maintainer notes, package authors, and
+  CODEOWNERS rules. Do not edit generated ownership files directly.
+- When adding, renaming, moving, or removing a command, implementation area,
+  documentation page, test area, workflow, or other substantial path, review
+  and update the corresponding entries in `maintainers.toml` in the same
+  change.
+- Keep the fallback `*` CODEOWNERS rule first. GitHub applies the last matching
+  rule, so more-specific rules must appear after the fallback.
+- Prefer explicit CODEOWNERS rules for implementation, documentation, and tests
+  that share the same maintainer. Keep ownership-governance files themselves
+  explicitly owned.
+- After changing `maintainers.toml`, run
+  `poetry run python scripts/sync_ownership.py`, review every generated change,
+  and then run `poetry run python scripts/sync_ownership.py --check`.
+- Before completing ownership changes, verify that configured command names and
+  CODEOWNERS paths still exist and that GitHub reports no CODEOWNERS errors.
+
+## Git safety
+
+- Never push to `origin` unless the user explicitly authorizes the push.
+- Do not use `codex`, `agent`, AI-related terms, or similar prefixes in branch
+  names. Use a short, human-readable branch name tied to the concern.
+- Inspect untracked files before staging and leave unrelated work untouched.

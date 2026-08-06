@@ -18,7 +18,7 @@ default = ["charles", "eric"]
 "cwms-cli update" = ["charles"]
 "cwms-cli load" = ["charles", "eric"]
 "cwms-cli usgs" = ["eric"]
-"cwms-cli shefcritimport" = ["eric"]
+"cwms-cli shef" = ["eric"]
 
 [docs.pages]
 "cli" = "cwms-cli"
@@ -30,12 +30,27 @@ default = ["charles", "eric"]
 [[codeowners.rule]]
 pattern = "*"
 owners = ["charles", "eric"]
-comment = "Default owners for repository-wide files and shared cwms-cli behavior"
+comment = "Fallback owners for paths without a later, more specific rule; keep this rule first"
 
 [[codeowners.rule]]
 pattern = "/.github/CODEOWNERS"
 owners = ["charles", "eric"]
 comment = "Protect ownership rules themselves"
+
+[[codeowners.rule]]
+pattern = "/maintainers.toml"
+owners = ["charles", "eric"]
+comment = "Primary configuration file for ownership metadata"
+
+[[codeowners.rule]]
+pattern = "/scripts/sync_ownership.py"
+owners = ["charles", "eric"]
+comment = "Ownership metadata generator"
+
+[[codeowners.rule]]
+pattern = "/AGENTS.md"
+owners = ["charles", "eric"]
+comment = "Repository ownership maintenance guidance"
 
 [[codeowners.rule]]
 pattern = "/cwmscli/commands/csv2cwms/"
@@ -62,6 +77,10 @@ pattern = "/docs/cli/update.rst"
 owners = ["charles"]
 
 [[codeowners.rule]]
+pattern = "/tests/cli/test_update_command.py"
+owners = ["charles"]
+
+[[codeowners.rule]]
 pattern = "/cwmscli/load/"
 owners = ["charles", "eric"]
 
@@ -70,11 +89,31 @@ pattern = "/docs/cli/load_*.rst"
 owners = ["charles", "eric"]
 
 [[codeowners.rule]]
+pattern = "/tests/load/"
+owners = ["charles", "eric"]
+
+[[codeowners.rule]]
+pattern = "/tests/commands/test_load_*.py"
+owners = ["charles", "eric"]
+
+[[codeowners.rule]]
 pattern = "/cwmscli/usgs/"
 owners = ["eric"]
 
 [[codeowners.rule]]
-pattern = "/cwmscli/commands/shef_critfile_import.py"
+pattern = "/tests/usgs/"
+owners = ["eric"]
+
+[[codeowners.rule]]
+pattern = "/tests/cli/test_usgs_*.py"
+owners = ["eric"]
+
+[[codeowners.rule]]
+pattern = "/cwmscli/commands/shef/"
+owners = ["eric"]
+
+[[codeowners.rule]]
+pattern = "/tests/commands/test_shef_*.py"
 owners = ["eric"]
 
 [[codeowners.rule]]
