@@ -52,3 +52,17 @@ jobs:
 
       - name: Run full test suite
         run: poetry run pytest -q
+
+  test-devcontainer:
+    name: Test dev container on 3.12
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Build dev container and run tests
+        uses: devcontainers/ci@v0.3
+        with:
+          push: never
+          runCmd: poetry run pytest -q
