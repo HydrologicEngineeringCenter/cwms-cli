@@ -10,6 +10,10 @@ HEC-DSS support is optional:
 
    pip install "cwms-cli[dss]"
 
+The native ``hecdss`` library is not currently available in macOS Mach-O
+format. DSS file operations are therefore not supported on macOS, even though
+the rest of ``cwms-cli`` can run there.
+
 .. _dss-commands:
 
 Commands
