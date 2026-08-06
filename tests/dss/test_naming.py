@@ -25,7 +25,7 @@ EXAMPLES = Path(__file__).parents[2] / "docs" / "examples"
         "Test.Flow.Ave.~1Day.1Day.Rev-CWMS",
     ],
 )
-def test_legacy_default_name_round_trip(tsid):
+def test_default_name_round_trip(tsid):
     assert default_tsid(default_pathname(tsid)) == tsid
 
 

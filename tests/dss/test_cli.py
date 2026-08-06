@@ -4,7 +4,6 @@ from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
 from cwmscli.dss.cli import _finish, _PlainTextFormatter, export_cmd, import_cmd
-from cwmscli.dss.compat import _normalize_legacy_args
 from cwmscli.dss.transfer import TransferSummary
 from cwmscli.utils import colors, to_uppercase
 from cwmscli.utils.links import NEW_ISSUE_URL
@@ -152,25 +151,19 @@ def test_mapping_and_filter_are_mutually_exclusive(tmp_path):
     assert "mutually exclusive" in result.output
 
 
-def test_legacy_equals_argument_forms_are_normalized():
-    assert _normalize_legacy_args(["-o=SWT", "-dss=file.dss", "-p=24", "-tz=UTC"]) == [
-        "-o",
-        "SWT",
-        "-dss",
-        "file.dss",
-        "-p",
-        "24",
-        "-tz",
-        "UTC",
-    ]
-    assert _normalize_legacy_args(["-o=SWT", "-dss=file", ".dss", "-p=24"]) == [
-        "-o",
-        "SWT",
-        "-dss",
-        "file.dss",
-        "-p",
-        "24",
-    ]
+def test_legacy_equals_argument_forms_are_not_translated():
+    result = CliRunner().invoke(
+        export_cmd,
+        [
+            "-o=SWT",
+            "-a=https://example.test/cwms-data",
+            "-dss=file.dss",
+            "-p=1",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "'=1' is not a valid integer range" in result.output
 
 
 def test_summary_uses_project_colors_but_log_formatter_is_plain(capsys, monkeypatch):

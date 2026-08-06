@@ -148,7 +148,7 @@ def import_cmd(
     if not dss_file.is_file():
         raise click.UsageError(f"DSS source file does not exist: {dss_file}")
     start_time, end_time = _time_window(lookback_hours, start, end)
-    _configure_legacy_logging(log_dir, "dss2cwms", verbosity)
+    _configure_logging(log_dir, "dss-import", verbosity)
     _configure_dss_logging(verbosity)
     try:
         resolver = ImportResolver(
@@ -218,7 +218,7 @@ def export_cmd(
     _validate_files(mapping_file, filter_file)
     _validate_time_zone(dss_time_zone)
     start_time, end_time = _time_window(lookback_hours, start, end)
-    _configure_legacy_logging(log_dir, "cwms2dss", verbosity)
+    _configure_logging(log_dir, "dss-export", verbosity)
     _configure_dss_logging(verbosity)
     try:
         resolver = ExportResolver(
@@ -297,17 +297,14 @@ def _parse_datetime(value: str) -> datetime:
     return parsed
 
 
-def _configure_legacy_logging(
-    log_dir: Optional[Path], program: str, verbosity: int
-) -> None:
+def _configure_logging(log_dir: Optional[Path], program: str, verbosity: int) -> None:
     root = logging.getLogger()
     context = click.get_current_context(silent=True)
-    direct_legacy_entry = context is None or context.parent is None
     verbosity_is_explicit = (
         context is not None
         and context.get_parameter_source("verbosity") == ParameterSource.COMMANDLINE
     )
-    if direct_legacy_entry or verbosity_is_explicit:
+    if verbosity_is_explicit:
         root.setLevel((logging.WARNING, logging.INFO, logging.DEBUG)[verbosity])
     if log_dir is None:
         return

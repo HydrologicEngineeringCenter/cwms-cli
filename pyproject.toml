@@ -78,5 +78,3 @@ preserve_quotes = true
 
 [tool.poetry.scripts]
 cwms-cli = "cwmscli.__main__:main"
-dss2cwms = "cwmscli.dss.compat:dss2cwms_main"
-cwms2dss = "cwmscli.dss.compat:cwms2dss_main"

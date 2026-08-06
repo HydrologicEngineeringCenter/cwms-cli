@@ -38,7 +38,7 @@ def test_import_transform_preserves_quality_and_applies_factor():
     assert ZoneInfo(result.time_zone).utcoffset(datetime(2026, 1, 1)) == timedelta(0)
 
 
-def test_export_transform_preserves_legacy_name_and_timezone():
+def test_export_transform_preserves_automatic_name_and_timezone():
     timeseries = _timeseries()
     rule = ExportRule(
         timeseries.name, "//Test/Flow--Inst--0//1HOUR/Raw/", None, 2, "cfs"
