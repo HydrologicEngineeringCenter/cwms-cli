@@ -11,7 +11,11 @@ from cwmscli.dss import dss_group
 from cwmscli.load import __main__ as load
 from cwmscli.usgs import usgs_group
 from cwmscli.utils.click_help import add_version_to_help_tree
-from cwmscli.utils.friendly_errors import to_user_facing_error
+from cwmscli.utils.friendly_errors import (
+    cda_stack_trace,
+    format_cda_stack_trace,
+    to_user_facing_error,
+)
 from cwmscli.utils.links import BUG_REPORT_URL
 from cwmscli.utils.logging import (
     LoggingConfig,
@@ -114,9 +118,19 @@ def main() -> None:
     except SystemExit:
         raise
     except click.ClickException as e:
+        debug = debug or logging.getLogger().isEnabledFor(logging.DEBUG)
+        if debug:
+            server_stack_trace = cda_stack_trace(e)
+            if server_stack_trace is not None:
+                click.echo(format_cda_stack_trace(server_stack_trace), err=True)
+                raise SystemExit(e.exit_code)
         e.show()
         raise SystemExit(e.exit_code)
     except Exception as e:
+        # The environment switch supports failures before Click configures logging.
+        # Once CLI setup has run, --log-level DEBUG enables the same behavior.
+        debug = debug or logging.getLogger().isEnabledFor(logging.DEBUG)
+
         if is_cert_verify_error(e) and not debug:
             # Keep this short, no stack trace.
             logging.error(
@@ -125,7 +139,12 @@ def main() -> None:
             click.echo(ssl_help_text(), err=True)
             raise SystemExit(2)
 
-        if not debug:
+        if debug:
+            server_stack_trace = cda_stack_trace(e)
+            if server_stack_trace is not None:
+                click.echo(format_cda_stack_trace(server_stack_trace), err=True)
+                raise SystemExit(1)
+        else:
             friendly_error = to_user_facing_error(e)
             if friendly_error is not None:
                 logging.debug("Suppressed traceback for CLI exception", exc_info=e)
@@ -133,7 +152,8 @@ def main() -> None:
                 raise SystemExit(friendly_error.exit_code)
 
         click.echo(f"Unexpected error. Report it at {BUG_REPORT_URL}", err=True)
-        # Preserve the traceback so the report includes useful diagnostic details.
+        # Preserve raw exception behavior when CDA did not provide a server stack
+        # trace so an issue report includes useful diagnostic details.
         raise
 
 
