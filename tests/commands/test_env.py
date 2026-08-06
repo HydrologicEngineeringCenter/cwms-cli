@@ -424,6 +424,8 @@ def test_delete_missing_env_errors(isolated_envs):
 )
 def test_bash_quoting_roundtrip(value):
     """Eval the bash output and confirm the value comes back unchanged."""
+    if sys.platform == "win32":
+        pytest.skip("bash round-trip is not part of Windows shell coverage")
     line = f"export X={_quote_bash(value)}"
     out = subprocess.check_output(["bash", "-c", f'{line}; printf %s "$X"'])
     assert out.decode() == value
@@ -494,6 +496,8 @@ def test_export_dotenv_format(env_with_key):
 
 
 def test_export_bash_format_evaluates(env_with_key):
+    if sys.platform == "win32":
+        pytest.skip("bash export evaluation is not part of Windows shell coverage")
     runner = CliRunner()
     result = runner.invoke(
         env_group, ["export", env_with_key, "--format", "bash", "--show-key"]
