@@ -1,9 +1,15 @@
+import sys
+
 import pytest
 
 from cwmscli.dss.naming import ExportRule, default_pathname
 from cwmscli.dss.transfer import DssSink, DssSource, transform_export
 
 
+@pytest.mark.skipif(
+    sys.platform == "darwin",
+    reason="hecdss does not currently provide a macOS native library",
+)
 @pytest.mark.integration
 @pytest.mark.parametrize(
     ("tsid", "times", "dss_time_zone"),
