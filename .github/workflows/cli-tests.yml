@@ -6,13 +6,27 @@ on:
 
 jobs:
   test:
-    name: Test CLI on ${{ matrix.python-version }}
-    runs-on: ubuntu-latest
+    name: Test CLI on ${{ matrix.name }} with Python ${{ matrix.python-version }}
+    runs-on: ${{ matrix.os }}
 
     strategy:
+      fail-fast: false
       matrix:
-        # Test 3.9 for T7, 3.12 for general/cloud use
-        python-version: ["3.9", "3.12"]
+        include:
+          # Test the supported Python range on Linux and exercise the primary
+          # Python version on each supported desktop operating system.
+          - name: Linux
+            os: ubuntu-latest
+            python-version: "3.9"
+          - name: Linux
+            os: ubuntu-latest
+            python-version: "3.12"
+          - name: Windows
+            os: windows-latest
+            python-version: "3.12"
+          - name: macOS
+            os: macos-latest
+            python-version: "3.12"
 
     steps:
       - name: Checkout repository
@@ -38,3 +52,17 @@ jobs:
 
       - name: Run full test suite
         run: poetry run pytest -q
+
+  test-devcontainer:
+    name: Test dev container on 3.12
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Build dev container and run tests
+        uses: devcontainers/ci@v0.3
+        with:
+          push: never
+          runCmd: poetry run pytest -q

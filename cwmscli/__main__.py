@@ -7,6 +7,7 @@ import click
 from click.core import ParameterSource
 
 from cwmscli.commands import commands_cwms
+from cwmscli.dss import dss_group
 from cwmscli.load import __main__ as load
 from cwmscli.usgs import usgs_group
 from cwmscli.utils.click_help import add_version_to_help_tree
@@ -15,6 +16,7 @@ from cwmscli.utils.friendly_errors import (
     format_cda_stack_trace,
     to_user_facing_error,
 )
+from cwmscli.utils.links import BUG_REPORT_URL
 from cwmscli.utils.logging import (
     LoggingConfig,
     apply_logging_policies,
@@ -93,6 +95,7 @@ cli.add_command(commands_cwms.blob_group)
 cli.add_command(commands_cwms.clob_group)
 cli.add_command(commands_cwms.users_group)
 cli.add_command(load.load_group)
+cli.add_command(dss_group)
 add_version_to_help_tree(cli)
 
 
@@ -148,8 +151,9 @@ def main() -> None:
                 friendly_error.show()
                 raise SystemExit(friendly_error.exit_code)
 
-        # Preserve raw exception behavior when debug is enabled but CDA did not
-        # provide a server stack trace.
+        click.echo(f"Unexpected error. Report it at {BUG_REPORT_URL}", err=True)
+        # Preserve raw exception behavior when CDA did not provide a server stack
+        # trace so an issue report includes useful diagnostic details.
         raise
 
 
