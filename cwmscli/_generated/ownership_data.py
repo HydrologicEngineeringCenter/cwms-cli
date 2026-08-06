@@ -25,7 +25,7 @@ OWNERSHIP_DATA = {
                 "name": "Eric Novotny"
             }
         ],
-        "cwms-cli shefcritimport": [
+        "cwms-cli shef": [
             {
                 "email": "eric.v.novotny@usace.army.mil",
                 "name": "Eric Novotny"
