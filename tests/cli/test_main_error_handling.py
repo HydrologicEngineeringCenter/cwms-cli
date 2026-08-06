@@ -1,9 +1,12 @@
 import json
+import logging
 import sys
 
+import click
 import pytest
 
 import cwmscli.__main__ as cli_main
+from cwmscli.utils.links import BUG_REPORT_URL
 
 
 class _FakeResponse:
@@ -14,7 +17,8 @@ class _FakeResponse:
         *,
         reason="",
         url="https://example.test/cwms-data/resource",
-        incident=None
+        incident=None,
+        stack_trace_lines=None,
     ):
         self.status_code = status_code
         self.reason = reason
@@ -22,6 +26,8 @@ class _FakeResponse:
         payload = {"message": message}
         if incident is not None:
             payload["incidentIdentifier"] = incident
+        if stack_trace_lines is not None:
+            payload["details"] = {"stackTraceLines": stack_trace_lines}
         self.text = json.dumps(payload)
         self.content = self.text.encode("utf-8")
 
@@ -129,7 +135,7 @@ def test_main_formats_server_error_with_incident_identifier(monkeypatch, capsys)
     assert "incidentIdentifier 12345" in captured.err
 
 
-def test_main_preserves_raw_exception_when_debug_enabled(monkeypatch):
+def test_main_preserves_raw_exception_and_prints_report_link(monkeypatch, capsys):
     def fake_cli(*args, **kwargs):
         raise RuntimeError("boom")
 
@@ -139,3 +145,101 @@ def test_main_preserves_raw_exception_when_debug_enabled(monkeypatch):
 
     with pytest.raises(RuntimeError, match="boom"):
         cli_main.main()
+
+    assert f"Unexpected error. Report it at {BUG_REPORT_URL}" in capsys.readouterr().err
+
+
+def test_main_formats_cda_stack_trace_when_debug_env_enabled(monkeypatch, capsys):
+    from cwms.api import ApiError
+
+    def fake_cli(*args, **kwargs):
+        raise ApiError(
+            _FakeResponse(
+                400,
+                "Text 'not-a-date' could not be parsed at index 0",
+                reason="Bad Request",
+                incident="trace-123",
+                stack_trace_lines=[
+                    "java.time.format.DateTimeParseException: invalid date",
+                    "\tat cwms.cda.helpers.DateUtils.parseUserDate(DateUtils.java:91)",
+                ],
+            )
+        )
+
+    monkeypatch.setattr(cli_main, "cli", fake_cli)
+    monkeypatch.setattr(sys, "argv", ["cwms-cli", "dummy"])
+    monkeypatch.setenv("CWMS_CLI_DEBUG", "1")
+
+    with pytest.raises(SystemExit) as exc:
+        cli_main.main()
+
+    captured = capsys.readouterr()
+    assert exc.value.code == 1
+    assert "CDA server stack trace" in captured.err
+    assert "incidentIdentifier: trace-123" in captured.err
+    assert "java.time.format.DateTimeParseException" in captured.err
+    assert "DateUtils.parseUserDate" in captured.err
+    assert "Traceback (most recent call last)" not in captured.err
+
+
+def test_main_log_level_debug_formats_cda_stack_trace(monkeypatch, capsys):
+    from cwms.api import ApiError
+
+    previous_level = logging.getLogger().level
+
+    def fake_cli(*args, **kwargs):
+        logging.getLogger().setLevel(logging.DEBUG)
+        raise ApiError(
+            _FakeResponse(
+                500,
+                "System Error",
+                incident="trace-456",
+                stack_trace_lines=["java.lang.RuntimeException: boom"],
+            )
+        )
+
+    monkeypatch.setattr(cli_main, "cli", fake_cli)
+    monkeypatch.setattr(sys, "argv", ["cwms-cli", "--log-level", "DEBUG", "dummy"])
+    monkeypatch.delenv("CWMS_CLI_DEBUG", raising=False)
+
+    try:
+        with pytest.raises(SystemExit) as exc:
+            cli_main.main()
+    finally:
+        logging.getLogger().setLevel(previous_level)
+
+    captured = capsys.readouterr()
+    assert exc.value.code == 1
+    assert "CDA server stack trace" in captured.err
+    assert "java.lang.RuntimeException: boom" in captured.err
+
+
+def test_main_debug_finds_cda_stack_behind_click_exception(monkeypatch, capsys):
+    from cwms.api import ApiError
+
+    def fake_cli(*args, **kwargs):
+        try:
+            raise ApiError(
+                _FakeResponse(
+                    500,
+                    "System Error",
+                    incident="trace-789",
+                    stack_trace_lines=["java.lang.NullPointerException: missing"],
+                )
+            )
+        except ApiError:
+            raise click.ClickException("Friendly command error") from None
+
+    monkeypatch.setattr(cli_main, "cli", fake_cli)
+    monkeypatch.setattr(sys, "argv", ["cwms-cli", "dummy"])
+    monkeypatch.setenv("CWMS_CLI_DEBUG", "1")
+
+    with pytest.raises(SystemExit) as exc:
+        cli_main.main()
+
+    captured = capsys.readouterr()
+    assert exc.value.code == 1
+    assert "CDA server stack trace" in captured.err
+    assert "incidentIdentifier: trace-789" in captured.err
+    assert "java.lang.NullPointerException: missing" in captured.err
+    assert "Friendly command error" not in captured.err
