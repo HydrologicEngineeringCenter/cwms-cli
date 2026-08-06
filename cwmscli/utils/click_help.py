@@ -7,6 +7,7 @@ import click
 
 from cwmscli.ownership import get_command_maintainers, get_core_maintainer_emails
 from cwmscli.utils import colors
+from cwmscli.utils.links import BUG_REPORT_URL, FEATURE_REQUEST_URL
 from cwmscli.utils.version import get_cwms_cli_version
 
 DOCS_BASE_URL = "https://cwms-cli.readthedocs.io/en/latest"
@@ -71,6 +72,15 @@ def _render_shell_completion_line(ctx: click.Context) -> Optional[str]:
     )
 
 
+def _render_project_links(ctx: click.Context) -> list[str]:
+    if ctx.parent is not None:
+        return []
+    return [
+        f"Report an issue: {colors.c(BUG_REPORT_URL, 'blue', bright=True)}",
+        f"Request a feature: {colors.c(FEATURE_REQUEST_URL, 'blue', bright=True)}",
+    ]
+
+
 def _command_path(ctx: click.Context) -> str:
     names: list[str] = []
     cur: Optional[click.Context] = ctx
@@ -110,30 +120,18 @@ def _inject_help_header(help_text: str, ctx: click.Context) -> str:
     docs_line = _render_docs_line(ctx)
     shell_completion_line = _render_shell_completion_line(ctx)
     maintainers_line = _render_maintainers_line(ctx)
+    header_lines = [version_line]
+    if docs_line is not None:
+        header_lines.append(docs_line)
+    header_lines.append(maintainers_line)
+    if shell_completion_line is not None:
+        header_lines.append(shell_completion_line)
+    header_lines.extend(_render_project_links(ctx))
+
     if lines[0].startswith("Usage:"):
-        lines.insert(1, version_line)
-        if docs_line is not None:
-            lines.insert(2, docs_line)
-            lines.insert(3, maintainers_line)
-        else:
-            lines.insert(2, maintainers_line)
-        if shell_completion_line is not None:
-            insert_at = 3 if docs_line is not None else 2
-            if docs_line is not None:
-                insert_at += 1
-            lines.insert(insert_at, shell_completion_line)
+        lines[1:1] = header_lines
     else:
-        lines.insert(0, version_line)
-        if docs_line is not None:
-            lines.insert(1, docs_line)
-            lines.insert(2, maintainers_line)
-        else:
-            lines.insert(1, maintainers_line)
-        if shell_completion_line is not None:
-            insert_at = 2 if docs_line is not None else 1
-            if docs_line is not None:
-                insert_at += 1
-            lines.insert(insert_at, shell_completion_line)
+        lines[0:0] = header_lines
     return "\n".join(lines)
 
 
