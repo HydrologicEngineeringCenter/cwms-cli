@@ -1,9 +1,19 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from typing import Iterable, Optional, Set
 
 import click
+
+from cwmscli.utils import colors
+
+
+@dataclass(frozen=True)
+class CdaStackTrace:
+    message: Optional[str]
+    incident_identifier: Optional[str]
+    lines: tuple[str, ...]
 
 
 class UserFacingError(click.ClickException):
@@ -56,6 +66,84 @@ def _response_json_field(response, field: str) -> Optional[str]:
     if value in (None, ""):
         return None
     return str(value)
+
+
+def _response_json(response) -> Optional[dict]:
+    text = _response_text(response)
+    if not text:
+        return None
+    try:
+        payload = json.loads(text)
+    except Exception:
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def cda_stack_trace(exc: BaseException) -> Optional[CdaStackTrace]:
+    """Extract a CDA-provided server stack trace from an exception chain."""
+
+    for candidate in _walk_exception_chain(exc):
+        response = getattr(candidate, "response", None)
+        if response is None:
+            continue
+
+        payload = _response_json(response)
+        if payload is None:
+            continue
+
+        details = payload.get("details")
+        if not isinstance(details, dict):
+            continue
+
+        stack_trace_lines = details.get("stackTraceLines")
+        if not isinstance(stack_trace_lines, list):
+            continue
+
+        lines = tuple(str(line) for line in stack_trace_lines if line is not None)
+        if not lines:
+            continue
+
+        message = payload.get("message")
+        incident_identifier = payload.get("incidentIdentifier")
+        return CdaStackTrace(
+            message=str(message) if message not in (None, "") else None,
+            incident_identifier=(
+                str(incident_identifier)
+                if incident_identifier not in (None, "")
+                else None
+            ),
+            lines=lines,
+        )
+
+    return None
+
+
+def format_cda_stack_trace(stack_trace: CdaStackTrace) -> str:
+    """Format a CDA-provided server stack trace for terminal output."""
+
+    heading = colors.err("CDA server stack trace")
+    if stack_trace.incident_identifier:
+        heading += (
+            " "
+            + colors.c("(incidentIdentifier: ", "yellow", bright=True)
+            + colors.c(stack_trace.incident_identifier, "cyan", bright=True)
+            + colors.c(")", "yellow", bright=True)
+        )
+
+    output = [heading]
+    if stack_trace.message:
+        output.append(colors.warn(stack_trace.message))
+
+    for index, line in enumerate(stack_trace.lines):
+        stripped = line.lstrip()
+        if index == 0 or stripped.startswith("Caused by:"):
+            output.append(colors.err(line))
+        elif stripped.startswith("at ") or stripped.startswith("..."):
+            output.append(colors.c(line, "cyan"))
+        else:
+            output.append(colors.dim(line))
+
+    return "\n".join(output)
 
 
 def _trim_message(message: str) -> str:

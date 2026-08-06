@@ -11,6 +11,7 @@ body:
         - blob
         - cwms-cli
         - csv2cwms
+        - dss
         - getusgs-measurements
         - getusgs-ratings
         - getusgs-timeseries
