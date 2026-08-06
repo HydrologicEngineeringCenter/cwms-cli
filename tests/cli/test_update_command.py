@@ -1,8 +1,10 @@
 import sys
+from types import SimpleNamespace
 
 from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
+from cwmscli.utils.update import UpdateEnvironment
 
 
 class _DummyResult:
@@ -12,17 +14,33 @@ class _DummyResult:
         self.stderr = stderr
 
 
+def _set_update_os(monkeypatch, name):
+    """Set the updater OS without changing the process-wide ``os`` module."""
+    monkeypatch.setattr("cwmscli.commands.commands_cwms.os", SimpleNamespace(name=name))
+
+
 def test_update_command_runs_pip_upgrade(monkeypatch):
     calls = []
+    update_environment = UpdateEnvironment(
+        python_executable=r"C:\Python\python.exe",
+        environment_prefix=r"C:\Python",
+        environment_type="Python installation",
+        package_location=r"C:\Python\Lib\site-packages",
+        editable_project_location=r"C:\src\cwms-cli",
+    )
 
     def fake_run(cmd, check=False, capture_output=False, text=False):
         calls.append((cmd, check, capture_output, text))
         return _DummyResult(0)
 
-    monkeypatch.setattr("cwmscli.commands.commands_cwms.os.name", "posix")
+    _set_update_os(monkeypatch, "posix")
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
     monkeypatch.setattr(
         "cwmscli.commands.commands_cwms.get_cwms_cli_version", lambda: "1.2.3"
+    )
+    monkeypatch.setattr(
+        "cwmscli.commands.commands_cwms.get_update_environment",
+        lambda: update_environment,
     )
 
     runner = CliRunner()
@@ -30,10 +48,17 @@ def test_update_command_runs_pip_upgrade(monkeypatch):
 
     assert result.exit_code == 0
     assert "Current cwms-cli version: 1.2.3" in result.output
+    assert "Python executable: C:\\Python\\python.exe" in result.output
+    assert "Environment: C:\\Python (Python installation)" in result.output
+    assert "Package metadata location: C:\\Python\\Lib\\site-packages" in result.output
+    assert "Editable project location: C:\\src\\cwms-cli" in result.output
+    assert result.output.index("Update environment:") < result.output.index(
+        "Proceed with updating"
+    )
     assert "Update complete" in result.output
     assert len(calls) == 1
     assert calls[0][0] == [
-        sys.executable,
+        r"C:\Python\python.exe",
         "-m",
         "pip",
         "install",
@@ -52,7 +77,7 @@ def test_update_command_includes_pre_flag(monkeypatch):
         calls.append((cmd, check, capture_output, text))
         return _DummyResult(0)
 
-    monkeypatch.setattr("cwmscli.commands.commands_cwms.os.name", "posix")
+    _set_update_os(monkeypatch, "posix")
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
 
     runner = CliRunner()
@@ -69,7 +94,7 @@ def test_update_command_targets_specific_version(monkeypatch):
         calls.append((cmd, check, capture_output, text))
         return _DummyResult(0)
 
-    monkeypatch.setattr("cwmscli.commands.commands_cwms.os.name", "posix")
+    _set_update_os(monkeypatch, "posix")
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
 
     runner = CliRunner()
@@ -91,7 +116,7 @@ def test_update_command_surfaces_pip_failure(monkeypatch):
     def fake_run(cmd, check=False, capture_output=False, text=False):
         return _DummyResult(1)
 
-    monkeypatch.setattr("cwmscli.commands.commands_cwms.os.name", "posix")
+    _set_update_os(monkeypatch, "posix")
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
 
     runner = CliRunner()
@@ -112,7 +137,7 @@ def test_update_command_surfaces_missing_target_version(monkeypatch):
             ),
         )
 
-    monkeypatch.setattr("cwmscli.commands.commands_cwms.os.name", "posix")
+    _set_update_os(monkeypatch, "posix")
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
 
     runner = CliRunner()
@@ -122,6 +147,25 @@ def test_update_command_surfaces_missing_target_version(monkeypatch):
     assert "Requested cwms-cli version '9.9.9' was not found." in result.output
 
 
+def test_update_command_explains_externally_managed_environment(monkeypatch):
+    def fake_run(cmd, check=False, capture_output=False, text=False):
+        return _DummyResult(
+            1,
+            stderr="error: externally-managed-environment\n",
+        )
+
+    _set_update_os(monkeypatch, "posix")
+    monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["update", "--yes"])
+
+    assert result.exit_code == 1
+    assert "selected Python installation is externally managed" in result.output
+    assert "virtual environment or with pipx" in result.output
+    assert "will not use --break-system-packages automatically" in result.output
+
+
 def test_update_command_cancelled_by_user(monkeypatch):
     calls = []
 
@@ -129,7 +173,7 @@ def test_update_command_cancelled_by_user(monkeypatch):
         calls.append((cmd, check, capture_output, text))
         return _DummyResult(0)
 
-    monkeypatch.setattr("cwmscli.commands.commands_cwms.os.name", "posix")
+    _set_update_os(monkeypatch, "posix")
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
 
     runner = CliRunner()
@@ -150,7 +194,7 @@ def test_update_command_defers_to_separate_process_on_windows(monkeypatch):
     def fake_run(*args, **kwargs):
         raise AssertionError("subprocess.run should not be used on Windows update")
 
-    monkeypatch.setattr("cwmscli.commands.commands_cwms.os.name", "nt")
+    _set_update_os(monkeypatch, "nt")
     monkeypatch.setattr(
         "cwmscli.commands.commands_cwms.launch_windows_update", fake_launch
     )
