@@ -11,6 +11,7 @@ import requests
 
 from cwmscli import requirements as reqs
 from cwmscli.utils.deps import requires
+from cwmscli.utils.env_store import load_env
 
 logger = logging.getLogger(__name__)
 CDA_PROBE_TIMEOUT_SECONDS = 2.5
@@ -107,6 +108,51 @@ def _validate_cda_api_root(api_root: str, *, role: str) -> None:
 def validate_cda_targets(func):
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
+        source_env = kwargs.pop("source_env", None)
+        target_env = kwargs.pop("target_env", None)
+
+        if source_env is not None:
+            if _param_was_explicit("source_cda"):
+                raise click.ClickException(
+                    "--source-env and --source-cda are mutually exclusive."
+                )
+            env_data = load_env(source_env)
+            if env_data is None:
+                raise click.ClickException(
+                    f"Environment '{source_env}' not found. "
+                    "Run 'cwms-cli env show' to list available environments."
+                )
+            if "CDA_API_ROOT" not in env_data:
+                raise click.ClickException(
+                    f"Environment '{source_env}' has no CDA_API_ROOT configured. "
+                    f"Run 'cwms-cli env setup {source_env} --api-root <url>' to fix."
+                )
+            kwargs["source_cda"] = env_data["CDA_API_ROOT"]
+            if not _param_was_explicit("source_office") and env_data.get("OFFICE"):
+                kwargs["source_office"] = env_data["OFFICE"]
+
+        if target_env is not None:
+            if _param_was_explicit("target_cda"):
+                raise click.ClickException(
+                    "--target-env and --target-cda are mutually exclusive."
+                )
+            env_data = load_env(target_env)
+            if env_data is None:
+                raise click.ClickException(
+                    f"Environment '{target_env}' not found. "
+                    "Run 'cwms-cli env show' to list available environments."
+                )
+            if "CDA_API_ROOT" not in env_data:
+                raise click.ClickException(
+                    f"Environment '{target_env}' has no CDA_API_ROOT configured. "
+                    f"Run 'cwms-cli env setup {target_env} --api-root <url>' to fix."
+                )
+            kwargs["target_cda"] = env_data["CDA_API_ROOT"]
+            if not _param_was_explicit("target_api_key") and env_data.get(
+                "CDA_API_KEY"
+            ):
+                kwargs["target_api_key"] = env_data["CDA_API_KEY"]
+
         source_csv = kwargs.get("source_csv")
         target_csv = kwargs.get("target_csv")
         skip_target_cda_check = kwargs.pop("skip_target_cda_check", False)
@@ -118,16 +164,20 @@ def validate_cda_targets(func):
             )
 
         if source_csv:
-            if kwargs.get("source_cda") and _param_was_explicit("source_cda"):
+            if kwargs.get("source_cda") and (
+                _param_was_explicit("source_cda") or source_env is not None
+            ):
                 raise click.ClickException(
-                    "--source-csv and --source-cda are mutually exclusive."
+                    "--source-csv and --source-cda/--source-env are mutually exclusive."
                 )
             kwargs["source_cda"] = None
 
         if target_csv:
-            if kwargs.get("target_cda") and _param_was_explicit("target_cda"):
+            if kwargs.get("target_cda") and (
+                _param_was_explicit("target_cda") or target_env is not None
+            ):
                 raise click.ClickException(
-                    "--target-csv and --target-cda are mutually exclusive."
+                    "--target-csv and --target-cda/--target-env are mutually exclusive."
                 )
             kwargs["target_cda"] = None
 
@@ -210,6 +260,24 @@ def shared_source_target_options(f):
         default=False,
         show_default=True,
         help="Skip the preflight check that --target-cda points to a CDA service.",
+    )(f)
+    f = click.option(
+        "--source-env",
+        default=None,
+        help=(
+            "Named CDA environment for the source "
+            "(resolves api-root and office from ~/.config/cwms-cli/envs/). "
+            "Mutually exclusive with --source-cda."
+        ),
+    )(f)
+    f = click.option(
+        "--target-env",
+        default=None,
+        help=(
+            "Named CDA environment for the target "
+            "(resolves api-root and api-key from ~/.config/cwms-cli/envs/). "
+            "Mutually exclusive with --target-cda."
+        ),
     )(f)
     f = click.option(
         "--dry-run/--no-dry-run",

@@ -62,6 +62,7 @@ Contents
 
    cli/csv2cwms
    cli/blob
+   cli/env
    cli/login
    cli/clob
    cli/users

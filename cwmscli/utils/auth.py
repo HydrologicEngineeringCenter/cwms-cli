@@ -15,6 +15,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Dict, Optional
 
+from cwmscli.utils.paths import config_dir
+
 DEFAULT_CLIENT_ID = "cwms"
 DEFAULT_CDA_API_ROOT = "https://cwms-data.usace.army.mil/cwms-data"
 DEFAULT_OIDC_BASE_URL = (
@@ -109,12 +111,7 @@ class _CallbackHandler(http.server.BaseHTTPRequestHandler):
 
 
 def default_token_file(provider: str) -> Path:
-    config_root = os.getenv("XDG_CONFIG_HOME")
-    if config_root:
-        base_dir = Path(config_root)
-    else:
-        base_dir = Path.home() / ".config"
-    return base_dir / "cwms-cli" / "auth" / f"{provider}.json"
+    return config_dir("auth") / f"{provider}.json"
 
 
 def _oidc_cache_file() -> Path:
