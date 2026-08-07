@@ -1,7 +1,6 @@
 import logging
 import os
 import subprocess
-import sys
 import textwrap
 from pathlib import Path
 from typing import Optional
@@ -26,7 +25,9 @@ from cwmscli.utils.auth import DEFAULT_REDIRECT_HOST, DEFAULT_REDIRECT_PORT
 from cwmscli.utils.deps import requires
 from cwmscli.utils.update import (
     build_update_package_spec,
+    get_update_environment,
     launch_windows_update,
+    looks_like_externally_managed_environment,
     looks_like_missing_version,
 )
 from cwmscli.utils.version import get_cwms_cli_version
@@ -416,6 +417,7 @@ def csv2cwms_cmd(**kwargs):
 def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
     current_version = get_cwms_cli_version()
     package_spec = build_update_package_spec(target_version)
+    update_environment = get_update_environment()
 
     click.echo(
         "Current cwms-cli version: " f"{colors.c(current_version, 'cyan', bright=True)}"
@@ -428,12 +430,35 @@ def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
     else:
         click.echo("Requested cwms-cli version: latest available release")
 
-    cmd = [sys.executable, "-m", "pip", "install", "--upgrade", package_spec]
+    click.echo("Update environment:")
+    click.echo(f"  Python executable: {update_environment.python_executable}")
+    click.echo(
+        f"  Environment: {update_environment.environment_prefix} "
+        f"({update_environment.environment_type})"
+    )
+    click.echo(f"  Package metadata location: {update_environment.package_location}")
+    if update_environment.editable_project_location:
+        click.echo(
+            "  Editable project location: "
+            f"{update_environment.editable_project_location}"
+        )
+
+    cmd = [
+        update_environment.python_executable,
+        "-m",
+        "pip",
+        "install",
+        "--upgrade",
+        package_spec,
+    ]
     if pre:
         cmd.append("--pre")
 
     if not yes:
-        proceed = click.confirm("Proceed with updating cwms-cli via pip?", default=True)
+        proceed = click.confirm(
+            "Proceed with updating cwms-cli in this environment via pip?",
+            default=True,
+        )
         if not proceed:
             click.echo(colors.warn("Update canceled."))
             return
@@ -472,6 +497,16 @@ def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
 
     if result.returncode != 0:
         pip_output = "\n".join(part for part in [result.stdout, result.stderr] if part)
+        if looks_like_externally_managed_environment(pip_output):
+            raise click.ClickException(
+                colors.err(
+                    "The selected Python installation is externally managed, so pip "
+                    "refused to update cwms-cli. Install cwms-cli in a virtual "
+                    "environment or with pipx, then run that installation's "
+                    "cwms-cli update command. cwms-cli will not use "
+                    "--break-system-packages automatically."
+                )
+            )
         if target_version and looks_like_missing_version(pip_output, package_spec):
             raise click.ClickException(
                 colors.err(
@@ -492,13 +527,15 @@ def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
 @click.group(
     "blob",
     help="Manage CWMS Blobs (upload, download, delete, update, list)",
-    epilog=textwrap.dedent("""
+    epilog=textwrap.dedent(
+        """
     Example Usage:\n
     - Store a PDF/image as a CWMS blob with optional description\n
     - Download a blob by id to your local filesystem\n
     - Update a blob's name/description/mime-type\n
     - Bulk list blobs for an office  
-"""),
+"""
+    ),
 )
 def blob_group():
     pass
@@ -671,10 +708,15 @@ def update_cmd(**kwargs):
     show_default=True,
     help="Sort descending instead of ascending.",
 )
-@click.option("--limit", type=int, default=None, help="Max rows to show.")
+@click.option(
+    "--limit",
+    type=click.IntRange(min=1),
+    default=None,
+    help="Max rows to show.",
+)
 @click.option(
     "--page-size",
-    type=int,
+    type=click.IntRange(min=1),
     default=None,
     help="Max rows to request from the blob endpoint. Defaults to --limit if set, otherwise no pagination (all results in one page).",
 )
@@ -706,12 +748,14 @@ def list_cmd(**kwargs):
 @click.group(
     "clob",
     help="Manage CWMS Clobs (upload, download, delete, update, list)",
-    epilog=textwrap.dedent("""
+    epilog=textwrap.dedent(
+        """
     Example Usage:\n
     - Download a clob by id to your local filesystem\n
     - Update a clob's name/description/mime-type\n
     - Bulk list clobs for an office  
-"""),
+"""
+    ),
 )
 @requires(reqs.cwms)
 def clob_group():
@@ -837,10 +881,15 @@ def update_cmd(**kwargs):
     show_default=True,
     help="Sort descending instead of ascending.",
 )
-@click.option("--limit", type=int, default=None, help="Max rows to show.")
+@click.option(
+    "--limit",
+    type=click.IntRange(min=1),
+    default=None,
+    help="Max rows to show.",
+)
 @click.option(
     "--page-size",
-    type=int,
+    type=click.IntRange(min=1),
     default=None,
     help="Max rows to request from the clob endpoint. Defaults to --limit when set.",
 )

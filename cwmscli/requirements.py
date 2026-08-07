@@ -22,3 +22,19 @@ dataretrieval = {
     "desc": "Loading hydrologic data from USGS",
     "link": "https://github.com/DOI-USGS/dataretrieval-python",
 }
+
+hec = {
+    "module": "hec",
+    "package": "hec-python-library",
+    "version": "0.9.5",
+    "desc": "Shared HEC time-series and data-store library",
+    "link": "https://github.com/HydrologicEngineeringCenter/hec-python-library",
+}
+
+hecdss = {
+    "module": "hecdss",
+    "package": "hecdss",
+    "version": "0.1.24",
+    "desc": "HEC-DSS native Python bindings",
+    "link": "https://github.com/HydrologicEngineeringCenter/hec-dss-python",
+}

@@ -97,6 +97,57 @@ def test_upload_cmd_continues_on_error_for_directory(
     assert calls == ["A", "B"]
 
 
+def test_upload_cmd_uses_supplied_media_type_without_guessing(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    input_file = tmp_path / "hello.unknown"
+    input_file.write_text("hello", encoding="utf-8")
+    stored = []
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key):
+            return None
+
+        @staticmethod
+        def store_blobs(blob, fail_if_exists):
+            stored.append((blob, fail_if_exists))
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+
+    class FakeHTTPError(Exception):
+        pass
+
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=FakeHTTPError)
+    )
+    monkeypatch.setattr(
+        "cwmscli.commands.blob.get_media_type",
+        lambda path: (_ for _ in ()).throw(
+            AssertionError("media type should not be guessed")
+        ),
+    )
+
+    upload_cmd(
+        input_file=str(input_file),
+        input_dir=None,
+        file_regex=".*",
+        recursive=False,
+        blob_id="HELLO.TXT",
+        blob_id_prefix="",
+        description="Test File!",
+        media_type="plain/text",
+        overwrite=False,
+        dry_run=False,
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="x",
+    )
+
+    assert len(stored) == 1
+    assert stored[0][0]["media-type-id"] == "plain/text"
+
+
 def test_find_blob_id_collisions_detects_same_stem_and_path_collisions():
     matches = [
         ("C:/tmp/a.txt", "a.txt"),

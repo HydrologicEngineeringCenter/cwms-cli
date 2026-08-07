@@ -11,7 +11,7 @@ Once you have the repository on your system you can proceed:
 1. `poetry install` - Installs required packages setup in [pyproject.toml](/pyproject.toml)
    1. To validate poetry/`pyproject.toml` you can run: `poetry check`
 2. `poetry run pre-commit install` - Sets up black and other configurations using [.pre-commit-config.yaml](/.pre-commit-config.yaml) in `.git/hooks`
-   1. You can test all files with `poetry run pre-commit run --all-files`
+   1. You can test all files with `poetry run pre-commit run --all-files --show-diff-on-failure`
 3. `python -m pip install -e .` - This adds cwms-cli and it's commands to your local path allowing you to live develop cwms-cli as a package and test the CLI functions on your system.
 4. Run `cwms-cli` to confirm everything installed!
 
@@ -82,7 +82,15 @@ Contributor expectation for `csv2cwms`:
 
 ## Formatting
 
-Formatting of code is done via black. You must ensure you have walked through the getting start to setup the `pre-commit` steps for black to match this repositories style practices.  
+Formatting of code is done via black through the configured `pre-commit` hooks. Run `poetry install --with dev --no-interaction` before quality checks so local tools use the versions locked for this repository.
+
+Before pushing, run:
+
+```shell
+poetry run pre-commit run --all-files --show-diff-on-failure
+```
+
+This command may rewrite files if formatting has drifted. Run it from a clean branch or review `git status --short` afterward so you only commit intentional changes.
 
 ## Code Review
 

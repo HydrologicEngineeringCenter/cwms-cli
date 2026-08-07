@@ -12,6 +12,9 @@ from cwmscli.load.timeseries.timeseries_data import _load_timeseries_data
 def test_load_timeseries_data_command_allows_group_without_category_filters(
     monkeypatch,
 ):
+    monkeypatch.setattr(
+        "cwmscli.load.root._validate_cda_api_root", lambda *a, **k: None
+    )
     calls = []
 
     def fake_load(**kwargs):
