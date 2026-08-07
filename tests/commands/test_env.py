@@ -100,7 +100,7 @@ def test_list_envs(isolated_envs):
     save_env("alpha", {"a": "1"})
     save_env("beta", {"a": "1"})
     save_env("gamma", {"a": "1"})
-    assert list_envs() == ["alpha", "beta", "prod", "gamma"]
+    assert list_envs() == ["alpha", "beta", "gamma", "prod"]
 
 
 def test_list_envs_deduplicates_defaults(isolated_envs):
