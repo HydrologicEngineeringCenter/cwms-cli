@@ -30,6 +30,8 @@ Task Guides
   source CDA catalog or location group into a target CDA or CSV file
 - :doc:`DSS transfers <cli/dss>` to move time-series data between HEC-DSS and
   CWMS through CDA
+- :doc:`NWS PI-XML loader <cli/nws_pixml>` to load NWS/RFC Delft-FEWS
+  PI-XML forecast products into CDA
 - :doc:`Update command <cli/update>` to update the installed package with pip
 - :doc:`Version argument <cli/version>` to print the installed version and see
   upgrade guidance
@@ -67,6 +69,7 @@ Contents
    cli/users
    cli/load_location_ids_all
    cli/dss
+   cli/nws_pixml
    cli/update
    cli/version
 

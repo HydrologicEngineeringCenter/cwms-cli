@@ -9,6 +9,7 @@ from click.core import ParameterSource
 from cwmscli.commands import commands_cwms
 from cwmscli.dss import dss_group
 from cwmscli.load import __main__ as load
+from cwmscli.nws import nws_group
 from cwmscli.usgs import usgs_group
 from cwmscli.utils.click_help import add_version_to_help_tree
 from cwmscli.utils.friendly_errors import (
@@ -87,6 +88,7 @@ def cli(
 
 
 cli.add_command(usgs_group, name="usgs")
+cli.add_command(nws_group, name="nws")
 cli.add_command(commands_cwms.shef_group)
 cli.add_command(commands_cwms.csv2cwms_cmd)
 cli.add_command(commands_cwms.login_cmd)
