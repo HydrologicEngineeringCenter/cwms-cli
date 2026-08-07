@@ -270,6 +270,7 @@ def validate_default_download_dest(
             f"Pass --dest explicitly if needed."
         )
 
+    # Leading separators can be part of a CDA ID; default downloads stay relative.
     target = raw_id.lstrip("/\\")
     if not target:
         message = (

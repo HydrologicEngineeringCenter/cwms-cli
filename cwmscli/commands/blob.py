@@ -613,12 +613,12 @@ def download_cmd(
     try:
         blob_content = cwms.get_blob(office_id=office, blob_id=bid)
         target = dest or _default_download_dest(bid)
-        _save_blob_content(
+        saved_target = _save_blob_content(
             blob_content,
             dest=target,
             media_type_hint=_blob_media_type(cwms, office, bid),
         )
-        logging.info(f"Downloaded blob to: {target}")
+        logging.info(f"Downloaded blob to: {saved_target}")
     except requests.HTTPError as e:
         detail = getattr(e.response, "text", "") or str(e)
         logging.error(f"Failed to download (HTTP): {detail}")
@@ -632,6 +632,7 @@ def download_cmd(
         sys.exit(1)
     except Exception as e:
         logging.error(format_local_download_error(e, BLOB_DOCS_URL))
+        # Local write/path failures are not CDA credential scope problems.
         if not isinstance(e, (OSError, ValueError)):
             log_scoped_read_hint(
                 credential_kind=credential_kind,

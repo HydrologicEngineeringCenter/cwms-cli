@@ -80,8 +80,9 @@ def requires(*requirements):
                         actual_version = importlib.metadata.version(pkg)
                         if actual_version < min_version:
                             version_issues.append(
-                                f"- `{pkg}` version `{actual_version}` found, "
-                                f"but `{min_version}` or higher is required"
+                                f"- python package `{pkg}` version `{actual_version}` found, "
+                                f"but `{min_version}` or higher is required.\n\t"
+                                f"Update the packge to the required minimum version to use this command."
                             )
                     except importlib.metadata.PackageNotFoundError:
                         version_issues.append(
