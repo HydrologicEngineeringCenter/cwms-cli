@@ -28,6 +28,8 @@ Task Guides
   update blobs
 - :doc:`Load Locations <cli/load_location_ids_all>` to copy locations from a
   source CDA catalog or location group into a target CDA or CSV file
+- :doc:`DSS transfers <cli/dss>` to move time-series data between HEC-DSS and
+  CWMS through CDA
 - :doc:`NWS PI-XML loader <cli/nws_pixml>` to load NWS/RFC Delft-FEWS
   PI-XML forecast products into CDA
 - :doc:`Update command <cli/update>` to update the installed package with pip
@@ -66,6 +68,7 @@ Contents
    cli/clob
    cli/users
    cli/load_location_ids_all
+   cli/dss
    cli/nws_pixml
    cli/update
    cli/version

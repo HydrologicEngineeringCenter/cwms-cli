@@ -2,16 +2,25 @@
 # Generated from maintainers.toml by scripts/sync_ownership.py.
 # Update maintainers.toml, then rerun the sync script.
 
-* charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil  # Default owners for repository-wide files and shared cwms-cli behavior
+* charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil  # Fallback owners for paths without a later, more specific rule; keep this rule first
 /.github/CODEOWNERS charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil  # Protect ownership rules themselves
+/maintainers.toml charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil  # Primary configuration file for ownership metadata
+/scripts/sync_ownership.py charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil  # Ownership metadata generator
+/AGENTS.md charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil  # Repository ownership maintenance guidance
 /cwmscli/commands/csv2cwms/ charles.r.graham@usace.army.mil
 /docs/cli/csv2cwms*.rst charles.r.graham@usace.army.mil
 /cwmscli/commands/blob.py charles.r.graham@usace.army.mil
 /docs/cli/blob.rst charles.r.graham@usace.army.mil
 /cwmscli/utils/update.py charles.r.graham@usace.army.mil
 /docs/cli/update.rst charles.r.graham@usace.army.mil
+/tests/cli/test_update_command.py charles.r.graham@usace.army.mil
 /cwmscli/load/ charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil
 /docs/cli/load_*.rst charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil
+/tests/load/ charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil
+/tests/commands/test_load_*.py charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil
 /cwmscli/usgs/ eric.v.novotny@usace.army.mil
-/cwmscli/commands/shef_critfile_import.py eric.v.novotny@usace.army.mil
+/tests/usgs/ eric.v.novotny@usace.army.mil
+/tests/cli/test_usgs_*.py eric.v.novotny@usace.army.mil
+/cwmscli/commands/shef/ eric.v.novotny@usace.army.mil
+/tests/commands/test_shef_*.py eric.v.novotny@usace.army.mil
 /cwmscli/commands/commands_cwms.py charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil  # Shared Click wrappers span commands owned by both maintainers

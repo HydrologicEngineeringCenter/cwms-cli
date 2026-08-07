@@ -13,6 +13,7 @@ See also
 - :doc:`nws pixml <cli/nws_pixml>`
 - :doc:`CDA Regex Guide <cli/cda_regex>`
 - :doc:`Load Locations <cli/load_location_ids_all>`
+- :doc:`DSS transfers <cli/dss>`
 
 .. click:: cwmscli.__main__:cli
    :prog: cwms-cli
