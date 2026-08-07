@@ -15,8 +15,8 @@ from typing import Dict, List, Optional
 from cwmscli.utils.paths import config_dir
 
 ENV_DEFAULTS = {
-    "cwbi-prod": {
-        "ENVIRONMENT": "cwbi-prod",
+    "prod": {
+        "ENVIRONMENT": "prod",
         "CDA_API_ROOT": "https://cwms-data.usace.army.mil/cwms-data",
     },
 }

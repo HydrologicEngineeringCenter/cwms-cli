@@ -117,7 +117,7 @@ def setup_cmd(
     """
     Create or update environment configuration.
 
-    ENV_NAME can be: cwbi-dev, cwbi-test, cwbi-prod, onsite, localhost, or custom
+    ENV_NAME can be: dev, test, prod, onsite, localhost, or custom
     """
     existing = load_env(env_name) or {}
     env_vars = dict(existing)
@@ -352,7 +352,7 @@ def activate_cmd(env_name: str):
     shell, use:  eval "$(cwms-cli env export <name> --format bash)"
 
     Examples:
-        cwms-cli env activate cwbi-prod
+        cwms-cli env activate prod
         cwms-cli env activate localhost
     """
     env_vars = load_env(env_name)
@@ -456,13 +456,13 @@ def export_cmd(
 
     \b
         # Load into the current bash/zsh shell
-        eval "$(cwms-cli env export cwbi-prod --format bash)"
+        eval "$(cwms-cli env export prod --format bash)"
 
         # Load into the current PowerShell session
-        cwms-cli env export cwbi-prod --format powershell | Out-String | Invoke-Expression
+        cwms-cli env export prod --format powershell | Out-String | Invoke-Expression
 
         # Write a .env file for an IDE, docker-compose, or direnv to read
-        cwms-cli env export cwbi-prod --output .env
+        cwms-cli env export prod --output .env
 
     Run with no flags in an interactive terminal to see the right recipe
     for your detected shell. The API key is never displayed in a terminal

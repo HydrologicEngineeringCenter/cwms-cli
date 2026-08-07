@@ -26,7 +26,7 @@ If you have configured environments with ``cwms-cli env setup``, use
 .. code-block:: shell
 
    cwms-cli load location ids-all \
-     --source-env cwbi-prod \
+     --source-env prod \
      --target-env localhost \
      --like "^Black Butte$" \
      --location-kind-like PROJECT

@@ -96,16 +96,16 @@ def test_delete_env_missing(isolated_envs):
 
 
 def test_list_envs(isolated_envs):
-    assert list_envs() == ["cwbi-prod"]
+    assert list_envs() == ["prod"]
     save_env("alpha", {"a": "1"})
     save_env("beta", {"a": "1"})
     save_env("gamma", {"a": "1"})
-    assert list_envs() == ["alpha", "beta", "cwbi-prod", "gamma"]
+    assert list_envs() == ["alpha", "beta", "prod", "gamma"]
 
 
 def test_list_envs_deduplicates_defaults(isolated_envs):
-    save_env("cwbi-prod", {"CDA_API_ROOT": "https://custom"})
-    assert list_envs().count("cwbi-prod") == 1
+    save_env("prod", {"CDA_API_ROOT": "https://custom"})
+    assert list_envs().count("prod") == 1
 
 
 @pytest.mark.parametrize("bad", ["", ".", "..", "a/b", "a\\b"])
@@ -118,15 +118,15 @@ def test_invalid_env_names_rejected(isolated_envs, bad):
 
 
 def test_load_env_returns_builtin_default(isolated_envs):
-    data = load_env("cwbi-prod")
+    data = load_env("prod")
     assert data is not None
     assert data["CDA_API_ROOT"] == "https://cwms-data.usace.army.mil/cwms-data"
-    assert data["ENVIRONMENT"] == "cwbi-prod"
+    assert data["ENVIRONMENT"] == "prod"
 
 
 def test_on_disk_env_overrides_builtin(isolated_envs):
-    save_env("cwbi-prod", {"CDA_API_ROOT": "https://custom", "CDA_API_KEY": "k"})
-    data = load_env("cwbi-prod")
+    save_env("prod", {"CDA_API_ROOT": "https://custom", "CDA_API_KEY": "k"})
+    data = load_env("prod")
     assert data["CDA_API_ROOT"] == "https://custom"
     assert data["CDA_API_KEY"] == "k"
 
@@ -135,18 +135,18 @@ def test_show_labels_builtin(isolated_envs):
     runner = CliRunner()
     result = runner.invoke(env_group, ["show"])
     assert result.exit_code == 0
-    assert "cwbi-prod (built-in)" in result.output
+    assert "prod (built-in)" in result.output
 
 
 def test_show_no_builtin_label_when_customized(isolated_envs):
     save_env(
-        "cwbi-prod",
+        "prod",
         {"CDA_API_ROOT": "https://cwms-data.usace.army.mil/cwms-data", "OFFICE": "SWT"},
     )
     runner = CliRunner()
     result = runner.invoke(env_group, ["show"])
     assert result.exit_code == 0
-    assert "cwbi-prod" in result.output
+    assert "prod" in result.output
     assert "(built-in)" not in result.output
 
 
@@ -172,9 +172,9 @@ def test_setup_creates_file_with_0600(isolated_envs):
 
 def test_setup_uses_default_for_known_name(isolated_envs):
     runner = CliRunner()
-    result = runner.invoke(env_group, ["setup", "cwbi-prod", "--api-key", "k"])
+    result = runner.invoke(env_group, ["setup", "prod", "--api-key", "k"])
     assert result.exit_code == 0, result.output
-    stored = load_env("cwbi-prod")
+    stored = load_env("prod")
     assert stored["CDA_API_ROOT"] == "https://cwms-data.usace.army.mil/cwms-data"
 
 
@@ -224,7 +224,7 @@ def test_show_empty_still_shows_builtins(isolated_envs):
     runner = CliRunner()
     result = runner.invoke(env_group, ["show"])
     assert result.exit_code == 0
-    assert "cwbi-prod (built-in)" in result.output
+    assert "prod (built-in)" in result.output
 
 
 def test_show_lists_envs_and_redacts_key(isolated_envs):

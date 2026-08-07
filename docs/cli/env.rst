@@ -15,7 +15,7 @@ URLs and credentials.
 Built-in Environments
 ---------------------
 
-``cwbi-prod`` ships preconfigured with the production CDA URL. It is
+``prod`` ships preconfigured with the production CDA URL. It is
 available immediately — no ``env setup`` required — and appears in
 ``env show`` as ``(built-in)``.
 
@@ -25,7 +25,7 @@ Because the built-in has no office or API key, you still need to pass
 .. code-block:: bash
 
    cwms-cli load location ids-all \
-     --source-env cwbi-prod --source-office SWT \
+     --source-env prod --source-office SWT \
      --target-env localhost
 
 To avoid repeating ``--source-office`` every time, run ``env setup`` once
@@ -33,7 +33,7 @@ to attach an office (and optionally an API key):
 
 .. code-block:: bash
 
-   cwms-cli env setup cwbi-prod --office SWT --api-key YOUR_KEY
+   cwms-cli env setup prod --office SWT --api-key YOUR_KEY
 
 
 Quick Start
@@ -44,15 +44,15 @@ Quick Start
 .. code-block:: bash
 
    # Production — customize the built-in with your office and key
-   cwms-cli env setup cwbi-prod --office SWT --api-key YOUR_KEY
+   cwms-cli env setup prod --office SWT --api-key YOUR_KEY
 
    # Development (needs --api-root)
-   cwms-cli env setup cwbi-dev \
+   cwms-cli env setup dev \
      --api-root https://cwms-data-dev.example.mil/cwms-data \
      --office SWT --api-key YOUR_KEY
 
    # Test (needs --api-root)
-   cwms-cli env setup cwbi-test \
+   cwms-cli env setup test \
      --api-root https://cwms-data-test.example.mil/cwms-data \
      --office SWT --api-key YOUR_KEY
 
@@ -65,10 +65,10 @@ Quick Start
 .. code-block:: bash
 
    cwms-cli load location ids-all \
-     --source-env cwbi-prod --target-env localhost
+     --source-env prod --target-env localhost
 
    cwms-cli load timeseries data \
-     --source-env cwbi-prod --target-env localhost \
+     --source-env prod --target-env localhost \
      --ts-id "Black Butte.Flow.Inst.1Hour.0.raw-cda"
 
 **3. View and manage environments:**
@@ -101,7 +101,7 @@ These two invocations are equivalent:
 
    # Named environments
    cwms-cli load location ids-all \
-     --source-env cwbi-prod --target-env localhost
+     --source-env prod --target-env localhost
 
 **Rules:**
 
@@ -132,8 +132,8 @@ Create or update an environment configuration.
    # Update just the office
    cwms-cli env setup myenv --office LRD
 
-``cwbi-prod`` is built-in and already has the production URL. Running
-``env setup cwbi-prod`` creates a user file that overrides the built-in,
+``prod`` is built-in and already has the production URL. Running
+``env setup prod`` creates a user file that overrides the built-in,
 letting you attach an office and API key. All other environment names
 require ``--api-root``.
 
@@ -152,19 +152,19 @@ The API key is always redacted — only ``has API key`` or ``no API key`` is sho
 
 .. code-block:: text
 
-   Current environment: cwbi-prod
+   Current environment: prod
 
    Available environments:
-   * cwbi-prod
+   * prod
        API Root: https://cwms-data.usace.army.mil/cwms-data
        Office:   SWT
        Status:   has API key
-     cwbi-dev
+     dev
        API Root: https://cwms-data-dev.example.mil/cwms-data
        Office:   SWT
        Status:   no API key
 
-On a fresh install (before any ``env setup``), ``cwbi-prod`` appears with
+On a fresh install (before any ``env setup``), ``prod`` appears with
 ``(built-in)`` and shows ``Office: not set``.
 
 The ``*`` marks the currently active environment (from the ``ENVIRONMENT``
@@ -182,13 +182,13 @@ variable).
 .. code-block:: text
 
    Available environments:
-   * cwbi-prod
+   * prod
        API Root: https://cwms-data.usace.army.mil/cwms-data
        Office:   SWT
        Status:   has API key
        Connect:  reachable (284ms)
        Auth:     authenticated
-     cwbi-dev
+     dev
        API Root: https://cwms-data-dev.example.mil/cwms-data
        Office:   SWT
        Status:   no API key
@@ -203,13 +203,13 @@ Export an environment's variables to your current shell or a file.
 .. code-block:: bash
 
    # Load into the current bash/zsh shell
-   eval "$(cwms-cli env export cwbi-prod --format bash)"
+   eval "$(cwms-cli env export prod --format bash)"
 
    # Load into PowerShell
-   cwms-cli env export cwbi-prod --format powershell | Out-String | Invoke-Expression
+   cwms-cli env export prod --format powershell | Out-String | Invoke-Expression
 
    # Write a .env file for an IDE or docker-compose
-   cwms-cli env export cwbi-prod --output .env
+   cwms-cli env export prod --output .env
 
 **Formats:** ``dotenv`` (default), ``bash``, ``powershell``, ``cmd``, ``fish``.
 
@@ -233,7 +233,7 @@ Activate an environment in a new shell session.
 
 .. code-block:: bash
 
-   cwms-cli env activate cwbi-prod
+   cwms-cli env activate prod
 
 This spawns a child shell with the environment variables set. Type ``exit``
 or press ``Ctrl+D`` to return to your original shell.
