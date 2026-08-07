@@ -6,6 +6,10 @@ email = "charles.r.graham@usace.army.mil"
 name = "Eric Novotny"
 email = "eric.v.novotny@usace.army.mil"
 
+[people.mitch]
+name = "Mitch Weier"
+email = "mitchell.s.weier@usace.army.mil"
+
 [poetry]
 authors = ["eric", "charles"]
 
@@ -17,6 +21,7 @@ default = ["charles", "eric"]
 "cwms-cli blob" = ["charles"]
 "cwms-cli update" = ["charles"]
 "cwms-cli load" = ["charles", "eric"]
+"cwms-cli nws pixml" = ["charles", "eric", "mitch"]
 "cwms-cli usgs" = ["eric"]
 "cwms-cli shef" = ["eric"]
 
@@ -26,6 +31,7 @@ default = ["charles", "eric"]
 "csv2cwms" = "cwms-cli csv2cwms"
 "update" = "cwms-cli update"
 "load_location_ids_all" = "cwms-cli load"
+"nws_pixml" = "cwms-cli nws pixml"
 
 [[codeowners.rule]]
 pattern = "*"
@@ -107,6 +113,18 @@ owners = ["eric"]
 [[codeowners.rule]]
 pattern = "/tests/cli/test_usgs_*.py"
 owners = ["eric"]
+
+[[codeowners.rule]]
+pattern = "/cwmscli/nws"
+owners = ["charles", "eric", "mitch"]
+
+[[codeowners.rule]]
+pattern = "/docs/cli/nws_pixml*.rst"
+owners = ["charles", "eric", "mitch"]
+
+[[codeowners.rule]]
+pattern = "/tests/nws/"
+owners = ["charles", "eric", "mitch"]
 
 [[codeowners.rule]]
 pattern = "/cwmscli/commands/shef/"
