@@ -23,6 +23,7 @@ default = ["charles", "eric"]
 "cwms-cli load" = ["charles", "eric"]
 "cwms-cli usgs" = ["eric"]
 "cwms-cli shef" = ["eric"]
+"cwms-cli env" = ["mitch", "charles"]
 
 [docs.pages]
 "cli" = "cwms-cli"
@@ -30,6 +31,7 @@ default = ["charles", "eric"]
 "csv2cwms" = "cwms-cli csv2cwms"
 "update" = "cwms-cli update"
 "load_location_ids_all" = "cwms-cli load"
+"env" = "cwms-cli env"
 
 [[codeowners.rule]]
 pattern = "*"
@@ -127,4 +129,12 @@ comment = "Shared Click wrappers span commands owned by both maintainers"
 
 [[codeowners.rule]]
 pattern = "/cwmscli/commands/env.py"
-owners = ["mitch"]
+owners = ["mitch", "charles"]
+
+[[codeowners.rule]]
+pattern = "/docs/cli/env.rst"
+owners = ["mitch", "charles"]
+
+[[codeowners.rule]]
+pattern = "/tests/commands/test_env.py"
+owners = ["mitch", "charles"]
