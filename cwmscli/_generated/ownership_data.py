@@ -15,6 +15,16 @@ OWNERSHIP_DATA = {
                 "name": "Charles Graham"
             }
         ],
+        "cwms-cli env": [
+            {
+                "email": "mitchell.s.weier@usace.army.mil",
+                "name": "Mitch Weier"
+            },
+            {
+                "email": "charles.r.graham@usace.army.mil",
+                "name": "Charles Graham"
+            }
+        ],
         "cwms-cli load": [
             {
                 "email": "charles.r.graham@usace.army.mil",
