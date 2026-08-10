@@ -27,6 +27,25 @@ Ownership metadata is centralized in [maintainers.toml](/maintainers.toml).
 
 To run tests you can run: `poetry run pytest`
 
+## Preview Docs Locally
+
+Install the repo's development dependencies and the Sphinx docs dependencies:
+
+```sh
+poetry install --with dev --no-interaction
+python -m pip install -r docs/requirements.txt
+```
+
+Build and preview the docs locally before pushing:
+
+```sh
+python scripts/preview_docs.py
+```
+
+The helper runs the same warnings-as-errors HTML build used in CI, then serves
+`docs/_build/html` at `http://127.0.0.1:8000/`. Stop the preview server with
+`Ctrl-C`.
+
 ## Releases
 
 Releases are managed with `release-please`. Do not create releases or tags manually in the GitHub UI.

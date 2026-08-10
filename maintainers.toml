@@ -54,6 +54,11 @@ owners = ["charles", "eric"]
 comment = "Ownership metadata generator"
 
 [[codeowners.rule]]
+pattern = "/scripts/preview_docs.py"
+owners = ["charles", "eric", "mitch"]
+comment = "Local docs preview helper"
+
+[[codeowners.rule]]
 pattern = "/AGENTS.md"
 owners = ["charles", "eric"]
 comment = "Repository ownership maintenance guidance"
@@ -101,6 +106,11 @@ owners = ["charles", "eric"]
 [[codeowners.rule]]
 pattern = "/tests/commands/test_load_*.py"
 owners = ["charles", "eric"]
+
+[[codeowners.rule]]
+pattern = "/tests/test_preview_docs.py"
+owners = ["charles", "eric"]
+comment = "Local docs preview helper tests"
 
 [[codeowners.rule]]
 pattern = "/cwmscli/usgs/"
