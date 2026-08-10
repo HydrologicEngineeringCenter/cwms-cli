@@ -26,3 +26,6 @@
 /cwmscli/commands/shef/ eric.v.novotny@usace.army.mil
 /tests/commands/test_shef_*.py eric.v.novotny@usace.army.mil
 /cwmscli/commands/commands_cwms.py charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil  # Shared Click wrappers span commands owned by both maintainers
+/cwmscli/commands/env.py mitchell.s.weier@usace.army.mil charles.r.graham@usace.army.mil
+/docs/cli/env.rst mitchell.s.weier@usace.army.mil charles.r.graham@usace.army.mil
+/tests/commands/test_env.py mitchell.s.weier@usace.army.mil charles.r.graham@usace.army.mil
