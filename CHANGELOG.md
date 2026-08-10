@@ -1,5 +1,36 @@
 # Changelog
 
+## [0.8.0](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.7.4...v0.8.0) (2026-08-10)
+
+
+### Features
+
+* Add CDA Environment Manager ([#209](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/209)) ([a89bfb1](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/a89bfb12d117f25d38904918d6153a28ca1ce441))
+* add dev helper script to preview docs ([#253](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/253)) ([749fedc](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/749fedc89df69ed6dc7e462c03cc728eb4775e6b))
+* Add modern DSS transfer utilities ([#242](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/242)) ([89e01f4](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/89e01f48231d084a7989319f82d5d08d4137d940))
+* allow for line return tsid parsing ([#230](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/230)) ([39f7f6b](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/39f7f6be090201368f7e203edf8a80174721b1f5))
+* display CDA server stack traces in debug mode ([#247](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/247)) ([c3bfcf9](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/c3bfcf92b2f04b125a56a1d106fda07b26e21091))
+
+
+### Bug Fixes
+
+* align formatting checks ([#229](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/229)) ([a6286b3](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/a6286b3d299545a587483aa68b2f68d4da57c5cc))
+* cover explicit blob media type ([#232](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/232)) ([1a3b26d](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/1a3b26dfeab07cd0030c59eea60f65d4608e2faa))
+* doc check, add link exception ([#255](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/255)) ([0101968](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/0101968de632377a8e621c8adb4c125b3305d4a6))
+* explain empty location loads ([#233](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/233)) ([a5b596c](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/a5b596c4be1ba3ba0c62b4fadb2abb7e2d48329e))
+* harden clob download error handling ([#235](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/235)) ([621f913](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/621f9139eb28991d38bc93665428798189f02887))
+* Improve version issue error message in deps.py ([#245](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/245)) ([f77b75f](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/f77b75f23782c200a5b6e35419937483aab675d1))
+* refresh ownership metadata ([#251](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/251)) ([3b31479](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/3b31479d18f326c467eef4b4074c9b6a266b46e1))
+* show update environment before confirmation ([#246](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/246)) ([500435c](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/500435c9eb1eb283424cb3071de99d851f59951d)), closes [#222](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/222)
+* validate blob list limits ([#231](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/231)) ([0917ce9](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/0917ce9ce133b48168b3d4ddb189b1887d63e6eb))
+* validate load target cda ([#236](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/236)) ([ff3e06a](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/ff3e06a22825a0d4f7b4d7b2653085d464118fe2))
+* wait for auth callback server readiness ([#249](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/249)) ([ca39d5b](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/ca39d5bebb437eb1b715f5f6c0dc703116ad02fd))
+
+
+### Documentation
+
+* guide agents to shared color helpers ([#248](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/248)) ([ef03276](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/ef0327653a6b8b3220ff79d0e6162056c6ddaf27))
+
 ## [0.7.4](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.7.3...v0.7.4) (2026-06-25)
 
 
