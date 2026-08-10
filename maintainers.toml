@@ -6,6 +6,10 @@ email = "charles.r.graham@usace.army.mil"
 name = "Eric Novotny"
 email = "eric.v.novotny@usace.army.mil"
 
+[people.mitch]
+name = "Mitch Weier"
+email = "mitchell.s.weier@usace.army.mil"
+
 [poetry]
 authors = ["eric", "charles"]
 
@@ -19,6 +23,7 @@ default = ["charles", "eric"]
 "cwms-cli load" = ["charles", "eric"]
 "cwms-cli usgs" = ["eric"]
 "cwms-cli shef" = ["eric"]
+"cwms-cli env" = ["mitch", "charles"]
 
 [docs.pages]
 "cli" = "cwms-cli"
@@ -26,6 +31,7 @@ default = ["charles", "eric"]
 "csv2cwms" = "cwms-cli csv2cwms"
 "update" = "cwms-cli update"
 "load_location_ids_all" = "cwms-cli load"
+"env" = "cwms-cli env"
 
 [[codeowners.rule]]
 pattern = "*"
@@ -120,3 +126,15 @@ owners = ["eric"]
 pattern = "/cwmscli/commands/commands_cwms.py"
 owners = ["charles", "eric"]
 comment = "Shared Click wrappers span commands owned by both maintainers"
+
+[[codeowners.rule]]
+pattern = "/cwmscli/commands/env.py"
+owners = ["mitch", "charles"]
+
+[[codeowners.rule]]
+pattern = "/docs/cli/env.rst"
+owners = ["mitch", "charles"]
+
+[[codeowners.rule]]
+pattern = "/tests/commands/test_env.py"
+owners = ["mitch", "charles"]
