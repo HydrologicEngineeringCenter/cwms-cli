@@ -1,0 +1,99 @@
+{
+  "office": "MVP",
+  "pi_namespace": "http://www.wldelft.nl/fews/PI",
+  "location_alias_groups": [
+    {
+      "group_id": "NWS Handbook 5 ID",
+      "category_id": "Agency Aliases",
+      "group_office_id": "CWMS",
+      "category_office_id": "CWMS"
+    },
+    {
+      "group_id": "Locations",
+      "category_id": "RFC CHPS Aliases",
+      "group_office_id": "MVP",
+      "category_office_id": "MVP",
+      "alias_strip_suffix": "_CHPS"
+    }
+  ],
+  "timeseries_group": {
+    "group_id": "NCRFC PIXML Forecast Acquisition",
+    "category_id": "Data Acquisition",
+    "category_office_id": "CWMS",
+    "group_office_id": "MVP",
+    "alias_key_template": "{locationId}.{parameterId}",
+    "derived": false
+  },
+  "build_missing_timeseries": true,
+  "parameter_rules": [
+    {"parameter_id": "SQIN", "location_id_suffix": "LOC", "cwms_parameter": "Flow-Local"},
+    {"parameter_id": "SQIN", "location_id_suffix": "INQ", "cwms_parameter": "Flow-In"},
+    {"parameter_id": "SQIN", "location_id_suffix": "IN", "cwms_parameter": "Flow-In"},
+    {"parameter_id": "SQIN", "location_id_suffix": "OUT", "cwms_parameter": "Flow-Out"},
+    {"parameter_id": "QINE", "location_id_suffix": "OUT", "cwms_parameter": "Flow-Out"},
+    {"parameter_id": "SQIN", "location_id_suffix": "ROR", "cwms_parameter": "Flow-Sim-RainOnPool"}
+  ],
+  "parameter_suffix_rules": [
+    {"location_id_suffix": "NON", "cwms_parameter_suffix": "-Non_contrib"}
+  ],
+  "duplicate_preference_rules": [
+    {"parameter_id": "MAP", "location_id_suffix": "ROR", "priority": 100},
+    {"parameter_id": "RAIM", "location_id_suffix": "ROR", "priority": 100}
+  ],
+  "parameter_map": {
+    "SQIN": "Flow-Sim",
+    "QINE": "Flow",
+    "PELV": "Elev",
+    "SPEL": "Elev",
+    "RAIM": "Precip-RainAndMelt",
+    "MAP": "Precip-Rain",
+    "SSTG": "Stage"
+  },
+  "param_type_rules": [
+    {"param_contains": "Precip", "type": "Total", "duration": "6Hours"}
+  ],
+  "default_type": "Inst",
+  "default_duration": "0",
+  "runs": [
+    {
+      "match": {"filename_contains": "auto"},
+      "version_part": "Fcst-NCRFC-CHIPS-Auto",
+      "versioned": false,
+      "issued_slot": "auto"
+    },
+    {
+      "match": {"filename_contains": "CRF"},
+      "version_part": "Fcst-NCRFC-CHIPS-CRF",
+      "versioned": false,
+      "issued_slot": "crf"
+    },
+    {
+      "match": {"default": true},
+      "version_part": "Fcst-NCRFC-CHIPS",
+      "versioned": true,
+      "version_source": "filename_timestamp",
+      "version_snap_time": "01:11:00",
+      "issued_slot": "base"
+    }
+  ],
+  "issued_time": {
+    "store": "blob",
+    "blob_id": "MVP-NCRFC-FORECAST-STATUS",
+    "media_type": "application/json",
+    "watershed_from_filename": "MSR_(?:main_(?:auto_)?|CRF_)([^.]+)"
+  },
+  "watersheds": {
+    "red": {"label": "Red River of the North Main", "cwms_watershed": "BoisDeSiouxRiver"},
+    "tnd_red_trib": {"label": "Red River of the North Tributaries ND", "cwms_watershed": "BoisDeSiouxRiver, ParkRiver"},
+    "tmn": {"label": "Red River of the North Tributaries MN", "cwms_watershed": "BoisDeSiouxRiver, RedLakeRiver"},
+    "tnd_sheyenne": {"label": "Sheyenne River", "cwms_watershed": "SheyenneRiver"},
+    "min": {"label": "Minnesota River", "cwms_watershed": "MinnesotaRiver"},
+    "rdw": {"label": "Mississippi River through Red Wing", "cwms_watershed": "MississippiRiverHeadwaters, MississippiRiverNavigation"},
+    "m10_mississippi_river": {"label": "Mississippi River Mainstem", "cwms_watershed": "MississippiRiverNavigation"},
+    "m10_tribs": {"label": "Mississippi River MN Tributaries", "cwms_watershed": "MississippiRiverNavigation"},
+    "wis_mississippi_tribs": {"label": "Mississippi River WI Tributaries", "cwms_watershed": "MississippiRiverNavigation"},
+    "wis_wisconsin": {"label": "Wisconsin River", "cwms_watershed": "MississippiRiverNavigation"},
+    "chp": {"label": "Chippewa River, WI", "cwms_watershed": "MississippiRiverNavigation"},
+    "srs": {"label": "Souris River", "cwms_watershed": "SourisRiver"}
+  }
+}

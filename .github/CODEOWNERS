@@ -21,6 +21,9 @@
 /cwmscli/usgs/ eric.v.novotny@usace.army.mil
 /tests/usgs/ eric.v.novotny@usace.army.mil
 /tests/cli/test_usgs_*.py eric.v.novotny@usace.army.mil
+/cwmscli/nws charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil mitchell.s.weier@usace.army.mil
+/docs/cli/nws_pixml*.rst charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil mitchell.s.weier@usace.army.mil
+/tests/nws/ charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil mitchell.s.weier@usace.army.mil
 /cwmscli/commands/shef/ eric.v.novotny@usace.army.mil
 /tests/commands/test_shef_*.py eric.v.novotny@usace.army.mil
 /cwmscli/commands/commands_cwms.py charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil  # Shared Click wrappers span commands owned by both maintainers

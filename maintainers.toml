@@ -21,6 +21,7 @@ default = ["charles", "eric"]
 "cwms-cli blob" = ["charles"]
 "cwms-cli update" = ["charles"]
 "cwms-cli load" = ["charles", "eric"]
+"cwms-cli nws pixml" = ["charles", "eric", "mitch"]
 "cwms-cli usgs" = ["eric"]
 "cwms-cli shef" = ["eric"]
 "cwms-cli env" = ["mitch", "charles"]
@@ -32,6 +33,7 @@ default = ["charles", "eric"]
 "update" = "cwms-cli update"
 "load_location_ids_all" = "cwms-cli load"
 "env" = "cwms-cli env"
+"nws_pixml" = "cwms-cli nws pixml"
 
 [[codeowners.rule]]
 pattern = "*"
@@ -113,6 +115,18 @@ owners = ["eric"]
 [[codeowners.rule]]
 pattern = "/tests/cli/test_usgs_*.py"
 owners = ["eric"]
+
+[[codeowners.rule]]
+pattern = "/cwmscli/nws"
+owners = ["charles", "eric", "mitch"]
+
+[[codeowners.rule]]
+pattern = "/docs/cli/nws_pixml*.rst"
+owners = ["charles", "eric", "mitch"]
+
+[[codeowners.rule]]
+pattern = "/tests/nws/"
+owners = ["charles", "eric", "mitch"]
 
 [[codeowners.rule]]
 pattern = "/cwmscli/commands/shef/"
