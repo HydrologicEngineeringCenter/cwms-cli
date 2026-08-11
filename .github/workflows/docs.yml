@@ -2,12 +2,6 @@ name: Docs Validation
 
 on:
   pull_request:
-    paths:
-      - "docs/**"
-      - "cwmscli/**"
-      - "pyproject.toml"
-      - "scripts/**"
-      - "CONTRIBUTING.md"
   push:
     branches: [main]
     paths:
