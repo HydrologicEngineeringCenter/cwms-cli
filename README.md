@@ -60,7 +60,9 @@ devcontainer exec --workspace-folder . poetry run pytest -q
 
 The container installs project dependencies with Poetry and uses
 `/home/vscode/.venv`, so it does not reuse a host operating system's `.venv`.
-Poetry itself is kept in a separate `/opt/poetry` environment. Use the container
-for changes involving time zones, paths, native libraries, or other
-operating-system-dependent behavior. Standard Python 3.9 and Python 3.12
-installations remain covered by the existing CI matrix.
+Poetry itself is kept in a separate `/opt/poetry` environment. The workspace
+root is also added to `PYTHONPATH`, so the checked-out source and local test
+modules are available throughout a Codespace without copying them into the
+image. Use the container for changes involving time zones, paths, native
+libraries, or other operating-system-dependent behavior. Standard Python 3.9
+and Python 3.12 installations remain covered by the existing CI matrix.

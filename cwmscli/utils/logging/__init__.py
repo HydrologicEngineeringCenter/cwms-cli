@@ -98,7 +98,7 @@ def setup_logging(cfg: LoggingConfig) -> None:
 
     base_fmt = "%(asctime)s;%(levelname)s;%(message)s"
     date_fmt = "%Y-%m-%d %H:%M:%S"
-    stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler = logging.StreamHandler(sys.stderr)
     stream_handler.setFormatter(ColorLevelFormatter(base_fmt, date_fmt, color_enabled))
     root.addHandler(stream_handler)
 
