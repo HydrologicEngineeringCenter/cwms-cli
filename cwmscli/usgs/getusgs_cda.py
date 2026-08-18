@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -369,6 +370,30 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
                         units = USGS_data_row["variable"]["unit"]["unitCode"]
                         office = row["office-id"]
                         values["quality-code"] = 0
+
+                        # check for non irregular data interval and resample data to that interval
+                        if not (
+                            "~" in ts_id.split(".")[3] or ts_id.split(".")[3] == "0"
+                        ):
+                            interval_number = re.match(
+                                r"^(\d+)(.*)", ts_id.split(".")[3]
+                            ).group(1)
+                            interval_type = re.match(
+                                r"^(\d+)(.*)", ts_id.split(".")[3]
+                            ).group(2)
+                            if interval_type == "Minutes":
+                                interval_initial = "min"
+                            else:
+                                interval_initial = interval_type[0]
+                            values_dt = values.copy()
+                            values_dt["date-time"] = pd.to_datetime(
+                                values_dt["date-time"]
+                            )
+                            values_dt.set_index("date-time", inplace=True)
+                            values_new = values_dt.resample(
+                                interval_number + interval_initial
+                            ).first()
+                            values = values_new.reset_index()
 
                         # write values to CWMS database
                         try:
