@@ -16,6 +16,9 @@ from cwmscli.utils.env_store import (
     load_env,
     save_env,
 )
+from cwmscli.utils.friendly_errors import to_user_facing_error
+from cwmscli.utils.interaction import is_non_interactive
+from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
 
 SENSITIVE_KEYS = {"CDA_API_KEY"}
 
@@ -43,11 +46,16 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
         resp = requests.get(url, timeout=5)
         latency_ms = int((time.monotonic() - t0) * 1000)
     except requests.RequestException as e:
+        if is_cert_verify_error(e):
+            error = ssl_help_text().strip()
+        else:
+            friendly = to_user_facing_error(e)
+            error = friendly.format_message() if friendly is not None else str(e)
         return {
             "reachable": False,
             "latency_ms": None,
             "auth": "skipped",
-            "error": str(e),
+            "error": error,
         }
 
     if resp.status_code >= 400:
@@ -69,12 +77,17 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
 
     try:
         auth_resp = requests.get(url, headers={"Authorization": api_key}, timeout=5)
-    except requests.RequestException:
+    except requests.RequestException as e:
+        if is_cert_verify_error(e):
+            error = ssl_help_text().strip()
+        else:
+            friendly = to_user_facing_error(e)
+            error = friendly.format_message() if friendly is not None else str(e)
         return {
             "reachable": True,
             "latency_ms": latency_ms,
             "auth": "failed",
-            "error": None,
+            "error": error,
         }
 
     if auth_resp.status_code == 401:
@@ -82,7 +95,21 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
             "reachable": True,
             "latency_ms": latency_ms,
             "auth": "failed",
-            "error": None,
+            "error": (
+                "CDA rejected the API key (HTTP 401). Update CDA_API_KEY in this "
+                "environment, then retry."
+            ),
+        }
+
+    if auth_resp.status_code == 403:
+        return {
+            "reachable": True,
+            "latency_ms": latency_ms,
+            "auth": "failed",
+            "error": (
+                "CDA recognized the credentials but denied access (HTTP 403). "
+                "Confirm the account's roles and office access."
+            ),
         }
 
     return {"reachable": True, "latency_ms": latency_ms, "auth": "ok", "error": None}
@@ -210,6 +237,8 @@ def show_cmd(check: bool):
                 auth_str = click.style("authenticated", fg="green")
             elif result["auth"] == "failed":
                 auth_str = click.style("auth failed", fg="red")
+                if result["error"]:
+                    auth_str += f" — {result['error']}"
 
             click.echo(f"    Connect:  {reach_str}")
             if auth_str:
@@ -227,6 +256,12 @@ def delete_cmd(env_name: str, yes: bool):
         cwms-cli env delete myenv
         cwms-cli env delete myenv --yes
     """
+    if not yes and is_non_interactive():
+        raise click.ClickException(
+            "Deleting an environment requires confirmation, but prompting is "
+            "disabled in non-interactive mode. Re-run with --yes to authorize "
+            "the deletion."
+        )
     if not yes and not click.confirm(f"Delete environment '{env_name}'?"):
         click.echo("Cancelled")
         return
