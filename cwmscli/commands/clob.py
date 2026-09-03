@@ -19,6 +19,7 @@ from cwmscli.utils import (
     validate_default_download_dest,
 )
 from cwmscli.utils.click_help import DOCS_BASE_URL
+from cwmscli.utils.friendly_errors import is_actionable_service_error
 
 CLOB_DOCS_URL = f"{DOCS_BASE_URL}/cli/clob.html"
 
@@ -187,11 +188,11 @@ def upload_cmd(
             )
         else:
             logging.info(f"View: {view_url}")
-    except requests.HTTPError as e:
-        detail = getattr(e.response, "text", "") or str(e)
-        logging.error(f"Failed to upload (HTTP): {detail}")
-        sys.exit(1)
+    except requests.HTTPError:
+        raise
     except Exception as e:
+        if is_actionable_service_error(e):
+            raise
         logging.error(f"Failed to upload: {e}")
         sys.exit(1)
 
@@ -231,9 +232,7 @@ def download_cmd(
         target = dest or _default_download_dest(bid)
         _write_clob_content(content, target)
         logging.info(f"Downloaded clob to: {target}")
-    except requests.HTTPError as e:
-        detail = getattr(e.response, "text", "") or str(e)
-        logging.error(f"Failed to download (HTTP): {detail}")
+    except requests.HTTPError:
         log_scoped_read_hint(
             credential_kind=credential_kind,
             anonymous=anonymous,
@@ -241,8 +240,17 @@ def download_cmd(
             action="download",
             resource="clob content",
         )
-        sys.exit(1)
+        raise
     except Exception as e:
+        if is_actionable_service_error(e):
+            log_scoped_read_hint(
+                credential_kind=credential_kind,
+                anonymous=anonymous,
+                office=office,
+                action="download",
+                resource="clob content",
+            )
+            raise
         logging.error(format_local_download_error(e, CLOB_DOCS_URL))
         sys.exit(1)
 

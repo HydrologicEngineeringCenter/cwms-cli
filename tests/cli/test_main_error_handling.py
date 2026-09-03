@@ -76,7 +76,7 @@ def test_main_formats_connection_error_without_traceback(monkeypatch, capsys):
 
     captured = capsys.readouterr()
     assert exc.value.code == 1
-    assert "Could not reach the CWMS API endpoint." in captured.err
+    assert "Could not reach the remote service." in captured.err
     assert "Traceback" not in captured.err
 
 
@@ -101,11 +101,165 @@ def test_main_formats_auth_error_without_traceback(monkeypatch, capsys):
 
     captured = capsys.readouterr()
     assert exc.value.code == 2
-    assert "API key is invalid." in captured.err
     assert (
-        "Check CDA_API_KEY, --api-key, and whether the account can access the requested office."
+        "CWMS rejected the credentials (HTTP 401): API key is invalid." in captured.err
+    )
+    assert (
+        "Your API key or saved login may be missing, invalid, or expired."
         in captured.err
     )
+    assert "cwms-cli login" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_main_formats_permission_error_without_traceback(monkeypatch, capsys):
+    from cwms.api import ApiError
+
+    def fake_cli(*args, **kwargs):
+        raise ApiError(
+            _FakeResponse(
+                403,
+                "Office access is required",
+                reason="Forbidden",
+            )
+        )
+
+    monkeypatch.setattr(cli_main, "cli", fake_cli)
+    monkeypatch.setattr(sys, "argv", ["cwms-cli", "dummy"])
+    monkeypatch.delenv("CWMS_CLI_DEBUG", raising=False)
+
+    with pytest.raises(SystemExit) as exc:
+        cli_main.main()
+
+    captured = capsys.readouterr()
+    assert exc.value.code == 2
+    assert "CWMS denied access (HTTP 403): Office access is required." in captured.err
+    assert "credentials were recognized but are not authorized" in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_main_formats_usgs_auth_error_without_cwms_login_hint(monkeypatch, capsys):
+    from cwms.api import ApiError
+
+    def fake_cli(*args, **kwargs):
+        raise ApiError(
+            _FakeResponse(
+                401,
+                "Unauthorized",
+                reason="Unauthorized",
+                url="https://waterservices.usgs.gov/nwis/iv/",
+            )
+        )
+
+    monkeypatch.setattr(cli_main, "cli", fake_cli)
+    monkeypatch.setattr(sys, "argv", ["cwms-cli", "dummy"])
+    monkeypatch.delenv("CWMS_CLI_DEBUG", raising=False)
+
+    with pytest.raises(SystemExit) as exc:
+        cli_main.main()
+
+    captured = capsys.readouterr()
+    assert exc.value.code == 2
+    assert "USGS rejected the credentials (HTTP 401)" in captured.err
+    assert "Check whether this USGS endpoint requires credentials" in captured.err
+    assert "cwms-cli login" not in captured.err
+
+
+def test_main_does_not_treat_usgs_name_in_untrusted_hostname_as_usgs(
+    monkeypatch, capsys
+):
+    from cwms.api import ApiError
+
+    def fake_cli(*args, **kwargs):
+        raise ApiError(
+            _FakeResponse(
+                401,
+                "Unauthorized",
+                reason="Unauthorized",
+                url="https://usgs.gov.example.com/api/",
+            )
+        )
+
+    monkeypatch.setattr(cli_main, "cli", fake_cli)
+    monkeypatch.setattr(sys, "argv", ["cwms-cli", "dummy"])
+    monkeypatch.delenv("CWMS_CLI_DEBUG", raising=False)
+
+    with pytest.raises(SystemExit) as exc:
+        cli_main.main()
+
+    captured = capsys.readouterr()
+    assert exc.value.code == 2
+    assert "CWMS rejected the credentials (HTTP 401)" in captured.err
+    assert "cwms-cli login" in captured.err
+
+
+def test_main_formats_ssl_error_with_os_guidance(monkeypatch, capsys):
+    import requests
+
+    def fake_cli(*args, **kwargs):
+        raise requests.exceptions.SSLError(
+            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed"
+        )
+
+    monkeypatch.setattr(cli_main, "cli", fake_cli)
+    monkeypatch.setattr(sys, "argv", ["cwms-cli", "dummy"])
+    monkeypatch.delenv("CWMS_CLI_DEBUG", raising=False)
+
+    with pytest.raises(SystemExit) as exc:
+        cli_main.main()
+
+    captured = capsys.readouterr()
+    assert exc.value.code == 2
+    assert "TLS certificate verification failed." in captured.err
+    assert "fix" in captured.err.lower()
+    assert "Traceback" not in captured.err
+
+
+def test_main_finds_service_error_behind_click_exception(monkeypatch, capsys):
+    from cwms.api import ApiError
+
+    def fake_cli(*args, **kwargs):
+        try:
+            raise ApiError(_FakeResponse(401, "Invalid User", reason="Unauthorized"))
+        except ApiError as error:
+            raise click.ClickException("USGS command failed") from error
+
+    monkeypatch.setattr(cli_main, "cli", fake_cli)
+    monkeypatch.setattr(sys, "argv", ["cwms-cli", "dummy"])
+    monkeypatch.delenv("CWMS_CLI_DEBUG", raising=False)
+
+    with pytest.raises(SystemExit) as exc:
+        cli_main.main()
+
+    captured = capsys.readouterr()
+    assert exc.value.code == 2
+    assert "CWMS rejected the credentials (HTTP 401): Invalid User." in captured.err
+    assert "USGS command failed" not in captured.err
+    assert "Traceback" not in captured.err
+
+
+def test_main_finds_ssl_error_behind_click_exception(monkeypatch, capsys):
+    import requests
+
+    def fake_cli(*args, **kwargs):
+        try:
+            raise requests.exceptions.SSLError(
+                "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed"
+            )
+        except requests.exceptions.SSLError as error:
+            raise click.ClickException("Login setup failed") from error
+
+    monkeypatch.setattr(cli_main, "cli", fake_cli)
+    monkeypatch.setattr(sys, "argv", ["cwms-cli", "dummy"])
+    monkeypatch.delenv("CWMS_CLI_DEBUG", raising=False)
+
+    with pytest.raises(SystemExit) as exc:
+        cli_main.main()
+
+    captured = capsys.readouterr()
+    assert exc.value.code == 2
+    assert "TLS certificate verification failed." in captured.err
+    assert "Login setup failed" not in captured.err
     assert "Traceback" not in captured.err
 
 

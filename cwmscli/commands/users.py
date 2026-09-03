@@ -5,6 +5,7 @@ from typing import Optional, Union
 import click
 
 from cwmscli.utils import colors, init_cwms_session
+from cwmscli.utils.interaction import is_non_interactive
 
 
 def _format_table(headers: list[str], rows: list[list[str]]) -> str:
@@ -325,6 +326,12 @@ def add_roles(
             f"{_cmd('cwms-cli users roles add')} interactively with no add-specific args."
         )
 
+    if not provided_user_name and not provided_roles and is_non_interactive():
+        raise click.ClickException(
+            "User role changes cannot prompt in non-interactive mode. Specify "
+            "both --user-name and --roles."
+        )
+
     cwms = _init_cwms(api_root, api_key, api_key_loc)
     users = _fetch_users(cwms)
     available_roles = _fetch_roles(cwms)
@@ -371,6 +378,12 @@ def delete_roles(
         raise click.ClickException(
             "Either specify all delete arguments (--user-name and --roles) or run "
             f"{_cmd('cwms-cli users roles delete')} interactively with no delete-specific args."
+        )
+
+    if not provided_user_name and not provided_roles and is_non_interactive():
+        raise click.ClickException(
+            "User role changes cannot prompt in non-interactive mode. Specify "
+            "both --user-name and --roles."
         )
 
     cwms = _init_cwms(api_root, api_key, api_key_loc)

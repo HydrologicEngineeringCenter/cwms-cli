@@ -1,12 +1,25 @@
+import importlib
 import sys
 import types
 
 import pandas as pd
+import pytest
+import requests
 from click.testing import CliRunner
 
 import cwmscli.utils.deps as deps
 from cwmscli.__main__ import cli
 from cwmscli.usgs.getusgs_cda import get_CMWS_TS_Loc_Data
+
+
+def _load_measurements_module(monkeypatch):
+    dataretrieval = types.ModuleType("dataretrieval")
+    dataretrieval.nwis = types.SimpleNamespace()
+    monkeypatch.setitem(sys.modules, "dataretrieval", dataretrieval)
+    monkeypatch.delitem(
+        sys.modules, "cwmscli.usgs.getusgs_measurements_cda", raising=False
+    )
+    return importlib.import_module("cwmscli.usgs.getusgs_measurements_cda")
 
 
 def test_get_cwms_ts_loc_data_errors_when_timeseries_group_is_empty(
@@ -125,3 +138,48 @@ def test_usgs_timeseries_command_shows_friendly_message_for_missing_configuratio
 
     assert result.exit_code == 1
     assert "Traceback" not in result.output
+
+
+def test_usgs_measurements_propagates_cwms_401(monkeypatch):
+    from cwms.api import ApiError
+
+    measurements = _load_measurements_module(monkeypatch)
+
+    class FakeResponse:
+        status_code = 401
+        reason = "Unauthorized"
+        url = "https://example.test/cwms-data/location/group"
+        text = '{"message":"Invalid User"}'
+        content = text.encode("utf-8")
+
+    def fail_group_lookup(**kwargs):
+        raise ApiError(FakeResponse())
+
+    monkeypatch.setattr(measurements, "init_cwms_session", lambda *args, **kwargs: None)
+    monkeypatch.setattr(measurements.cwms, "get_location_group", fail_group_lookup)
+
+    with pytest.raises(ApiError):
+        measurements.getusgs_measurement_cda(
+            api_root="https://example.test/cwms-data",
+            office_id="SWT",
+            api_key="expired",
+        )
+
+
+def test_usgs_measurements_propagates_ssl_error(monkeypatch):
+    measurements = _load_measurements_module(monkeypatch)
+
+    def fail_usgs_request(**kwargs):
+        raise requests.exceptions.SSLError(
+            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed"
+        )
+
+    monkeypatch.setattr(
+        measurements.nwis,
+        "get_discharge_measurements",
+        fail_usgs_request,
+        raising=False,
+    )
+
+    with pytest.raises(requests.exceptions.SSLError):
+        measurements.realtime_mode(1, 1, pd.DataFrame())

@@ -20,6 +20,10 @@ from cwmscli.utils import (
 )
 from cwmscli.utils.click_help import DOCS_BASE_URL
 from cwmscli.utils.deps import requires
+from cwmscli.utils.friendly_errors import (
+    is_actionable_service_error,
+    is_fatal_service_error,
+)
 
 # used to rebuild data URL for images
 DATA_URL_RE = re.compile(r"^data:(?P<mime>[^;]+);base64,(?P<data>.+)$", re.I | re.S)
@@ -122,7 +126,9 @@ def _default_download_dest(blob_id: str) -> str:
 def _blob_media_type(cwms_module, office: str, blob_id: str) -> Optional[str]:
     try:
         result = cwms_module.get_blobs(office_id=office, blob_id_like=blob_id)
-    except Exception:
+    except Exception as error:
+        if is_fatal_service_error(error):
+            raise
         return None
 
     df = getattr(result, "df", result)
@@ -222,12 +228,11 @@ def store_blob(**kwargs):
         cwms.store_blobs(blob, fail_if_exists=kwargs.get("overwrite"))
         logging.info(f"Successfully stored blob with ID: {blob_id}")
         logging.info(f"View: {view_url}")
-    except requests.HTTPError as e:
-        # Include response text when available
-        detail = getattr(e.response, "text", "") or str(e)
-        logging.error(f"Failed to store blob (HTTP): {detail}")
-        sys.exit(1)
+    except requests.HTTPError:
+        raise
     except Exception as e:
+        if is_actionable_service_error(e):
+            raise
         logging.error(f"Failed to store blob: {e}")
         sys.exit(1)
 
@@ -257,11 +262,11 @@ def retrieve_blob(**kwargs):
             media_type_hint=_blob_media_type(cwms, kwargs.get("office"), blob_id),
         )
         logging.info(f"Downloaded blob to: {blob_id}")
-    except requests.HTTPError as e:
-        detail = getattr(e.response, "text", "") or str(e)
-        logging.error(f"Failed to retrieve blob (HTTP): {detail}")
-        sys.exit(1)
+    except requests.HTTPError:
+        raise
     except Exception as e:
+        if is_actionable_service_error(e):
+            raise
         logging.error(f"Failed to retrieve blob: {e}")
         sys.exit(1)
 
@@ -279,11 +284,11 @@ def delete_blob(**kwargs):
             blob_id=kwargs.get("blob_id").upper(),
         )
         logging.info(f"Successfully deleted blob with ID: {blob_id}")
-    except requests.HTTPError as e:
-        details = getattr(e.response, "text", "") or str(e)
-        logging.error(f"Failed to delete blob (HTTP): {details}")
-        sys.exit(1)
+    except requests.HTTPError:
+        raise
     except Exception as e:
+        if is_actionable_service_error(e):
+            raise
         logging.error(f"Failed to delete blob: {e}")
         sys.exit(1)
 
@@ -550,6 +555,8 @@ def upload_cmd(
             )
             logging.info(f"View: {view_url}")
         except requests.HTTPError as e:
+            if is_fatal_service_error(e):
+                raise
             failures += 1
             detail = getattr(e.response, "text", "") or str(e)
             logging.error(
@@ -560,6 +567,8 @@ def upload_cmd(
                 )
             )
         except Exception as e:
+            if is_fatal_service_error(e):
+                raise
             failures += 1
             logging.error(
                 colors.c(
@@ -619,9 +628,7 @@ def download_cmd(
             media_type_hint=_blob_media_type(cwms, office, bid),
         )
         logging.info(f"Downloaded blob to: {saved_target}")
-    except requests.HTTPError as e:
-        detail = getattr(e.response, "text", "") or str(e)
-        logging.error(f"Failed to download (HTTP): {detail}")
+    except requests.HTTPError:
         log_scoped_read_hint(
             credential_kind=credential_kind,
             anonymous=anonymous,
@@ -629,8 +636,17 @@ def download_cmd(
             action="download",
             resource="blob content",
         )
-        sys.exit(1)
+        raise
     except Exception as e:
+        if is_actionable_service_error(e):
+            log_scoped_read_hint(
+                credential_kind=credential_kind,
+                anonymous=anonymous,
+                office=office,
+                action="download",
+                resource="blob content",
+            )
+            raise
         logging.error(format_local_download_error(e, BLOB_DOCS_URL))
         # Local write/path failures are not CDA credential scope problems.
         if not isinstance(e, (OSError, ValueError)):

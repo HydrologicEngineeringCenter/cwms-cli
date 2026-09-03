@@ -6,6 +6,7 @@ import cwms
 import pandas as pd
 
 from cwmscli.utils import init_cwms_session
+from cwmscli.utils.friendly_errors import is_fatal_service_error
 
 
 def import_shef_critfile(
@@ -97,6 +98,8 @@ def import_shef_critfile(
                 f'SUCCESS Stored timeseries ID {data["Timeseries ID"]} to {group_id}'
             )
         except Exception as error:
+            if is_fatal_service_error(error):
+                raise
             logging.error(
                 f'FAIL Data could not be stored to CWMS database for -->  {data["Timeseries ID"]},{data["Alias"]} error = {error}'
             )

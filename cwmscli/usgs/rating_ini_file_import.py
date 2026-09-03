@@ -3,6 +3,7 @@ import logging
 import cwms
 
 from cwmscli.utils import init_cwms_session
+from cwmscli.utils.friendly_errors import is_fatal_service_error
 
 rating_types = {
     "store_corr": {"db_type": "db_corr", "db_disc": "USGS-CORR"},
@@ -71,7 +72,9 @@ def rating_ini_file_import(api_root, api_key, ini_filename, dry_run=False):
                         )
                         if not dry_run:
                             logging.info("SUCCESS: rating specification changes stored")
-                    except:
+                    except Exception as error:
+                        if is_fatal_service_error(error):
+                            raise
                         logging.error(
                             "ERROR: rating specificataion could not be update"
                         )
