@@ -21,6 +21,7 @@ import re
 import zipfile
 from collections import Counter
 from datetime import datetime, timedelta, timezone
+from decimal import Decimal, InvalidOperation
 from typing import Optional
 from urllib.parse import urlparse
 from xml.etree import ElementTree as ET
@@ -732,11 +733,25 @@ def _merge_issued_blob(config: dict, office: str, update: dict) -> None:
 # --------------------------------------------------------------------------- #
 # Series -> CWMS store
 # --------------------------------------------------------------------------- #
+def _is_missing_value(value: str, missing_value: Optional[str]) -> bool:
+    """Match numerically equivalent PI-XML missing-value representations."""
+    if missing_value is None:
+        return False
+    try:
+        parsed_value = Decimal(value)
+        parsed_missing = Decimal(missing_value)
+    except InvalidOperation:
+        return value == missing_value
+    if parsed_value.is_nan() or parsed_missing.is_nan():
+        return parsed_value.is_nan() and parsed_missing.is_nan()
+    return parsed_value == parsed_missing
+
+
 def _series_dataframe(record: dict, doc_tz: timezone) -> pd.DataFrame:
     miss = record["missVal"]
     rows = []
     for dt_str, value in record["events"]:
-        if value == miss:
+        if _is_missing_value(value, miss):
             rows.append((dt_str, CWMS_MISSING_VALUE, CWMS_MISSING_QUALITY))
         else:
             rows.append((dt_str, float(value), CWMS_GOOD_QUALITY))
