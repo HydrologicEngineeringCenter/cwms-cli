@@ -43,6 +43,7 @@ CWMS_MISSING_QUALITY = 5
 CWMS_GOOD_QUALITY = 0
 
 DEFAULT_PI_NAMESPACE = "http://www.wldelft.nl/fews/PI"
+ISSUED_TIME_PARSE_FAILURE = "Date could not be parsed from filename"
 
 # Regular CWMS interval names keyed by their length in seconds. Used to derive the
 # interval segment of a built timeseries id from a PI-XML <timeStep> multiplier.
@@ -553,22 +554,43 @@ def compute_version_date(
         return None
 
     source = run.get("version_source", "filename_timestamp")
+    sources = [source]
+    fallback_source = run.get("version_fallback_source")
+    if fallback_source and fallback_source != source:
+        sources.append(fallback_source)
+
     base: Optional[datetime] = None
     base_tz = doc_tz
-    if source == "filename_timestamp":
-        base = filename_dt
-        base_tz = timezone.utc
-    elif source == "creation_date":
-        base = _first_creation_datetime(series)
-    elif source == "forecast_date":
-        for rec in series:
-            if rec.get("forecastDate"):
-                base = _parse_dt(rec["forecastDate"])
-                break
+    selected_source = None
+    for candidate in sources:
+        if candidate == "filename_timestamp":
+            base = filename_dt
+            base_tz = timezone.utc
+        elif candidate == "creation_date":
+            base = _first_creation_datetime(series)
+            base_tz = doc_tz
+        elif candidate == "forecast_date":
+            base_tz = doc_tz
+            for rec in series:
+                if rec.get("forecastDate"):
+                    base = _parse_dt(rec["forecastDate"])
+                    break
+        else:
+            logger.warning("Unknown version date source %r", candidate)
+
+        if base is not None:
+            selected_source = candidate
+            break
+        logger.warning("Could not determine version date (source=%s)", candidate)
 
     if base is None:
-        logger.warning("Could not determine version date (source=%s)", source)
         return None
+    if selected_source != source:
+        logger.warning(
+            "Using fallback version date source %s after %s was unavailable",
+            selected_source,
+            source,
+        )
 
     base = base.replace(tzinfo=base_tz)
     snap = run.get("version_snap_time")
@@ -613,10 +635,10 @@ def build_issued_update(
     """Describe the single-watershed update to apply to the issued-time blob.
 
     Returns None when issued-time tracking is not configured, the run has no
-    slot, or no issued datetime is available.
+    slot, or the watershed cannot be identified.
     """
     cfg = config.get("issued_time")
-    if not cfg or issued_dt is None:
+    if not cfg:
         return None
     slot = run.get("issued_slot")
     if not slot:
@@ -628,12 +650,21 @@ def build_issued_update(
         return None
     watershed = match.group(1)
 
+    if issued_dt is None:
+        logger.warning(
+            "Could not parse issued time from %s; recording that status in the blob",
+            filename,
+        )
+        value = ISSUED_TIME_PARSE_FAILURE
+    else:
+        value = issued_dt.strftime("%Y-%m-%d %H:%M:%S")
+
     return {
         "blob_id": cfg["blob_id"],
         "watershed": watershed,
         "slot": slot,
         "mapping": config.get("watersheds", {}).get(watershed, {}),
-        "value": issued_dt.strftime("%Y-%m-%d %H:%M:%S"),
+        "value": value,
     }
 
 
@@ -796,6 +827,10 @@ def load_pixml(
     version_part = run.get("version_part", "")
     filename_dt = _filename_timestamp(filename)
     version_date = compute_version_date(run, series, filename_dt, doc_tz)
+    if run.get("versioned") and version_date is None:
+        raise click.ClickException(
+            "Could not determine the required version date; no time series were stored."
+        )
     logger.info(
         "Run version part=%r versioned=%s version_date=%s",
         version_part,

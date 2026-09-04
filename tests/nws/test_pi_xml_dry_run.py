@@ -76,6 +76,13 @@ AUTO_NAME = "MSR_2024091612_MSR_main_auto_m10_mississippi_river.20240916142934"
 # Same product declared in CST rather than UTC.
 PIXML_CST = PIXML.replace("<timeZone>0.0</timeZone>", "<timeZone>-6.0</timeZone>")
 
+PIXML_WITH_FORECAST_DATE = PIXML.replace(
+    "<type>instantaneous</type><locationId>WABM5</locationId>",
+    '<type>instantaneous</type><forecastDate date="2024-09-16" '
+    'time="12:00:00"/><locationId>WABM5</locationId>',
+    1,
+)
+
 PIXML_SAME_SOURCE_ALIAS_COLLISION = """<?xml version="1.0" encoding="UTF-8"?>
 <TimeSeries xmlns="http://www.wldelft.nl/fews/PI" version="1.5">
   <timeZone>0.0</timeZone>
@@ -434,6 +441,46 @@ def test_base_store_passes_version_date_and_writes_blob(monkeypatch, tmp_path):
     # Other configured watersheds are seeded (mapping present, times null).
     assert doc["min"]["cwms_watershed"] == "MinnesotaRiver"
     assert doc["min"]["base"] is None
+
+
+def test_unparseable_issued_date_uses_forecast_date_for_version(monkeypatch, tmp_path):
+    filename = "MSR_2024091612_MSR_main_m10_mississippi_river.not-a-date"
+    calls = _run(
+        monkeypatch,
+        tmp_path,
+        filename,
+        dry_run=False,
+        xml=PIXML_WITH_FORECAST_DATE,
+    )
+
+    stores = [call for call in calls if call[0] == "store_timeseries"]
+    assert len(stores) == 4
+    assert all(call[2].isoformat() == "2024-09-16T01:11:00+00:00" for call in stores)
+
+    blob_writes = [call for call in calls if call[0] == "store_blobs"]
+    assert len(blob_writes) == 1
+    doc = json.loads(blob_writes[0][2])
+    assert doc["m10_mississippi_river"]["base"] == mod.ISSUED_TIME_PARSE_FAILURE
+
+
+def test_versioned_run_without_primary_or_fallback_date_is_not_stored(
+    monkeypatch, tmp_path
+):
+    calls = []
+    filename = "MSR_2024091612_MSR_main_m10_mississippi_river.not-a-date"
+
+    with pytest.raises(click.ClickException, match="required version date"):
+        _run(
+            monkeypatch,
+            tmp_path,
+            filename,
+            dry_run=False,
+            calls=calls,
+        )
+
+    assert not [
+        call for call in calls if call[0] in ("store_timeseries", "store_blobs")
+    ]
 
 
 def test_store_failures_abort_without_updating_issued_blob(monkeypatch, tmp_path):

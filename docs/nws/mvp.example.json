@@ -72,6 +72,7 @@
       "version_part": "Fcst-NCRFC-CHIPS",
       "versioned": true,
       "version_source": "filename_timestamp",
+      "version_fallback_source": "forecast_date",
       "version_snap_time": "01:11:00",
       "issued_slot": "base"
     }

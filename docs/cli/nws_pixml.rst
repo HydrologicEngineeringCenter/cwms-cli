@@ -126,6 +126,8 @@ Each run entry controls:
 - ``versioned`` — whether to write a versioned time series
 - ``version_source`` — where to get the version date
   (``filename_timestamp``, ``creation_date``, or ``forecast_date``)
+- ``version_fallback_source`` — optional source to use when
+  ``version_source`` is unavailable
 - ``version_snap_time`` — snap the version date to this time
 - ``issued_slot`` — which issued-time slot to update (``base``, ``crf``,
   ``auto``)
@@ -173,6 +175,13 @@ are converted the same way.  A ``filename_timestamp`` is a naming convention
 outside the document and is read as UTC.  ``version_snap_time`` is applied in
 the source's own time zone — so it keeps naming the same calendar day — and
 the result is stored as UTC.
+
+MVP uses the trailing filename timestamp as its primary version source and
+falls back to the PI-XML ``forecastDate``.  If the filename timestamp cannot
+be parsed, the safely versioned data is still stored and the issued-time blob
+slot is set to ``Date could not be parsed from filename``.  If neither the
+primary nor fallback version source is available, the loader refuses to store
+the versioned run.
 
 Environment variables
 ---------------------
