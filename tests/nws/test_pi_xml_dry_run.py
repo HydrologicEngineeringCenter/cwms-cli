@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import click
 import pandas as pd
 import pytest
 from cwms.api import ApiError
@@ -232,7 +233,7 @@ PIXML_NON_CONTRIB_PARAMETER_SUFFIX = """<?xml version="1.0" encoding="UTF-8"?>
 """
 
 
-def _make_fake_cwms(calls, tsgroup_rows=None, blob=None):
+def _make_fake_cwms(calls, tsgroup_rows=None, blob=None, store_error=None):
     """Build a stand-in for the ``cwms`` module.
 
     ``tsgroup_rows`` overrides the timeseries-group rows (pass ``[]`` for a group
@@ -299,6 +300,10 @@ def _make_fake_cwms(calls, tsgroup_rows=None, blob=None):
         @staticmethod
         def store_timeseries(data=None):
             calls.append(("store_timeseries", data["name"], data["version-date"]))
+            if store_error is not None:
+                error = store_error(data) if callable(store_error) else store_error
+                if error is not None:
+                    raise error
 
         @staticmethod
         def store_blobs(data, fail_if_exists=True):
@@ -320,13 +325,21 @@ def _run(
     xml=PIXML,
     tsgroup_rows=None,
     blob=None,
+    store_error=None,
     calls=None,
 ):
     monkeypatch.setattr("cwmscli.utils.get_saved_login_token", lambda *a, **k: None)
     if calls is None:
         calls = []
     monkeypatch.setattr(
-        mod, "cwms", _make_fake_cwms(calls, tsgroup_rows=tsgroup_rows, blob=blob)
+        mod,
+        "cwms",
+        _make_fake_cwms(
+            calls,
+            tsgroup_rows=tsgroup_rows,
+            blob=blob,
+            store_error=store_error,
+        ),
     )
     xml_path = tmp_path / filename
     xml_path.write_text(xml)
@@ -421,6 +434,48 @@ def test_base_store_passes_version_date_and_writes_blob(monkeypatch, tmp_path):
     # Other configured watersheds are seeded (mapping present, times null).
     assert doc["min"]["cwms_watershed"] == "MinnesotaRiver"
     assert doc["min"]["base"] is None
+
+
+def test_store_failures_abort_without_updating_issued_blob(monkeypatch, tmp_path):
+    calls = []
+
+    with pytest.raises(click.ClickException, match="4 time series failed to store"):
+        _run(
+            monkeypatch,
+            tmp_path,
+            BASE_NAME,
+            dry_run=False,
+            store_error=RuntimeError("store failed"),
+            calls=calls,
+        )
+
+    assert len([call for call in calls if call[0] == "store_timeseries"]) == 4
+    assert not [call for call in calls if call[0] in ("store_blobs", "update_blob")]
+
+
+def test_partial_store_failure_still_updates_issued_blob(monkeypatch, tmp_path):
+    calls = []
+    failed_tsid = "Wabasha.Flow-Sim.Inst.6Hours.0.Fcst-NCRFC-CHIPS"
+
+    def fail_one(data):
+        if data["name"] == failed_tsid:
+            return RuntimeError("store failed")
+        return None
+
+    with pytest.raises(click.ClickException, match="1 time series failed to store"):
+        _run(
+            monkeypatch,
+            tmp_path,
+            BASE_NAME,
+            dry_run=False,
+            store_error=fail_one,
+            calls=calls,
+        )
+
+    assert len([call for call in calls if call[0] == "store_timeseries"]) == 4
+    assert [call[0] for call in calls if call[0] in ("store_blobs", "update_blob")] == [
+        "store_blobs"
+    ]
 
 
 def test_colliding_series_are_dropped_not_silently_overwritten(
@@ -752,3 +807,42 @@ def test_cli_smoke_dry_run(monkeypatch, tmp_path):
     )
     assert result.exit_code == 0, result.output
     assert "Wabasha.Flow-Local.Inst.6Hours.0.Fcst-NCRFC-CHIPS" in result.output
+
+
+def test_cli_store_failure_exits_nonzero(monkeypatch, tmp_path):
+    from click.testing import CliRunner
+
+    from cwmscli.__main__ import cli
+
+    calls = []
+    monkeypatch.setattr("cwmscli.utils.get_saved_login_token", lambda *a, **k: None)
+    monkeypatch.setattr(
+        mod,
+        "cwms",
+        _make_fake_cwms(calls, store_error=RuntimeError("store failed")),
+    )
+    xml_path = tmp_path / BASE_NAME
+    xml_path.write_text(PIXML)
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "nws",
+            "pixml",
+            "-i",
+            str(xml_path),
+            "-c",
+            str(CONFIG),
+            "-o",
+            "MVP",
+            "-a",
+            "http://cda.example/cwms-data/",
+            "-k",
+            "test-key",
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "4 time series failed to store" in result.output
+    assert "Issued-time tracking was not updated" in result.output
+    assert not [call for call in calls if call[0] in ("store_blobs", "update_blob")]

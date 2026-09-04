@@ -25,6 +25,7 @@ from typing import Optional
 from urllib.parse import urlparse
 from xml.etree import ElementTree as ET
 
+import click
 import cwms
 import pandas as pd
 import requests
@@ -905,7 +906,7 @@ def load_pixml(
                 error,
             )
 
-    if issued_update:
+    if issued_update and stored:
         _merge_issued_blob(config, office, issued_update)
         logger.info(
             "Updated issued time for %s [%s] in blob %s",
@@ -959,3 +960,9 @@ def load_pixml(
                     f"{reason}={count}" for reason, count in skipped_by_reason.items()
                 ),
             )
+
+    if errors:
+        message = f"{len(errors)} time series failed to store."
+        if issued_update and not stored:
+            message += " Issued-time tracking was not updated."
+        raise click.ClickException(message)
