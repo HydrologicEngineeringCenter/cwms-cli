@@ -98,40 +98,103 @@ and time-series structure. See the Deltares `Delft-FEWS PI time-series schema
 <https://fewsdocs.deltares.nl/schemas/version1.0/pi-schemas/pi_timeseries.xsd>`_
 for the underlying format.
 
-Top-level keys:
+Array types below are JSON lists. The key names do not include ``[]``.
 
-- ``office`` — CWMS office ID (e.g. ``MVP``, ``MVM``)
-- ``pi_namespace`` — XML namespace of the PI-XML document
-- ``location_alias_groups[]`` — location alias groups used to resolve NWS
-  location IDs to CWMS location IDs; later groups override earlier ones
-- ``timeseries_group`` — the TS group used for alias-based TSID override
-- ``build_missing_timeseries`` — opt in to building TSIDs from
-  ``parameter_map`` when no timeseries-group match exists; when omitted or
-  falsey, series without a timeseries-group match are skipped instead of
-  being built
-- ``parameter_rules[]`` — optional location-sensitive overrides for the CWMS
-  parameter name before the plain ``parameter_map`` fallback (for example,
-  ``SQIN`` + ``location_id_suffix=LOC`` → ``Flow-Local`` or
-  ``SQIN`` + ``location_id_suffix=INQ`` → ``Flow-In``)
-- ``parameter_suffix_rules[]`` — optional suffixes appended after parameter
-  resolution (for example, ``location_id_suffix=NON`` →
-  ``-Non_contrib`` so ``RAIM`` becomes ``Precip-RainAndMelt-Non_contrib``)
-- ``duplicate_preference_rules[]`` — optional duplicate tie-breakers used when
-  two PI-XML series still resolve to the same TSID; higher ``priority`` wins
-  (for example, prefer ``RAIM`` at ``location_id_suffix=ROR`` over plain
-  ``RAIM`` at the base location)
-- ``parameter_map`` — NWS parameter → CWMS parameter name mapping
-  (e.g. ``SQIN`` → ``Flow-Sim``)
-- ``param_type_rules[]`` — rules that set type and duration when the CWMS
-  parameter name matches a substring (e.g. ``Precip`` → ``Total``/``6Hours``)
-- ``default_type``, ``default_duration`` — fallback type and duration
-- ``runs[]`` — run definitions matched top-to-bottom by filename pattern;
-  the last entry should have ``{"match": {"default": true}}``
-- ``issued_time`` — issued-time blob configuration
-- ``watersheds`` — NCRFC watershed key → label + CWMS watershed mapping
+.. list-table:: Top-level config keys
+   :header-rows: 1
+   :widths: 22 16 12 50
+
+   * - Key
+     - JSON type
+     - Required
+     - Description and default
+   * - ``office``
+     - string
+     - No
+     - Informational CWMS office ID, such as ``MVP`` or ``MVM``. The runtime
+       target comes from ``--office``.
+   * - ``pi_namespace``
+     - string
+     - No
+     - PI-XML namespace. Defaults to
+       ``http://www.wldelft.nl/fews/PI``.
+   * - ``location_alias_groups``
+     - array of objects
+     - Conditional
+     - Location groups used to resolve NWS IDs to CWMS locations. Later groups
+       override earlier groups. Needed for built TSIDs and derived group aliases.
+   * - ``timeseries_group``
+     - object
+     - No
+     - Time-series group used for alias-based TSID overrides. When omitted,
+       resolution proceeds directly to the optional built fallback.
+   * - ``build_missing_timeseries``
+     - boolean
+     - No
+     - Enables building TSIDs not matched by ``timeseries_group``. Defaults to
+       ``false``; unmatched series are otherwise skipped.
+   * - ``parameter_rules``
+     - array of objects
+     - No
+     - Location-sensitive CWMS parameter overrides applied before
+       ``parameter_map``.
+   * - ``parameter_suffix_rules``
+     - array of objects
+     - No
+     - Optional suffixes applied after parameter resolution, such as
+       ``-Non_contrib``.
+   * - ``duplicate_preference_rules``
+     - array of objects
+     - No
+     - Tie-breakers for series resolving to the same TSID. Higher ``priority``
+       wins.
+   * - ``parameter_map``
+     - object
+     - Conditional
+     - NWS-to-CWMS parameter mapping used by the built fallback. Needed for
+       parameters not covered by ``parameter_rules``.
+   * - ``param_type_rules``
+     - array of objects
+     - No
+     - Rules that set type and duration when a CWMS parameter contains a
+       configured substring.
+   * - ``default_type``
+     - string
+     - No
+     - Fallback CWMS type. Defaults to ``Inst``.
+   * - ``default_duration``
+     - string
+     - No
+     - Fallback CWMS duration. Defaults to ``0``.
+   * - ``runs``
+     - array of objects
+     - No
+     - Run definitions matched top-to-bottom by filename. If supplied, end
+       with ``{"match": {"default": true}}``.
+   * - ``default_version_part``
+     - string
+     - No
+     - Version part used by the implicit unversioned run when ``runs`` is
+       omitted. Defaults to an empty string.
+   * - ``issued_time``
+     - object
+     - No
+     - Issued-time blob configuration. Issued-time tracking is disabled when
+       omitted.
+   * - ``watersheds``
+     - object
+     - No
+     - NCRFC watershed keys mapped to labels and CWMS watersheds for
+       issued-time tracking.
 
 Run configuration
 ~~~~~~~~~~~~~~~~~
+
+See ``runs`` in the downloadable
+:download:`MVP example config <../nws/mvp.example.json>` for multiple
+filename-matched runs and the
+:download:`MVM example config <../nws/mvm.example.json>` for a single default
+run.
 
 Each run entry controls:
 
