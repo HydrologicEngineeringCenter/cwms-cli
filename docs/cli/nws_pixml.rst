@@ -247,8 +247,9 @@ Time zones
 
 Event times in PI-XML carry no offset of their own; they are all expressed in
 the document-level ``<timeZone>``, an offset from UTC in hours.  The loader
-reads that element and converts every value to UTC before storing.  An absent
-or unparsable ``<timeZone>`` is treated as UTC.
+reads that element and converts every value to UTC before storing. For this
+command, an absent ``<timeZone>`` is treated as UTC. An unparsable value also
+falls back to UTC and emits a warning.
 
 Version dates taken from the document (``creation_date``, ``forecast_date``)
 are converted the same way.  A ``filename_timestamp`` is a naming convention
