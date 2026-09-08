@@ -202,8 +202,8 @@ The following environment variables are recognized:
 - ``CDA_API_ROOT`` — default value for ``-a/--api-root``
 - ``CDA_API_KEY`` — default value for ``-k/--api-key``
 
-Example: MVP setup
-------------------
+Example: MVP (St. Paul District) setup
+--------------------------------------
 
 .. code-block:: bash
 
