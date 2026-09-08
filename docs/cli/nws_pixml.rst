@@ -1,10 +1,17 @@
 NWS PI-XML loader
 ==================
 
-Use ``cwms-cli nws pixml`` to load an NWS/RFC Delft-FEWS PI-XML forecast
-product into a CWMS database.  Behavior—parameter mapping, timeseries-group
-overrides, versioning, and issued-time tracking—is driven by a JSON config
-file or a config blob stored in CDA.
+Use ``cwms-cli nws pixml`` to load forecast products exported by National
+Weather Service (NWS) River Forecast Centers (RFCs) from the Community
+Hydrologic Prediction System (CHPS). CHPS exports these products in Delft Flood
+Early Warning System (Delft-FEWS) Published Interface XML (PI-XML) format.
+Behavior—parameter mapping, timeseries-group overrides, versioning, and
+issued-time tracking—is driven by a JSON config file or a config blob stored in
+CDA.
+
+.. warning::
+
+   Follow the originating RFC's data-handling and dissemination requirements before sharing loaded data.
 
 For installation and first-run setup, see :doc:`Installation and Setup <setup>`.
 
