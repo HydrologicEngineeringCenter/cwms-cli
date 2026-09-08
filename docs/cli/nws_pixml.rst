@@ -59,7 +59,9 @@ The loader resolves its JSON config from the first source that matches:
 Uploading a config blob
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-To store your office config as a blob so the loader finds it automatically:
+``CONFIG_PIXML`` is the loader's hard-coded automatic lookup ID. The command
+uses the generic :ref:`single-file blob upload <blob-single-file-upload>`
+syntax; this example supplies the PI-XML-specific ID and JSON media type:
 
 .. code-block:: bash
 
@@ -82,8 +84,6 @@ On subsequent updates, add ``--overwrite``:
 
 No office prefix is needed in the blob ID—blobs are already scoped to their
 owning office on the CDA side.
-
-See :doc:`Blob commands <blob>` for more on ``blob upload``.
 
 Config structure
 ----------------
