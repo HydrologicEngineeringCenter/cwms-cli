@@ -1,5 +1,6 @@
 import json
 import logging
+import re
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -898,18 +899,20 @@ def test_cli_smoke_dry_run(monkeypatch, tmp_path):
     assert "Wabasha.Flow-Local.Inst.6Hours.0.Fcst-NCRFC-CHIPS" in result.output
 
 
-def test_cli_pixml_rejects_positional_input():
+def test_cli_pixml_rejects_positional_input(tmp_path):
     from click.testing import CliRunner
 
     from cwmscli.__main__ import cli
 
+    input_path = tmp_path / "forecast.xml"
+    input_path.write_text(PIXML)
     result = CliRunner().invoke(
         cli,
         [
             "nws",
             "pixml",
             "--input",
-            "forecast.xml",
+            str(input_path),
             "--office",
             "MVP",
             "--api-root",
@@ -920,6 +923,60 @@ def test_cli_pixml_rejects_positional_input():
 
     assert result.exit_code == 2
     assert "unexpected extra argument (input)" in result.output.lower()
+
+
+def test_input_source_accepts_existing_file_and_http_urls(tmp_path):
+    from cwmscli.nws import validate_input_source
+
+    local_file = tmp_path / "extensionless-product"
+    local_file.write_text(PIXML)
+
+    assert validate_input_source(None, None, str(local_file)) == str(local_file)
+    assert (
+        validate_input_source(
+            None, None, "https://example.test/products/forecast.XML.GZ"
+        )
+        == "https://example.test/products/forecast.XML.GZ"
+    )
+    with pytest.raises(click.BadParameter, match="is a directory"):
+        validate_input_source(None, None, str(tmp_path))
+
+
+@pytest.mark.parametrize(
+    ("input_", "message"),
+    [
+        ("https:///forecast.xml", "HTTP(S) URLs must include a host"),
+        ("ftp://example.test/forecast.xml", "only HTTP(S) URLs are supported"),
+    ],
+)
+def test_input_source_rejects_invalid_urls(input_, message):
+    from cwmscli.nws import validate_input_source
+
+    with pytest.raises(click.BadParameter, match=r"^" + re.escape(message)):
+        validate_input_source(None, None, input_)
+
+
+def test_cli_pixml_rejects_missing_local_input(tmp_path):
+    from click.testing import CliRunner
+
+    from cwmscli.__main__ import cli
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "nws",
+            "pixml",
+            "--input",
+            str(tmp_path / "missing.xml"),
+            "--office",
+            "MVP",
+            "--api-root",
+            "http://cda.example/cwms-data/",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "does not exist" in result.output
 
 
 def test_cli_store_failure_exits_nonzero(monkeypatch, tmp_path):

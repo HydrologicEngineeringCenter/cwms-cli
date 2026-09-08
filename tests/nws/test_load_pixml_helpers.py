@@ -1,5 +1,7 @@
+import gzip
 import json
 import logging
+import zipfile
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from xml.etree import ElementTree as ET
@@ -23,6 +25,22 @@ NS = {"pi": mod.DEFAULT_PI_NAMESPACE}
 )
 def test_basename(input_, expected):
     assert mod._basename(input_) == expected
+
+
+def test_fetch_xml_reads_extensionless_and_case_insensitive_archives(tmp_path):
+    xml = b"<TimeSeries/>"
+    raw_path = tmp_path / "forecast"
+    raw_path.write_bytes(xml)
+    gzip_path = tmp_path / "forecast.XML.GZ"
+    with gzip.open(gzip_path, "wb") as stream:
+        stream.write(xml)
+    zip_path = tmp_path / "forecast.ZIP"
+    with zipfile.ZipFile(zip_path, "w") as archive:
+        archive.writestr("forecast.xml", xml)
+
+    assert mod.fetch_xml(str(raw_path)) == xml
+    assert mod.fetch_xml(str(gzip_path)) == xml
+    assert mod.fetch_xml(str(zip_path)) == xml
 
 
 def test_document_timezone_parses_fractional_offset():

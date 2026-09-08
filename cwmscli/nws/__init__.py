@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 import click
 
 from cwmscli import requirements as reqs
@@ -9,6 +11,20 @@ from cwmscli.utils import (
     office_option,
 )
 from cwmscli.utils.deps import requires
+
+_LOCAL_INPUT_PATH = click.Path(exists=True, dir_okay=False, readable=True)
+
+
+def validate_input_source(ctx, param, value):
+    """Accept an existing local file or a well-formed HTTP(S) URL."""
+    parsed = urlparse(value)
+    if parsed.scheme.lower() in {"http", "https"}:
+        if not parsed.netloc:
+            raise click.BadParameter("HTTP(S) URLs must include a host")
+        return value
+    if "://" in value:
+        raise click.BadParameter("only HTTP(S) URLs are supported")
+    return _LOCAL_INPUT_PATH.convert(value, param, ctx)
 
 
 @click.group()
@@ -32,7 +48,12 @@ def nws_group():
     "--input",
     required=True,
     type=str,
-    help="Path or URL to the PI-XML product. URLs ending in .gz or .zip are unzipped automatically.",
+    callback=validate_input_source,
+    help=(
+        "Existing local file or HTTP(S) URL for the PI-XML product. Raw XML "
+        "may be extensionless; .gz and .zip suffixes are uncompressed "
+        "automatically (case-insensitive)."
+    ),
 )
 @click.option(
     "-c",
