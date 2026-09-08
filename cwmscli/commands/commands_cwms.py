@@ -23,6 +23,7 @@ from cwmscli.utils import (
 )
 from cwmscli.utils.auth import DEFAULT_REDIRECT_HOST, DEFAULT_REDIRECT_PORT
 from cwmscli.utils.deps import requires
+from cwmscli.utils.interaction import is_non_interactive
 from cwmscli.utils.update import (
     build_update_package_spec,
     get_update_environment,
@@ -455,6 +456,12 @@ def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
         cmd.append("--pre")
 
     if not yes:
+        if is_non_interactive():
+            raise click.ClickException(
+                "The update command requires confirmation, but prompting is "
+                "disabled in non-interactive mode. Re-run with --yes to authorize "
+                "the update."
+            )
         proceed = click.confirm(
             "Proceed with updating cwms-cli in this environment via pip?",
             default=True,

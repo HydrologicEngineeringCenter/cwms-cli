@@ -65,6 +65,15 @@ from cwmscli.utils.version_cli import show_version_and_exit
     default=False,
     help="Suppress routine output; warnings and errors still print.",
 )
+@click.option(
+    "--non-interactive/--interactive",
+    default=None,
+    envvar="CWMS_CLI_NON_INTERACTIVE",
+    help=(
+        "Disable prompts. Automatically enabled when standard input is not a "
+        "terminal or a CI environment is detected."
+    ),
+)
 @click.pass_context
 def cli(
     ctx: click.Context,
@@ -72,6 +81,7 @@ def cli(
     no_color: bool,
     log_level: str,
     quiet: bool,
+    non_interactive: Optional[bool],
 ) -> None:
     level = getattr(logging, log_level.upper(), logging.INFO)
     level = apply_logging_policies(
@@ -84,7 +94,7 @@ def cli(
 
     # Disable colors if stdout isn't a TTY (piped/redirected)
     tty = sys.stdout.isatty()
-    color = (not no_color) and tty
+    color = (not no_color) and ("NO_COLOR" not in os.environ) and tty
     setup_logging(LoggingConfig(level=level, log_file=log_file, color=color))
 
 
@@ -128,6 +138,15 @@ def main() -> None:
             if server_stack_trace is not None:
                 click.echo(format_cda_stack_trace(server_stack_trace), err=True)
                 raise SystemExit(e.exit_code)
+        else:
+            if is_cert_verify_error(e):
+                click.echo(ssl_help_text(), err=True)
+                raise SystemExit(2)
+            friendly_error = to_user_facing_error(e)
+            if friendly_error is not None:
+                logging.debug("Suppressed traceback for CLI exception", exc_info=e)
+                friendly_error.show()
+                raise SystemExit(friendly_error.exit_code)
         e.show()
         raise SystemExit(e.exit_code)
     except Exception as e:
@@ -136,10 +155,6 @@ def main() -> None:
         debug = debug or logging.getLogger().isEnabledFor(logging.DEBUG)
 
         if is_cert_verify_error(e) and not debug:
-            # Keep this short, no stack trace.
-            logging.error(
-                "SSL certificate verification failed while connecting to the server."
-            )
             click.echo(ssl_help_text(), err=True)
             raise SystemExit(2)
 

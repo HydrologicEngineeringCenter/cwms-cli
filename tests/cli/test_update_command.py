@@ -44,7 +44,7 @@ def test_update_command_runs_pip_upgrade(monkeypatch):
     )
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["update"], input="y\n")
+    result = runner.invoke(cli, ["--interactive", "update"], input="y\n")
 
     assert result.exit_code == 0
     assert "Current cwms-cli version: 1.2.3" in result.output
@@ -177,10 +177,29 @@ def test_update_command_cancelled_by_user(monkeypatch):
     monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
 
     runner = CliRunner()
-    result = runner.invoke(cli, ["update"], input="n\n")
+    result = runner.invoke(cli, ["--interactive", "update"], input="n\n")
 
     assert result.exit_code == 0
     assert "Update canceled." in result.output
+    assert not calls
+
+
+def test_update_command_non_interactive_requires_yes(monkeypatch):
+    calls = []
+
+    def fake_run(*args, **kwargs):
+        calls.append((args, kwargs))
+        return _DummyResult(0)
+
+    _set_update_os(monkeypatch, "posix")
+    monkeypatch.setattr("cwmscli.commands.commands_cwms.subprocess.run", fake_run)
+
+    runner = CliRunner()
+    result = runner.invoke(cli, ["--non-interactive", "update"])
+
+    assert result.exit_code == 1
+    assert "prompting is disabled in non-interactive mode" in result.output
+    assert "--yes" in result.output
     assert not calls
 
 

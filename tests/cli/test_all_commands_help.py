@@ -73,6 +73,7 @@ def test_root_help(runner):
     assert f"Maintainers: {format_command_maintainers('cwms-cli')}" in result.output
     assert f"Report an issue: {BUG_REPORT_URL}" in result.output
     assert f"Request a feature: {FEATURE_REQUEST_URL}" in result.output
+    assert "--non-interactive / --interactive" in result.output
 
 
 def test_root_version_flag(runner):

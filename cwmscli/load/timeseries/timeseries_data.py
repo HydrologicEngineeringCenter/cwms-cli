@@ -148,6 +148,10 @@ def _load_timeseries_data(
         try:
             copy_timeseries_for_office(current_ts_ids, current_office)
         except Exception as e:
+            from cwmscli.utils.friendly_errors import is_fatal_service_error
+
+            if is_fatal_service_error(e):
+                raise
             click.echo(
                 f"Error storing timeseries ({', '.join(current_ts_ids)}) data: {e}",
                 err=True,

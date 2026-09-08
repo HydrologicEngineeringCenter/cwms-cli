@@ -122,6 +122,30 @@ that environment variable is set to ``1``, ``true``, ``yes``, or ``on``, the
 CLI enables the same debug exception behavior. If CDA does not provide a server
 stack trace, cwms-cli keeps the raw local exception behavior for diagnosis.
 
+Headless and non-interactive use
+--------------------------------
+
+``cwms-cli`` automatically disables input prompts when standard input is not a
+terminal or when it detects a common CI environment. You can also enable this
+behavior explicitly with the top-level ``--non-interactive`` option or the
+``CWMS_CLI_NON_INTERACTIVE=1`` environment variable. Use ``--interactive`` to
+override automatic detection when you intentionally want to answer prompts.
+
+Commands that would normally request confirmation fail immediately in
+non-interactive mode and explain which arguments are required. For example,
+``cwms-cli update`` and ``cwms-cli env delete`` require ``--yes`` before they
+make changes. User-role changes must provide both ``--user-name`` and
+``--roles``.
+
+Color is disabled automatically when output is not a terminal. It can also be
+disabled with the top-level ``--no-color`` option, a ``NO_COLOR`` environment
+variable, or ``--log-file``.
+
+``cwms-cli login --no-browser`` prints the authorization URL instead of opening
+a browser. Login waits only for the configured ``--timeout`` while receiving
+the local callback. For unattended jobs, prefer a saved refresh session or an
+API key instead of starting a new browser login.
+
 See also
 --------
 

@@ -332,7 +332,7 @@ def test_download_cmd_http_error_logs_scope_hint(
         types.SimpleNamespace(HTTPError=FakeHTTPError),
     )
 
-    with caplog.at_level(logging.WARNING), pytest.raises(SystemExit) as exc:
+    with caplog.at_level(logging.WARNING), pytest.raises(FakeHTTPError):
         download_cmd(
             clob_id="test_clob",
             dest=str(tmp_path / "downloaded.txt"),
@@ -342,7 +342,6 @@ def test_download_cmd_http_error_logs_scope_hint(
             dry_run=False,
         )
 
-    assert exc.value.code == 1
     assert "Access scope hint: an API key was sent" in caplog.text
     assert "clob content" in caplog.text
 

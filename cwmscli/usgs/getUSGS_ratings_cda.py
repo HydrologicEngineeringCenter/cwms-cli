@@ -10,6 +10,7 @@ import requests
 from dataretrieval import nwis
 
 from cwmscli.utils import init_cwms_session
+from cwmscli.utils.friendly_errors import is_fatal_service_error
 
 
 def getusgs_rating_cda(
@@ -128,6 +129,7 @@ def get_usgs_updated_ratings(period):
     query_dict = {"period": period, "format": "rdb"}
 
     r = requests.get(base_url, params=query_dict)
+    r.raise_for_status()
     temp = pd.DataFrame(r.text.split("\n"))
     temp = temp[temp[0].str.startswith("USGS")]
     updated_ratings = temp[0].str.split("\t", expand=True)
@@ -236,6 +238,8 @@ def cwms_write_ratings(updated_ratings):
             )
             url = meta.url
         except Exception as error:
+            if is_fatal_service_error(error):
+                raise
             usgsapiErr.append(
                 [row["rating-id"], row["USGS_St_Num"], row["rating-type"], error]
             )
@@ -253,9 +257,12 @@ def cwms_write_ratings(updated_ratings):
         else:
             try:
                 response = requests.get(url)
+                response.raise_for_status()
                 temp = pd.DataFrame(response.text.split("\n"))
                 usgs_effective_date = get_usgs_effective_date(temp, row["rating-type"])
             except Exception as error:
+                if is_fatal_service_error(error):
+                    raise
                 usgseffectiveErr.append(
                     [row["rating-id"], row["USGS_St_Num"], row["rating-type"], error]
                 )
@@ -319,6 +326,8 @@ def cwms_write_ratings(updated_ratings):
                         [row["rating-id"], row["USGS_St_Num"], row["rating-type"]]
                     )
                 except Exception as error:
+                    if is_fatal_service_error(error):
+                        raise
                     storErr.append(
                         [
                             row["rating-id"],

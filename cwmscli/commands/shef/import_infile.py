@@ -50,6 +50,8 @@ from typing import Optional
 
 import pandas as pd
 
+from cwmscli.utils.friendly_errors import is_fatal_service_error
+
 try:
     import cwms
     import cwms.api as cwms_api
@@ -599,6 +601,8 @@ def _filter_existing_tsids(
             cwms.get_timeseries_identifier(ts_id=e["tsid"], office_id=office_id)
             valid.append(e)
         except Exception as exc:
+            if is_fatal_service_error(exc):
+                raise
             log.warning(
                 "Skipping missing TSID '%s' (%s)",
                 e["tsid"],
@@ -619,6 +623,8 @@ def _save(
         log.info("SUCCESS — group stored via store_timeseries_groups.")
         return
     except Exception as exc:
+        if is_fatal_service_error(exc):
+            raise
         log.warning(
             "store_timeseries_groups raised %s: %s — retrying with update ...",
             type(exc).__name__,
@@ -651,6 +657,8 @@ def store_group(
         _save(group_json, group_id, office_id, fail_if_exists)
         return
     except Exception as exc:
+        if is_fatal_service_error(exc):
+            raise
         if entries is None:
             raise
         log.warning(

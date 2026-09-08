@@ -1,5 +1,6 @@
 import importlib.metadata
 
+import click
 import pytest
 from click.testing import CliRunner
 
@@ -550,3 +551,23 @@ def test_users_roles_delete_requires_all_delete_args_or_none(monkeypatch):
     assert result.exit_code == 1
     assert "Either specify all delete arguments" in result.output
     assert "Traceback" not in result.output
+
+
+@pytest.mark.parametrize("action", ["add", "delete"])
+def test_users_role_changes_do_not_prompt_non_interactively(monkeypatch, action):
+    from cwmscli.commands import users
+
+    monkeypatch.setattr(users, "is_non_interactive", lambda: True)
+    operation = users.add_roles if action == "add" else users.delete_roles
+
+    with pytest.raises(click.ClickException, match="cannot prompt") as error:
+        operation(
+            office="SPK",
+            api_root="https://example.test/cda/",
+            api_key="ignored",
+            api_key_loc=None,
+            user_name=None,
+            roles=None,
+        )
+
+    assert "--user-name and --roles" in str(error.value)

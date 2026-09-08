@@ -273,6 +273,46 @@ def _fake_check(result_map):
     return _check
 
 
+def test_check_env_returns_ssl_guidance(monkeypatch):
+    import requests
+
+    def fail_get(*args, **kwargs):
+        raise requests.exceptions.SSLError(
+            "[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed"
+        )
+
+    monkeypatch.setattr(requests, "get", fail_get)
+
+    result = _check_env({"CDA_API_ROOT": "https://example.test/cwms-data"})
+
+    assert result["reachable"] is False
+    assert "TLS certificate verification failed." in result["error"]
+    assert "fix" in result["error"].lower()
+
+
+def test_check_env_explains_unauthorized_api_key(monkeypatch):
+    import requests
+
+    class FakeResponse:
+        def __init__(self, status_code):
+            self.status_code = status_code
+
+    responses = iter([FakeResponse(200), FakeResponse(401)])
+    monkeypatch.setattr(requests, "get", lambda *args, **kwargs: next(responses))
+
+    result = _check_env(
+        {
+            "CDA_API_ROOT": "https://example.test/cwms-data",
+            "CDA_API_KEY": "apikey expired",
+        }
+    )
+
+    assert result["reachable"] is True
+    assert result["auth"] == "failed"
+    assert "rejected the API key (HTTP 401)" in result["error"]
+    assert "Update CDA_API_KEY" in result["error"]
+
+
 def test_show_check_reachable(isolated_envs, monkeypatch):
     save_env("demo", {"CDA_API_ROOT": "https://x.mil/cwms-data"})
     monkeypatch.setattr(
@@ -389,12 +429,26 @@ def test_delete_with_yes_flag(isolated_envs):
     assert load_env("doomed") is None
 
 
-def test_delete_confirmation_cancel(isolated_envs):
+def test_delete_confirmation_cancel(isolated_envs, monkeypatch):
     save_env("safe", {"a": "1"})
+    monkeypatch.setattr("cwmscli.commands.env.is_non_interactive", lambda: False)
     runner = CliRunner()
     result = runner.invoke(env_group, ["delete", "safe"], input="n\n")
     assert result.exit_code == 0
     assert "Cancelled" in result.output
+    assert load_env("safe") == {"a": "1"}
+
+
+def test_delete_non_interactive_requires_yes(isolated_envs, monkeypatch):
+    save_env("safe", {"a": "1"})
+    monkeypatch.setattr("cwmscli.commands.env.is_non_interactive", lambda: True)
+    runner = CliRunner()
+
+    result = runner.invoke(env_group, ["delete", "safe"])
+
+    assert result.exit_code == 1
+    assert "prompting is disabled in non-interactive mode" in result.output
+    assert "--yes" in result.output
     assert load_env("safe") == {"a": "1"}
 
 

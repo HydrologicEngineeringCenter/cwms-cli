@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from typing import Optional
 
@@ -15,13 +16,19 @@ SHELL_COMPLETION_DOCS_URL = f"{DOCS_BASE_URL}/cli/shell_completion.html"
 
 
 def _render_version_line(ctx: click.Context) -> str:
-    # Match existing CLI color behavior: disable color for non-TTY, --no-color, or --log-file.
+    # Match existing CLI color behavior: disable color for non-TTY, NO_COLOR,
+    # --no-color, or --log-file.
     argv = sys.argv[1:]
     no_color = "--no-color" in argv
     has_log_file = ("--log-file" in argv) or any(
         arg.startswith("--log-file=") for arg in argv
     )
-    allow_color = sys.stdout.isatty() and (not no_color) and (not has_log_file)
+    allow_color = (
+        sys.stdout.isatty()
+        and ("NO_COLOR" not in os.environ)
+        and (not no_color)
+        and (not has_log_file)
+    )
     colors.set_enabled(allow_color)
     return f"Version: {colors.c(get_cwms_cli_version(), 'cyan', bright=True)}"
 
