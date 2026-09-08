@@ -33,7 +33,7 @@ import requests
 from cwms.api import ApiError
 
 from cwmscli.utils import init_cwms_session
-from cwmscli.utils.intervals import ALL_INTERVAL_PARAMETERS
+from cwmscli.utils.intervals import FIXED_INTERVALS_BY_SECONDS
 
 logger = logging.getLogger(__name__)
 
@@ -44,37 +44,6 @@ CWMS_GOOD_QUALITY = 0
 
 DEFAULT_PI_NAMESPACE = "http://www.wldelft.nl/fews/PI"
 ISSUED_TIME_PARSE_FAILURE = "Date could not be parsed from filename"
-
-# Regular CWMS interval names keyed by their length in seconds. Used to derive the
-# interval segment of a built timeseries id from a PI-XML <timeStep> multiplier.
-_SECONDS_TO_INTERVAL = {
-    60: "1Minute",
-    120: "2Minutes",
-    180: "3Minutes",
-    240: "4Minutes",
-    300: "5Minutes",
-    360: "6Minutes",
-    480: "8Minutes",
-    600: "10Minutes",
-    720: "12Minutes",
-    900: "15Minutes",
-    1200: "20Minutes",
-    1800: "30Minutes",
-    3600: "1Hour",
-    7200: "2Hours",
-    10800: "3Hours",
-    14400: "4Hours",
-    21600: "6Hours",
-    28800: "8Hours",
-    43200: "12Hours",
-    86400: "1Day",
-    172800: "2Days",
-    259200: "3Days",
-    345600: "4Days",
-    432000: "5Days",
-    518400: "6Days",
-    604800: "1Week",
-}
 
 
 # --------------------------------------------------------------------------- #
@@ -317,9 +286,7 @@ def derive_interval(
         return "0"  # irregular / instantaneous
     if ts_unit == "second" and ts_multiplier:
         seconds = int(float(ts_multiplier))
-        interval = _SECONDS_TO_INTERVAL.get(seconds)
-        if interval and interval in ALL_INTERVAL_PARAMETERS:
-            return interval
+        return FIXED_INTERVALS_BY_SECONDS.get(seconds)
     return None
 
 
