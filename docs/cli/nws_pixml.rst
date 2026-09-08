@@ -81,8 +81,9 @@ See :doc:`Blob commands <blob>` for more on ``blob upload``.
 Config structure
 ----------------
 
-The config is a JSON object.  See the example configs shipped in
-``docs/nws/mvp.example.json`` and ``docs/nws/mvm.example.json``.
+The config is a JSON object. See the downloadable
+:download:`MVP example config <../nws/mvp.example.json>` and
+:download:`MVM example config <../nws/mvm.example.json>`.
 
 Top-level keys:
 
