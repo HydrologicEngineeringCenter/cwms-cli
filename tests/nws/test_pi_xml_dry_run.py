@@ -898,6 +898,30 @@ def test_cli_smoke_dry_run(monkeypatch, tmp_path):
     assert "Wabasha.Flow-Local.Inst.6Hours.0.Fcst-NCRFC-CHIPS" in result.output
 
 
+def test_cli_pixml_rejects_positional_input():
+    from click.testing import CliRunner
+
+    from cwmscli.__main__ import cli
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "nws",
+            "pixml",
+            "--input",
+            "forecast.xml",
+            "--office",
+            "MVP",
+            "--api-root",
+            "http://cda.example/cwms-data/",
+            "input",
+        ],
+    )
+
+    assert result.exit_code == 2
+    assert "unexpected extra argument (input)" in result.output.lower()
+
+
 def test_cli_store_failure_exits_nonzero(monkeypatch, tmp_path):
     from click.testing import CliRunner
 

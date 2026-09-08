@@ -30,7 +30,6 @@ def nws_group():
 @click.option(
     "-i",
     "--input",
-    "input_",
     required=True,
     type=str,
     help="Path or URL to the PI-XML product. URLs ending in .gz or .zip are unzipped automatically.",
@@ -38,14 +37,12 @@ def nws_group():
 @click.option(
     "-c",
     "--config",
-    "config_file",
     default=None,
     type=click.Path(exists=True, dir_okay=False, readable=True),
     help="Path to a JSON config file.",
 )
 @click.option(
     "--config-blob-id",
-    "config_blob_id",
     default=None,
     type=str,
     help="Blob id of a JSON config stored in the target CDA. "
@@ -63,8 +60,8 @@ def nws_group():
 )
 @requires(reqs.cwms, reqs.requests)
 def nws_pixml(
-    input_,
-    config_file,
+    input,
+    config,
     config_blob_id,
     office,
     api_root,
@@ -74,9 +71,9 @@ def nws_pixml(
 ):
     from cwmscli.nws.load_pixml import load_pixml
 
-    if config_file is not None and config_blob_id is not None:
+    if config is not None and config_blob_id is not None:
         raise click.UsageError("--config and --config-blob-id are mutually exclusive.")
-    if config_file is None and config_blob_id is None:
+    if config is None and config_blob_id is None:
         config_blob_id = "CONFIG_PIXML"
 
     # API key is optional: a saved cwms-cli login token (resolved inside
@@ -86,8 +83,8 @@ def nws_pixml(
         resolved_key = get_api_key(api_key, api_key_loc)
 
     load_pixml(
-        input_=input_,
-        config_file=config_file,
+        input_=input,
+        config_file=config,
         config_blob_id=config_blob_id,
         office=office,
         api_root=api_root,
