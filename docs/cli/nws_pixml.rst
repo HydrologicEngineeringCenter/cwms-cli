@@ -154,7 +154,10 @@ For each series in the PI-XML:
    the mapped parameter, derived interval, and configured defaults.
    Unknown parameters, unresolved locations, and underivable intervals are
    warned and skipped.  If ``build_missing_timeseries`` is false or omitted,
-   unmatched series are skipped instead of being built from the config.
+   unmatched series are skipped instead of being built from the config. In a
+   normal run, each unmatched series emits a warning identifying the series;
+   under ``--dry-run``, the skip is included in ``skipped_by_reason`` as
+   ``not_in_timeseries_group``.
 
 If two series in one product resolve to the same TSID, only the first is
 stored; the later one is dropped and reported as an error in the run summary

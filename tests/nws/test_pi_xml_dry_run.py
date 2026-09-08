@@ -1,4 +1,5 @@
 import json
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -743,6 +744,33 @@ def test_group_only_skips_when_timeseries_group_is_empty(monkeypatch, tmp_path, 
     assert out["skipped_by_reason"] == {
         "not_in_timeseries_group": 4,
     }
+
+
+def test_group_only_warns_when_series_is_not_in_timeseries_group(
+    monkeypatch, tmp_path, caplog
+):
+    config = json.loads(CONFIG.read_text())
+    config.pop("build_missing_timeseries", None)
+    config_path = tmp_path / "group-only.json"
+    config_path.write_text(json.dumps(config))
+
+    with caplog.at_level(logging.WARNING, logger=mod.__name__):
+        _run(
+            monkeypatch,
+            tmp_path,
+            BASE_NAME,
+            dry_run=False,
+            config_file=config_path,
+        )
+
+    skip_warnings = [
+        record
+        for record in caplog.records
+        if record.levelno >= logging.WARNING
+        and "No timeseries-group match" in record.getMessage()
+    ]
+    assert len(skip_warnings) == 3
+    assert all(" - skipping " in record.getMessage() for record in skip_warnings)
 
 
 def test_colliding_series_are_not_stored(monkeypatch, tmp_path):
