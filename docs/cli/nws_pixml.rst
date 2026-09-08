@@ -31,8 +31,8 @@ Quick start
 -----------
 
 With ``CDA_API_ROOT``, ``CDA_API_KEY``, and ``OFFICE`` already set in your
-environment (the typical setup) and a ``CONFIG_PIXML`` blob uploaded to your
-office, the minimal invocation is:
+environment (:doc:`the typical setup <setup>`) and a ``CONFIG_PIXML`` blob
+uploaded to your office, the minimal invocation is:
 
 .. code-block:: bash
 
