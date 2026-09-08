@@ -4,6 +4,8 @@ Common API Arguments
 Several ``cwms-cli`` commands use the same CDA connection arguments. This page
 documents those shared options in one place.
 
+.. _common-api-options:
+
 Shared options
 --------------
 
@@ -12,13 +14,33 @@ Shared options
 - ``--api-key`` or ``CDA_API_KEY``
 
 Some commands also expose ``--api-key-loc`` / ``-kl`` to read the API key from
-the first line of a file instead of passing the key inline. This is currently
-available on the USGS subcommands and ``shefcritimport``.
+the first line of a file instead of passing the key inline. This is available
+on DSS import/export, ``nws pixml``, the SHEF imports, user and role management
+commands, and the USGS subcommands.
 
-These are the standard API inputs used by commands such as ``csv2cwms``.
-If you have already run ``cwms-cli login``, cwms-cli will prefer the saved
-access token from ``~/.config/cwms-cli/auth/federation-eams.json`` over an API
-key. If no saved token is available, it falls back to the configured API key.
+These shared options and environment variables are used by:
+
+- all ``blob`` and ``clob`` operations
+- ``csv2cwms``
+- DSS import and export
+- ``nws pixml``
+- both SHEF import commands
+- user and role management commands
+- USGS time-series, measurement, and rating commands
+
+Commands that do not need an office may expose only ``CDA_API_ROOT`` and
+``CDA_API_KEY``. This includes ``users roles list-all`` and
+``usgs ratings-ini-file-import``. The ``login`` command uses
+``CDA_API_ROOT`` but obtains credentials through interactive authentication.
+The ``load`` command family instead uses source/target-specific variables such
+as ``CDA_SOURCE_URL``, ``CDA_SOURCE_OFFICE``, ``CDA_TARGET_URL``, and
+``CDA_API_KEY``.
+
+If you have already run ``cwms-cli login``, commands that support saved login
+tokens prefer the token from
+``~/.config/cwms-cli/auth/federation-eams.json`` over an API key. If no saved
+token is available, they fall back to the configured API key. The individual
+command help remains the authoritative list of accepted options.
 
 Environment setup
 -----------------

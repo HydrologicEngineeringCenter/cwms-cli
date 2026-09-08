@@ -273,11 +273,9 @@ refuses to store the versioned run.
 Environment variables
 ---------------------
 
-The following environment variables are recognized:
-
-- ``OFFICE`` — default value for ``-o/--office``
-- ``CDA_API_ROOT`` — default value for ``-a/--api-root``
-- ``CDA_API_KEY`` — default value for ``-k/--api-key``
+``nws pixml`` uses the :ref:`shared CDA options and environment variables
+<common-api-options>`. That page is the canonical reference for ``OFFICE``,
+``CDA_API_ROOT``, ``CDA_API_KEY``, and saved-login or API-key behavior.
 
 Example: MVP (St. Paul District) setup
 --------------------------------------
