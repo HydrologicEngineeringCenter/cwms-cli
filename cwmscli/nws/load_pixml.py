@@ -81,14 +81,14 @@ _SECONDS_TO_INTERVAL = {
 # Config
 # --------------------------------------------------------------------------- #
 def load_config(
-    config_file: Optional[str], config_blob: Optional[str], office: str
+    config_file: Optional[str], config_blob_id: Optional[str], office: str
 ) -> dict:
     """Load the JSON config from a local file or a CWMS blob."""
     if config_file:
         with open(config_file, "r") as f:
             return json.load(f)
-    # config_blob: a session must already be initialized by the caller.
-    raw = cwms.get_blob(blob_id=config_blob, office_id=office)
+    # config_blob_id: a session must already be initialized by the caller.
+    raw = cwms.get_blob(blob_id=config_blob_id, office_id=office)
     if isinstance(raw, dict):
         return raw
     # cwms.get_blob wraps response with str(), which produces Python repr
@@ -801,7 +801,7 @@ def load_pixml(
     *,
     input_: str,
     config_file: Optional[str],
-    config_blob: Optional[str],
+    config_blob_id: Optional[str],
     office: str,
     api_key: Optional[str],
     api_root: str,
@@ -817,7 +817,7 @@ def load_pixml(
     init_cwms_session(cwms, api_root=api_root, api_key=prefixed)
     logger.info("CDA connection: %s", api_root)
 
-    config = load_config(config_file, config_blob, office)
+    config = load_config(config_file, config_blob_id, office)
     namespace = config.get("pi_namespace", DEFAULT_PI_NAMESPACE)
 
     series, doc_tz = parse_series(fetch_xml(input_), namespace)

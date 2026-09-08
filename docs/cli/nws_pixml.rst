@@ -43,11 +43,11 @@ Config resolution
 The loader resolves its JSON config from the first source that matches:
 
 1. ``--config`` — a local JSON file path
-2. ``--config-blob`` — a blob ID to fetch from CDA
+2. ``--config-blob-id`` — a blob ID to fetch from CDA
 3. **Automatic** — if neither flag is given, the loader fetches the blob
    ``CONFIG_PIXML`` from the target office
 
-``--config`` and ``--config-blob`` are mutually exclusive.
+``--config`` and ``--config-blob-id`` are mutually exclusive.
 
 Uploading a config blob
 ~~~~~~~~~~~~~~~~~~~~~~~

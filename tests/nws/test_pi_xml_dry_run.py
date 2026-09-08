@@ -353,7 +353,7 @@ def _run(
     mod.load_pixml(
         input_=str(xml_path),
         config_file=str(config_file),
-        config_blob=None,
+        config_blob_id=None,
         office="MVP",
         api_key="test-key",
         api_root="http://cda.example/cwms-data/",

@@ -23,7 +23,7 @@ def nws_group():
         "Load an NWS/RFC Delft-FEWS PI-XML forecast product into a CWMS database. "
         "Behavior (parameter mapping, timeseries-group overrides, versioning, "
         "issued-time tracking) is driven by a JSON config, provided as a file "
-        "(--config) or read from a CWMS blob (--config-blob). If neither is "
+        "(--config) or read from a CWMS blob (--config-blob-id). If neither is "
         "given, the blob CONFIG_PIXML is fetched from the target office."
     ),
 )
@@ -44,12 +44,12 @@ def nws_group():
     help="Path to a JSON config file.",
 )
 @click.option(
-    "--config-blob",
-    "config_blob",
+    "--config-blob-id",
+    "config_blob_id",
     default=None,
     type=str,
     help="Blob id of a JSON config stored in the target CDA. "
-    "If neither --config nor --config-blob is given, defaults to CONFIG_PIXML.",
+    "If neither --config nor --config-blob-id is given, defaults to CONFIG_PIXML.",
 )
 @office_option
 @api_root_option
@@ -65,7 +65,7 @@ def nws_group():
 def nws_pixml(
     input_,
     config_file,
-    config_blob,
+    config_blob_id,
     office,
     api_root,
     api_key,
@@ -74,10 +74,10 @@ def nws_pixml(
 ):
     from cwmscli.nws.load_pixml import load_pixml
 
-    if config_file is not None and config_blob is not None:
-        raise click.UsageError("--config and --config-blob are mutually exclusive.")
-    if config_file is None and config_blob is None:
-        config_blob = "CONFIG_PIXML"
+    if config_file is not None and config_blob_id is not None:
+        raise click.UsageError("--config and --config-blob-id are mutually exclusive.")
+    if config_file is None and config_blob_id is None:
+        config_blob_id = "CONFIG_PIXML"
 
     # API key is optional: a saved cwms-cli login token (resolved inside
     # init_cwms_session) takes precedence. Only resolve a key if one was given.
@@ -88,7 +88,7 @@ def nws_pixml(
     load_pixml(
         input_=input_,
         config_file=config_file,
-        config_blob=config_blob,
+        config_blob_id=config_blob_id,
         office=office,
         api_root=api_root,
         api_key=resolved_key,
