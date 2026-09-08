@@ -88,9 +88,9 @@ owning office on the CDA side.
 Config structure
 ----------------
 
-The config is a JSON object. See the downloadable
-:download:`MVP example config <../nws/mvp.example.json>` and
-:download:`MVM example config <../nws/mvm.example.json>`.
+The config is a JSON object. See the rendered
+:ref:`MVP example config <nws-pixml-mvp-config>` and
+:ref:`MVM example config <nws-pixml-mvm-config>`.
 
 These keys configure the cwms-cli loader; they are not part of PI-XML. The MVP
 and MVM RFC products tested with this loader use the Delft-FEWS PI namespace
@@ -187,14 +187,18 @@ Array types below are JSON lists. The key names do not include ``[]``.
      - NCRFC watershed keys mapped to labels and CWMS watersheds for
        issued-time tracking.
 
+The ``pi_namespace`` key may be omitted; both bundled district products use
+the default ``http://www.wldelft.nl/fews/PI``. This value is an exact XML
+namespace identifier, not a resource fetched over HTTP. An ``https`` value
+would identify a different namespace and should be used only if it appears
+that way in the source document.
+
 Run configuration
 ~~~~~~~~~~~~~~~~~
 
-See ``runs`` in the downloadable
-:download:`MVP example config <../nws/mvp.example.json>` for multiple
-filename-matched runs and the
-:download:`MVM example config <../nws/mvm.example.json>` for a single default
-run.
+See ``runs`` in the :ref:`MVP example config <nws-pixml-mvp-config>` for
+multiple filename-matched runs and the
+:ref:`MVM example config <nws-pixml-mvm-config>` for a single default run.
 
 Each run entry controls:
 
@@ -276,6 +280,34 @@ Environment variables
 ``nws pixml`` uses the :ref:`shared CDA options and environment variables
 <common-api-options>`. That page is the canonical reference for ``OFFICE``,
 ``CDA_API_ROOT``, ``CDA_API_KEY``, and saved-login or API-key behavior.
+
+Example configurations
+----------------------
+
+These examples are rendered directly from the JSON files used by the
+repository, so the displayed configuration changes with the source file.
+
+.. _nws-pixml-mvp-config:
+
+MVP configuration
+~~~~~~~~~~~~~~~~~
+
+:download:`Download the MVP config <../nws/mvp.example.json>`.
+
+.. literalinclude:: ../nws/mvp.example.json
+   :language: json
+   :caption: docs/nws/mvp.example.json
+
+.. _nws-pixml-mvm-config:
+
+MVM configuration
+~~~~~~~~~~~~~~~~~
+
+:download:`Download the MVM config <../nws/mvm.example.json>`.
+
+.. literalinclude:: ../nws/mvm.example.json
+   :language: json
+   :caption: docs/nws/mvm.example.json
 
 Example: MVP (St. Paul District) setup
 --------------------------------------
