@@ -85,6 +85,12 @@ The config is a JSON object. See the downloadable
 :download:`MVP example config <../nws/mvp.example.json>` and
 :download:`MVM example config <../nws/mvm.example.json>`.
 
+These keys configure the cwms-cli loader; they are not part of PI-XML. The MVP
+and MVM RFC products tested with this loader use the Delft-FEWS PI namespace
+and time-series structure. See the Deltares `Delft-FEWS PI time-series schema
+<https://fewsdocs.deltares.nl/schemas/version1.0/pi-schemas/pi_timeseries.xsd>`_
+for the underlying format.
+
 Top-level keys:
 
 - ``office`` — CWMS office ID (e.g. ``MVP``, ``MVM``)
