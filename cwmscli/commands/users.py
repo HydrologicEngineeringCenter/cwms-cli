@@ -63,6 +63,17 @@ def _fetch_users(
 ) -> list[dict]:
     users: list[dict] = []
 
+    # If a username_like filter was provided, ensure it is wrapped with
+    # leading and trailing wildcards so CDA receives a contains-style query.
+    if username_like:
+        _ul = str(username_like).strip()
+        if _ul:
+            if not _ul.startswith("*"):
+                _ul = "*" + _ul
+            if not _ul.endswith("*"):
+                _ul = _ul + "*"
+            username_like = _ul
+
     try:
         response = cwms_module.get_users(
             office_id=office, username_like=username_like, page_size=page_size
@@ -136,9 +147,22 @@ def _split_roles(
 
 def _expand_role_shortcuts(roles: list[str]) -> list[str]:
     emap = {
-        "admin": ["All Users", "CWMS Users", "TS ID Creator", "CWMS User Admins"],
+        "admin": [
+            "All Users",
+            "CWMS Users",
+            "TS ID Creator",
+            "CWMS User Admins",
+            "CWMS PD Users",
+            "Data Acquisition Mgr",
+        ],
         "readonly": ["All Users", "CWMS Users"],
         "readwrite": ["All Users", "CWMS Users", "TS ID Creator"],
+        "batchadmin": [
+            "All Users",
+            "CWMS Users",
+            "TS ID Creator",
+            "Data Acquisition Mgr",
+        ],
     }
 
     expanded_roles: list[str] = []
