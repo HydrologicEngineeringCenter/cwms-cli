@@ -1017,7 +1017,7 @@ def users_roles_list_user(user_name, office, api_root, api_key, api_key_loc):
     multiple=True,
     default=None,
     callback=csv_to_list,
-    help="enter admin, readonly, readwrite, or individual role name(s) to add. Repeat the option or pass a comma/pipe-separated list.",
+    help="enter admin, readonly, readwrite, batchadmin, or individual role name(s) to add. Repeat the option or pass a comma/pipe-separated list.",
 )
 @requires(reqs.cwms)
 def users_roles_add(office, api_root, api_key, api_key_loc, user_name, roles):
