@@ -58,6 +58,29 @@ def _fetch_roles(cwms_module) -> list[str]:
         _handle_api_error(error, cwms_module)
 
 
+# Role shortcut expansions used by `_expand_role_shortcuts` and
+# referenced during validation so expanded roles are accepted even when the
+# CWMS role catalog returned by the API does not include all shortcut values.
+ROLE_SHORTCUTS: dict[str, list[str]] = {
+    "admin": [
+        "All Users",
+        "CWMS Users",
+        "TS ID Creator",
+        "CWMS User Admins",
+        "CWMS PD Users",
+        "Data Acquisition Mgr",
+    ],
+    "readonly": ["All Users", "CWMS Users"],
+    "readwrite": ["All Users", "CWMS Users", "TS ID Creator"],
+    "batchadmin": [
+        "All Users",
+        "CWMS Users",
+        "TS ID Creator",
+        "Data Acquisition Mgr",
+    ],
+}
+
+
 def _fetch_users(
     cwms_module, office=None, username_like=None, page_size: int = 5000
 ) -> list[dict]:
@@ -146,32 +169,13 @@ def _split_roles(
 
 
 def _expand_role_shortcuts(roles: list[str]) -> list[str]:
-    emap = {
-        "admin": [
-            "All Users",
-            "CWMS Users",
-            "TS ID Creator",
-            "CWMS User Admins",
-            "CWMS PD Users",
-            "Data Acquisition Mgr",
-        ],
-        "readonly": ["All Users", "CWMS Users"],
-        "readwrite": ["All Users", "CWMS Users", "TS ID Creator"],
-        "batchadmin": [
-            "All Users",
-            "CWMS Users",
-            "TS ID Creator",
-            "Data Acquisition Mgr",
-        ],
-    }
-
     expanded_roles: list[str] = []
     for role in roles:
         key = role.strip().casefold()
         if key == "all":
             expanded_roles.append(role)  # Keep "all" as is, handled elsewhere
-        elif key in emap:
-            expanded_roles.extend(emap[key])
+        elif key in ROLE_SHORTCUTS:
+            expanded_roles.extend(ROLE_SHORTCUTS[key])
         else:
             expanded_roles.append(role)
     return expanded_roles
