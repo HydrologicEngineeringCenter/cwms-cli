@@ -163,12 +163,35 @@ def test_users_roles_surfaces_handled_api_errors_without_traceback(monkeypatch):
     assert "Traceback" not in result.output
 
 
-def test_users_roles_add_shortcut_roles_expand(monkeypatch):
+@pytest.mark.parametrize("action", ["add", "delete"])
+@pytest.mark.parametrize(
+    "shortcut, expected_roles",
+    [
+        ("readonly", ["All Users", "CWMS Users"]),
+        ("readwrite", ["All Users", "CWMS Users", "TS ID Creator"]),
+        (
+            "admin",
+            [
+                "All Users",
+                "CWMS Users",
+                "TS ID Creator",
+                "CWMS User Admins",
+                "CWMS PD Users",
+                "Data Acquisition Mgr",
+            ],
+        ),
+        (
+            "batchadmin",
+            ["All Users", "CWMS Users", "TS ID Creator", "Data Acquisition Mgr"],
+        ),
+        ("readonly|TS ID Creator", ["All Users", "CWMS Users", "TS ID Creator"]),
+    ],
+)
+def test_users_roles_shortcuts_expand(monkeypatch, action, shortcut, expected_roles):
     monkeypatch.setattr(
         "cwmscli.utils.get_api_key", lambda api_key, api_key_loc: "test-key"
     )
-
-    calls = {"store_user": []}
+    calls = []
 
     class _FakeCwms:
         class api:
@@ -188,162 +211,30 @@ def test_users_roles_add_shortcut_roles_expand(monkeypatch):
 
         @staticmethod
         def get_roles():
-            return ["All Users", "CWMS Users", "TS ID Creator", "CWMS User Admins"]
+            return [
+                "All Users",
+                "CWMS Users",
+                "TS ID Creator",
+                "CWMS User Admins",
+                "CWMS PD Users",
+                "Data Acquisition Mgr",
+            ]
 
         @staticmethod
         def store_user(user_name, office_id, roles):
-            calls["store_user"].append((user_name, office_id, roles))
-
-    monkeypatch.setitem(__import__("sys").modules, "cwms", _FakeCwms)
-
-    runner = CliRunner()
-
-    result = runner.invoke(
-        cli,
-        [
-            "users",
-            "roles",
-            "add",
-            "--office",
-            "SPK",
-            "--api-root",
-            "https://example.test/cda/",
-            "--api-key",
-            "ignored",
-            "--api-key-loc",
-            "header",
-            "--user-name",
-            "q0hectest",
-            "--roles",
-            "readonly",
-        ],
-    )
-    assert result.exit_code == 0
-    assert calls["store_user"][0] == (
-        "q0hectest",
-        "SPK",
-        ["All Users", "CWMS Users"],
-    )
-
-    result = runner.invoke(
-        cli,
-        [
-            "users",
-            "roles",
-            "add",
-            "--office",
-            "SPK",
-            "--api-root",
-            "https://example.test/cda/",
-            "--api-key",
-            "ignored",
-            "--api-key-loc",
-            "header",
-            "--user-name",
-            "q0hectest",
-            "--roles",
-            "readwrite",
-        ],
-    )
-    assert result.exit_code == 0
-    assert calls["store_user"][1] == (
-        "q0hectest",
-        "SPK",
-        ["All Users", "CWMS Users", "TS ID Creator"],
-    )
-
-    result = runner.invoke(
-        cli,
-        [
-            "users",
-            "roles",
-            "add",
-            "--office",
-            "SPK",
-            "--api-root",
-            "https://example.test/cda/",
-            "--api-key",
-            "ignored",
-            "--user-name",
-            "q0hectest",
-            "--roles",
-            "admin",
-        ],
-    )
-    assert result.exit_code == 0
-    assert calls["store_user"][2] == (
-        "q0hectest",
-        "SPK",
-        ["All Users", "CWMS Users", "TS ID Creator", "CWMS User Admins"],
-    )
-
-    result = runner.invoke(
-        cli,
-        [
-            "users",
-            "roles",
-            "add",
-            "--office",
-            "SPK",
-            "--api-root",
-            "https://example.test/cda/",
-            "--api-key",
-            "ignored",
-            "--user-name",
-            "q0hectest",
-            "--roles",
-            "readonly|TS ID Creator",
-        ],
-    )
-    assert result.exit_code == 0
-    assert calls["store_user"][3] == (
-        "q0hectest",
-        "SPK",
-        ["All Users", "CWMS Users", "TS ID Creator"],
-    )
-
-
-def test_users_roles_delete_shortcut_roles_expand(monkeypatch):
-    monkeypatch.setattr(
-        "cwmscli.utils.get_api_key", lambda api_key, api_key_loc: "test-key"
-    )
-
-    calls = {"delete_user_roles": []}
-
-    class _FakeCwms:
-        class api:
-            class ApiError(Exception):
-                pass
-
-            class PermissionError(ApiError):
-                pass
-
-        @staticmethod
-        def init_session(api_root, api_key):
-            return None
-
-        @staticmethod
-        def get_users(office_id=None, username_like=None, page_size=None):
-            return _FakeData({"users": [{"user-name": "q0hectest"}], "next-page": None})
-
-        @staticmethod
-        def get_roles():
-            return ["All Users", "CWMS Users", "TS ID Creator", "CWMS User Admins"]
+            calls.append(("add", user_name, office_id, roles))
 
         @staticmethod
         def delete_user_roles(user_name, office_id, roles):
-            calls["delete_user_roles"].append((user_name, office_id, roles))
+            calls.append(("delete", user_name, office_id, roles))
 
     monkeypatch.setitem(__import__("sys").modules, "cwms", _FakeCwms)
-
-    runner = CliRunner()
-
-    result = runner.invoke(
+    result = CliRunner().invoke(
         cli,
         [
             "users",
             "roles",
-            "delete",
+            action,
             "--office",
             "SPK",
             "--api-root",
@@ -353,40 +244,15 @@ def test_users_roles_delete_shortcut_roles_expand(monkeypatch):
             "--user-name",
             "q0hectest",
             "--roles",
-            "readonly",
+            shortcut,
         ],
-    )
-    assert result.exit_code == 0
-    assert calls["delete_user_roles"][0] == (
-        "q0hectest",
-        "SPK",
-        ["CWMS Users"],
     )
 
-    result = runner.invoke(
-        cli,
-        [
-            "users",
-            "roles",
-            "delete",
-            "--office",
-            "SPK",
-            "--api-root",
-            "https://example.test/cda/",
-            "--api-key",
-            "ignored",
-            "--user-name",
-            "q0hectest",
-            "--roles",
-            "admin",
-        ],
-    )
-    assert result.exit_code == 0
-    assert calls["delete_user_roles"][1] == (
-        "q0hectest",
-        "SPK",
-        ["CWMS Users", "TS ID Creator", "CWMS User Admins"],
-    )
+    assert result.exit_code == 0, result.output
+    if action == "delete":
+        expected_roles = [role for role in expected_roles if role != "All Users"]
+        assert "'All Users' role cannot be deleted" in result.output
+    assert calls == [(action, "q0hectest", "SPK", expected_roles)]
 
 
 def test_users_roles_delete_all_roles(monkeypatch):
