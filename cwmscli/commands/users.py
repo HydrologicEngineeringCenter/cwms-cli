@@ -5,6 +5,7 @@ from typing import Optional, Union
 import click
 
 from cwmscli.utils import colors, init_cwms_session
+from cwmscli.utils.interaction import is_non_interactive
 
 
 def _format_table(headers: list[str], rows: list[list[str]]) -> str:
@@ -57,10 +58,44 @@ def _fetch_roles(cwms_module) -> list[str]:
         _handle_api_error(error, cwms_module)
 
 
+# Role shortcut expansions used by `_expand_role_shortcuts` and
+# referenced during validation so expanded roles are accepted even when the
+# CWMS role catalog returned by the API does not include all shortcut values.
+ROLE_SHORTCUTS: dict[str, list[str]] = {
+    "admin": [
+        "All Users",
+        "CWMS Users",
+        "TS ID Creator",
+        "CWMS User Admins",
+        "CWMS PD Users",
+        "Data Acquisition Mgr",
+    ],
+    "readonly": ["All Users", "CWMS Users"],
+    "readwrite": ["All Users", "CWMS Users", "TS ID Creator"],
+    "batchadmin": [
+        "All Users",
+        "CWMS Users",
+        "TS ID Creator",
+        "Data Acquisition Mgr",
+    ],
+}
+
+
 def _fetch_users(
     cwms_module, office=None, username_like=None, page_size: int = 5000
 ) -> list[dict]:
     users: list[dict] = []
+
+    # If a username_like filter was provided, ensure it is wrapped with
+    # leading and trailing wildcards so CDA receives a contains-style query.
+    if username_like:
+        _ul = str(username_like).strip()
+        if _ul:
+            if not _ul.startswith("*"):
+                _ul = "*" + _ul
+            if not _ul.endswith("*"):
+                _ul = _ul + "*"
+            username_like = _ul
 
     try:
         response = cwms_module.get_users(
@@ -134,19 +169,13 @@ def _split_roles(
 
 
 def _expand_role_shortcuts(roles: list[str]) -> list[str]:
-    emap = {
-        "admin": ["All Users", "CWMS Users", "TS ID Creator", "CWMS User Admins"],
-        "readonly": ["All Users", "CWMS Users"],
-        "readwrite": ["All Users", "CWMS Users", "TS ID Creator"],
-    }
-
     expanded_roles: list[str] = []
     for role in roles:
         key = role.strip().casefold()
         if key == "all":
             expanded_roles.append(role)  # Keep "all" as is, handled elsewhere
-        elif key in emap:
-            expanded_roles.extend(emap[key])
+        elif key in ROLE_SHORTCUTS:
+            expanded_roles.extend(ROLE_SHORTCUTS[key])
         else:
             expanded_roles.append(role)
     return expanded_roles
@@ -325,6 +354,12 @@ def add_roles(
             f"{_cmd('cwms-cli users roles add')} interactively with no add-specific args."
         )
 
+    if not provided_user_name and not provided_roles and is_non_interactive():
+        raise click.ClickException(
+            "User role changes cannot prompt in non-interactive mode. Specify "
+            "both --user-name and --roles."
+        )
+
     cwms = _init_cwms(api_root, api_key, api_key_loc)
     users = _fetch_users(cwms)
     available_roles = _fetch_roles(cwms)
@@ -371,6 +406,12 @@ def delete_roles(
         raise click.ClickException(
             "Either specify all delete arguments (--user-name and --roles) or run "
             f"{_cmd('cwms-cli users roles delete')} interactively with no delete-specific args."
+        )
+
+    if not provided_user_name and not provided_roles and is_non_interactive():
+        raise click.ClickException(
+            "User role changes cannot prompt in non-interactive mode. Specify "
+            "both --user-name and --roles."
         )
 
     cwms = _init_cwms(api_root, api_key, api_key_loc)

@@ -6,6 +6,7 @@ import click
 import pandas as pd
 
 from cwmscli.utils import init_cwms_session
+from cwmscli.utils.friendly_errors import is_fatal_service_error
 
 logger = logging.getLogger(__name__)
 
@@ -65,6 +66,8 @@ def load_timeseries_ids(
             if verbose:
                 logger.info("%s", result)
         except Exception as e:
+            if is_fatal_service_error(e):
+                raise
             errors += 1
             click.echo(f"Error storing location {ts_id}: \n\t{e}", err=True)
 

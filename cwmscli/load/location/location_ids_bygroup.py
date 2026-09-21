@@ -8,6 +8,7 @@ import cwms
 import pandas as pd
 
 from cwmscli.utils import init_cwms_session
+from cwmscli.utils.friendly_errors import is_fatal_service_error
 
 logger = logging.getLogger(__name__)
 
@@ -129,6 +130,8 @@ def copy_from_group(
             if verbose:
                 logger.info("\tStored successfully.")
         except Exception as e:
+            if is_fatal_service_error(e):
+                raise
             errors += 1
             click.echo(f"Error storing location {loc}: \n\t{e}", err=True)
 

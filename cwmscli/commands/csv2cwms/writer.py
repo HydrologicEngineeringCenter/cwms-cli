@@ -2,6 +2,8 @@ import traceback
 
 import cwms
 
+from cwmscli.utils.friendly_errors import is_fatal_service_error
+
 
 def write_timeseries(
     file_name, ts_data, config_item, office, dry_run, config_path, logger
@@ -26,6 +28,8 @@ def write_timeseries(
                 )
                 logger.info(f"Stored {ts_object['name']} values")
         except Exception as e:
+            if is_fatal_service_error(e):
+                raise
             logger.error(
                 f"Error posting data for {file_name}: {e}\n{traceback.format_exc()}"
             )

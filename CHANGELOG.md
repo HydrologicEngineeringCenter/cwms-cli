@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.8.0...v0.8.1) (2026-09-03)
+
+
+### Bug Fixes
+
+* Make CLI service failures actionable ([#261](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/261)) ([1699100](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/169910050eb55d7dc2b76f0e6d9b3ade52917f57))
+
 ## [0.8.0](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.7.4...v0.8.0) (2026-08-10)
 
 

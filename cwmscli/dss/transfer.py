@@ -7,6 +7,7 @@ from typing import Callable, Iterable, Optional, Protocol
 
 from cwmscli.dss.naming import ExportRule, ImportRule
 from cwmscli.utils import colors, init_cwms_session
+from cwmscli.utils.friendly_errors import is_fatal_service_error
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,9 @@ def transfer_all(
                     colors.c(str(timeseries.name), "cyan", bright=True),
                 )
             summary.transferred += 1
-        except Exception:
+        except Exception as error:
+            if is_fatal_service_error(error):
+                raise
             summary.failed += 1
             logger.exception("Failed to transfer %s", colors.err(str(identifier)))
     return summary

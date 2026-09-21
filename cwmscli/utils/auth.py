@@ -266,6 +266,7 @@ def _select_reachable_oidc_discovery(
             for candidate in _local_oidc_base_url_candidates(api_root, base_url)
         ]
 
+    last_error: Optional[BaseException] = None
     for candidate in candidates:
         try:
             response = requests.get(
@@ -275,7 +276,8 @@ def _select_reachable_oidc_discovery(
             )
             response.raise_for_status()
             payload = response.json()
-        except (requests.RequestException, ValueError):
+        except (requests.RequestException, ValueError) as error:
+            last_error = error
             continue
 
         if (
@@ -286,7 +288,7 @@ def _select_reachable_oidc_discovery(
             return payload
     raise AuthError(
         "OpenID discovery document was not reachable from any candidate URL."
-    )
+    ) from last_error
 
 
 def _load_oidc_cache() -> Dict[str, str]:

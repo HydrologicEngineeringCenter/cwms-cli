@@ -11,6 +11,7 @@ import requests
 from dataretrieval import nwis
 
 from cwmscli.utils import init_cwms_session
+from cwmscli.utils.friendly_errors import is_fatal_service_error
 
 # --- Constants ---
 CWMS_MISSING_VALUE = -340282346638528859811704183484516925440
@@ -81,29 +82,20 @@ def getusgs_measurement_cda(
     api = init_cwms_session(cwms, api_root=api_root, api_key="apikey " + api_key)
 
     logging.info("Fetching CWMS location groups...")
-    try:
-        usgs_alias_group = cwms.get_location_group(
-            loc_group_id="USGS Station Number",
-            category_id="Agency Aliases",
-            office_id="CWMS",
-            group_office_id=office_id,
-            category_office_id=office_id,
-        )
-        usgs_measurement_locs = cwms.get_location_group(
-            loc_group_id="USGS Measurements",
-            category_id="Data Acquisition",
-            office_id="CWMS",
-            group_office_id=office_id,
-            category_office_id=office_id,
-        )
-    except requests.exceptions.RequestException as e:
-        logging.critical(f"Failed to fetch CWMS location groups: {e}. Exiting.")
-        exit(1)
-    except Exception as e:
-        logging.critical(
-            f"An unexpected error occurred fetching CWMS location groups: {e}. Exiting."
-        )
-        exit(1)
+    usgs_alias_group = cwms.get_location_group(
+        loc_group_id="USGS Station Number",
+        category_id="Agency Aliases",
+        office_id="CWMS",
+        group_office_id=office_id,
+        category_office_id=office_id,
+    )
+    usgs_measurement_locs = cwms.get_location_group(
+        loc_group_id="USGS Measurements",
+        category_id="Data Acquisition",
+        office_id="CWMS",
+        group_office_id=office_id,
+        category_office_id=office_id,
+    )
 
     # merge them together
     measurement_site_df = pd.merge(
@@ -602,19 +594,15 @@ def realtime_mode(DAYS_BACK_COLLECTED, DAYS_BACK_MODIFIED, measurement_site_df):
     logging.info(
         f"Fetching USGS discharge measurements from {startDT.isoformat()} (modified in last {DAYS_BACK_MODIFIED} days)..."
     )
-    try:
-        df_meas_usgs, meta = nwis.get_discharge_measurements(
-            # sites=["05058000", "05059500"],
-            period=f"P{DAYS_BACK_COLLECTED}D",
-            channel_rdb_info="1",
-            sv_md_interval="DAY",
-            sv_md=f"{DAYS_BACK_MODIFIED}",
-            sv_md_minutes="2",
-        )
-        logging.info(f"Queried {meta}")
-    except Exception as e:
-        logging.critical(f"Failed to fetch USGS measurements: {e}. Exiting.")
-        exit(1)
+    df_meas_usgs, meta = nwis.get_discharge_measurements(
+        # sites=["05058000", "05059500"],
+        period=f"P{DAYS_BACK_COLLECTED}D",
+        channel_rdb_info="1",
+        sv_md_interval="DAY",
+        sv_md=f"{DAYS_BACK_MODIFIED}",
+        sv_md_minutes="2",
+    )
+    logging.info(f"Queried {meta}")
 
     if df_meas_usgs.empty:
         logging.info("No new USGS measurements found to process.")
@@ -663,6 +651,8 @@ def realtime_mode(DAYS_BACK_COLLECTED, DAYS_BACK_MODIFIED, measurement_site_df):
             if existing_measurements and existing_measurements.df is not None:
                 df_existing = existing_measurements.df
         except Exception as e:
+            if is_fatal_service_error(e):
+                raise
             logging.error(
                 f"An unexpected error occurred while getting existing measurements for {cwms_loc} ({office_id}). Assuming no existing measurements."
             )
@@ -685,9 +675,13 @@ def realtime_mode(DAYS_BACK_COLLECTED, DAYS_BACK_MODIFIED, measurement_site_df):
                         f"Differences found between stored data and new data for {log_prefix}:\n{df_differences.to_string()}"
                     )
             except requests.exceptions.RequestException as e:
+                if is_fatal_service_error(e):
+                    raise
                 logging.error(f"CWMS API network error storing {log_prefix}: {e}")
                 # For overwrite enabled, if it fails, it's an error, not a 'rejection' due to existing data
             except Exception as e:
+                if is_fatal_service_error(e):
+                    raise
                 logging.error(f"Unexpected error storing {log_prefix}: {e}")
         else:  # overwrite_flag is 0 or some other value, meaning don't overwrite
             if not is_rejected:
@@ -704,6 +698,8 @@ def realtime_mode(DAYS_BACK_COLLECTED, DAYS_BACK_MODIFIED, measurement_site_df):
                             f"Differences found between stored data and new data for {log_prefix}:\n{df_differences.to_string()}"
                         )
                 except requests.exceptions.RequestException as e:
+                    if is_fatal_service_error(e):
+                        raise
                     # If fail_if_exists is True (default)
                     logging.warning(
                         f"CWMS API network error (likely duplicate or conflict) storing {log_prefix}: {e}"
@@ -712,6 +708,8 @@ def realtime_mode(DAYS_BACK_COLLECTED, DAYS_BACK_MODIFIED, measurement_site_df):
                         "rejected"
                     ] += 1  # Increment rejected for this office
                 except Exception as e:
+                    if is_fatal_service_error(e):
+                        raise
                     logging.error(f"Unexpected error storing {log_prefix}: {e}")
             else:
                 logging.warning(
@@ -791,6 +789,8 @@ def backfill_mode(BACKFILL_LIST, measurement_site_df):
             logging.info(f"Queried {meta}")
             site_stats["measurements_fetched"] = len(df_meas_usgs)
         except Exception as e:
+            if is_fatal_service_error(e):
+                raise
             logging.critical(f"Failed to fetch USGS measurements: {e}. Exiting.")
             df_meas_usgs = pd.DataFrame()
 
@@ -821,6 +821,8 @@ def backfill_mode(BACKFILL_LIST, measurement_site_df):
             if existing_measurements and existing_measurements.df is not None:
                 df_existing = existing_measurements.df
         except Exception as e:
+            if is_fatal_service_error(e):
+                raise
             logging.error(
                 f"An unexpected error occurred while getting existing measurements for {cwms_loc} ({OFFICE}). Assuming no existing measurements."
             )
@@ -857,6 +859,8 @@ def backfill_mode(BACKFILL_LIST, measurement_site_df):
             office_store_stats[OFFICE]["successful"] += 1
             site_stats["measurements_saved"] = len(json_list)
         except requests.exceptions.RequestException as e:
+            if is_fatal_service_error(e):
+                raise
             logging.error(f"CWMS API network error storing {log_prefix}: {e}")
             # Track the bulk failure
             site_stats["measurements_failed"] = len(json_list)
@@ -870,6 +874,8 @@ def backfill_mode(BACKFILL_LIST, measurement_site_df):
                 site_stats["failed_details"].append(failure_detail)
                 overall_failed_stores.append(failure_detail)
         except Exception as e:
+            if is_fatal_service_error(e):
+                raise
             logging.error(f"Unexpected error storing {log_prefix}: {e}")
             logging.info("Storing one measurement at a time")
 
@@ -881,6 +887,8 @@ def backfill_mode(BACKFILL_LIST, measurement_site_df):
                     cwms.store_measurements(data=[data], fail_if_exists=False)
                     measurements_saved_individually += 1
                 except Exception as individual_error:
+                    if is_fatal_service_error(individual_error):
+                        raise
                     measurements_failed_individually += 1
                     inst = data.get("instant", "Unknown")
                     number = data.get("number", "Unknown")

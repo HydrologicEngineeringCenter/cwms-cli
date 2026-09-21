@@ -9,6 +9,7 @@ import pandas as pd
 import requests
 
 from cwmscli.utils import colors, init_cwms_session
+from cwmscli.utils.friendly_errors import is_fatal_service_error
 
 
 def _log_error_and_exit(
@@ -270,7 +271,9 @@ def getUSGS_ts(sites, startDT, endDT, access=None):
         "siteStatus": "active",
     }
 
-    r = requests.get(base_url, params=query_dict).json()
+    response = requests.get(base_url, params=query_dict)
+    response.raise_for_status()
+    r = response.json()
 
     # format the responce from USGS API into dataframe
     USGS_data = pd.DataFrame(r["value"]["timeSeries"])
@@ -332,6 +335,8 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
                                 ].item()
                             )
                         except Exception as error:
+                            if is_fatal_service_error(error):
+                                raise
                             mult_ids.append([ts_id, USGS_Id_param])
                             logging.error(
                                 f"The USGS method ID defined could not be found from the USGS API check that it is correct for -->  {ts_id},{USGS_Id_param},{row.USGS_Method_TS}"
@@ -416,11 +421,15 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
                             )
                             saved = saved + 1
                         except Exception as error:
+                            if is_fatal_service_error(error):
+                                raise
                             storErr.append([ts_id, USGS_Id_param, error])
                             logging.error(
                                 f"FAIL Data could not be stored to CWMS database for -->  {ts_id},{USGS_Id_param} CDA error = {error}"
                             )
             except Exception as error:
+                if is_fatal_service_error(error):
+                    raise
                 logging.error(
                     f"FAIL Unspecified Error when trying to save USGS data -->  {ts_id},{USGS_Id_param} error = {error}"
                 )

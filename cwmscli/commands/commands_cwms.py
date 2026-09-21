@@ -23,6 +23,7 @@ from cwmscli.utils import (
 )
 from cwmscli.utils.auth import DEFAULT_REDIRECT_HOST, DEFAULT_REDIRECT_PORT
 from cwmscli.utils.deps import requires
+from cwmscli.utils.interaction import is_non_interactive
 from cwmscli.utils.update import (
     build_update_package_spec,
     get_update_environment,
@@ -455,6 +456,12 @@ def update_cli_cmd(target_version: Optional[str], pre: bool, yes: bool) -> None:
         cmd.append("--pre")
 
     if not yes:
+        if is_non_interactive():
+            raise click.ClickException(
+                "The update command requires confirmation, but prompting is "
+                "disabled in non-interactive mode. Re-run with --yes to authorize "
+                "the update."
+            )
         proceed = click.confirm(
             "Proceed with updating cwms-cli in this environment via pip?",
             default=True,
@@ -1006,7 +1013,7 @@ def users_roles_list_user(user_name, office, api_root, api_key, api_key_loc):
     multiple=True,
     default=None,
     callback=csv_to_list,
-    help="enter admin, readonly, readwrite, or individual role name(s) to add. Repeat the option or pass a comma/pipe-separated list.",
+    help="enter admin, readonly, readwrite, batchadmin, or individual role name(s) to add. Repeat the option or pass a comma/pipe-separated list.",
 )
 @requires(reqs.cwms)
 def users_roles_add(office, api_root, api_key, api_key_loc, user_name, roles):
