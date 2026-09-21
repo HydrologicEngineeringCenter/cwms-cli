@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.9.0](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.8.1...v0.9.0) (2026-09-21)
+
+
+### Features
+
+* update preset user roles ([#264](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/264)) ([1b79f38](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/1b79f38f36c6ad81f2567946ec50d3a1a149b774))
+
+
+### Bug Fixes
+
+* Resample usgs timeseries ([#268](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/268)) ([68df1e3](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/68df1e3a892767d2b14b4cfdc87c42ae16af30c2))
+
 ## [0.8.1](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.8.0...v0.8.1) (2026-09-03)
 
 
