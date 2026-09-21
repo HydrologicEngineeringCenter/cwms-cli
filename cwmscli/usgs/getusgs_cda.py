@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -375,6 +376,35 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
                         office = row["office-id"]
                         values["quality-code"] = 0
 
+                        # Resample to TSID interval when needed.
+                        values = resample_to_tsid_interval(values, ts_id)
+
+                        # Drop rows with missing values produced by resampling
+                        # (CWMS CDA rejects NaN/Na values in the values array).
+                        try:
+                            n_before = len(values)
+                            values = values.dropna(subset=["value"]).copy()
+                            n_after = len(values)
+                            if n_after != n_before:
+                                logging.info(
+                                    f"Dropped {n_before - n_after} rows with missing values for {ts_id} after resampling"
+                                )
+                        except Exception:
+                            # If anything goes wrong, continue and let the store call fail
+                            # so the caller sees the original error.
+                            pass
+
+                        # Ensure quality-code is numeric and has no NaN entries.
+                        if "quality-code" in values.columns:
+                            try:
+                                values["quality-code"] = (
+                                    values["quality-code"].fillna(0).astype(int)
+                                )
+                            except Exception:
+                                values["quality-code"] = values["quality-code"].fillna(
+                                    0
+                                )
+
                         # write values to CWMS database
                         try:
                             data = cwms.timeseries_df_to_json(
@@ -422,3 +452,80 @@ def CWMS_writeData(USGS_ts, USGS_data, USGS_data_method, days_back):
     logging.info(
         f"The following ts_ids errored because multiple method TSID were present for the USGS station. A USGS method TSID needs to be defined in the time series group in CWMS or an incorrect TSID is defined. {mult_ids}"
     )
+
+
+def resample_to_tsid_interval(values: pd.DataFrame, ts_id: str) -> pd.DataFrame:
+    """Resample the incoming values DataFrame to the interval encoded in ``ts_id``.
+
+    The DataFrame is expected to have columns ``date-time`` and ``value``. The
+    function returns a new DataFrame with the same columns. If the TSID encodes
+    an irregular interval (contains '~' or '0') the original DataFrame is
+    returned unchanged. Otherwise the function infers the incoming data
+    frequency and resamples only when it differs from the TSID interval.
+    """
+    if values is None or values.empty:
+        return values
+
+    try:
+        interval_segment = ts_id.split(".")[3]
+    except Exception:
+        return values
+
+    if "~" in interval_segment or interval_segment == "0":
+        return values
+
+    m = re.match(r"^(\d+)(.*)", interval_segment)
+    if m:
+        interval_number = int(m.group(1))
+        interval_type = m.group(2)
+    else:
+        return values
+
+    if interval_type == "Minutes":
+        target_str = f"{interval_number}min"
+    else:
+        # use lower-case single-letter codes (pandas prefers lower-case symbols)
+        target_str = f"{interval_number}{interval_type[0].lower()}"
+
+    df = values.copy()
+    # Coerce date-time to datetimes; drop rows without a valid timestamp because
+    # they cannot be resampled. Sort and deduplicate the index to ensure
+    # deterministic resampling behavior.
+    df["date-time"] = pd.to_datetime(df["date-time"], errors="coerce")
+    df = df.dropna(subset=["date-time"]).copy()
+    if df.empty:
+        return df
+    df = df.set_index("date-time")
+    df = df.sort_index()
+    # If duplicate timestamps exist, keep the first occurrence (matching prior
+    # behavior of using .first() during resample).
+    df = df[~df.index.duplicated(keep="first")]
+
+    current_delta = None
+    try:
+        inferred = pd.infer_freq(df.index)
+        if inferred:
+            current_delta = pd.to_timedelta(inferred)
+    except Exception:
+        current_delta = None
+
+    if current_delta is None:
+        diffs = df.index.to_series().diff().dropna()
+        if not diffs.empty:
+            current_delta = diffs.median()
+
+    try:
+        target_delta = pd.to_timedelta(target_str)
+    except Exception:
+        target_delta = None
+
+    if target_delta is not None and (
+        current_delta is None or current_delta != target_delta
+    ):
+        logging.info(
+            f"Resampling {ts_id}: from {current_delta} to {target_delta} (target={target_str})"
+        )
+        df_resampled = df.resample(target_str).first()
+        return df_resampled.reset_index()
+
+    return df.reset_index()
