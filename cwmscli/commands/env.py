@@ -373,7 +373,7 @@ def spawn_shell_with_env(env_vars: Dict[str, str], env_name: str):
         sys.exit(1)
 
 
-@env_group.command("activate", help="Activate an environment in a new shell")
+@env_group.command("activate", short_help="Activate an environment in a new shell")
 @click.argument("env_name")
 def activate_cmd(env_name: str):
     """
@@ -382,10 +382,17 @@ def activate_cmd(env_name: str):
     The environment variables will be set in the new shell and persist
     until you exit the shell. Type 'exit' to return to your original environment.
 
-    Note: This spawns a child shell. Your parent shell, and any IDE
-    already open, will not see these variables. To populate the current
-    shell, use:  eval "$(cwms-cli env export <name> --format bash)"
+    Note: This spawns a child shell. Your parent shell and any IDE
+    already open will not see these variables. Shell startup files can
+    also replace inherited values such as CDA_API_ROOT. This is common
+    in Solaris profiles.
 
+    To set the values after shell initialization, use:
+
+    \b
+        eval "$(cwms-cli env export <name> --format bash)"
+
+    \b
     Examples:
         cwms-cli env activate prod
         cwms-cli env activate localhost

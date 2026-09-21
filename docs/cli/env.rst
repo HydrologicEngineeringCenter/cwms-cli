@@ -238,6 +238,35 @@ Activate an environment in a new shell session.
 This spawns a child shell with the environment variables set. Type ``exit``
 or press ``Ctrl+D`` to return to your original shell.
 
+.. warning::
+
+   ``activate`` passes the configured variables to the child shell before that
+   shell initializes. Shell startup files such as ``.bash_profile`` or
+   ``.bashrc`` can then replace inherited values. For example, if a startup
+   file unconditionally exports ``CDA_API_ROOT``, ``CDA_API_KEY``, ``OFFICE``,
+   or ``ENVIRONMENT``, that value takes precedence over the selected
+   cwms-cli environment. This is a common configuration on Solaris systems,
+   but the same limitation applies on any platform.
+
+   To ensure the selected values take precedence, load them into the current
+   bash or zsh session after shell initialization:
+
+   .. code-block:: bash
+
+      eval "$(cwms-cli env export <name> --format bash)"
+
+   This changes the current shell rather than creating a child shell. The
+   values remain set until they are changed, unset, or the current shell exits.
+
+If startup files provide defaults that should not replace an activated
+environment, make those assignments conditional:
+
+.. code-block:: bash
+
+   [ -z "${CDA_API_ROOT:-}" ] && \
+      export CDA_API_ROOT="https://default.example/cwms-data"
+   [ -z "${OFFICE:-}" ] && export OFFICE="SWT"
+
 .. note::
 
    The parent shell and any already-open IDE will **not** see these variables.

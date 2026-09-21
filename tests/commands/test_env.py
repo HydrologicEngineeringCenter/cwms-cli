@@ -459,6 +459,19 @@ def test_delete_missing_env_errors(isolated_envs):
     assert "not found" in result.output
 
 
+# ---------- env activate ----------
+
+
+def test_activate_help_explains_shell_startup_precedence():
+    runner = CliRunner()
+    result = runner.invoke(env_group, ["activate", "--help"])
+
+    assert result.exit_code == 0
+    assert "Shell startup files can" in result.output
+    assert "Solaris profiles" in result.output
+    assert "cwms-cli env export <name> --format bash" in result.output
+
+
 # ---------- quoting helpers ----------
 
 
