@@ -1,6 +1,7 @@
 import importlib
 import importlib.metadata
 import os
+from typing import Callable
 
 import click
 
@@ -57,6 +58,15 @@ def requires(*requirements):
             missing = []
             version_issues = []
 
+            # choose a version parsing function: prefer packaging, fallback to pkg_resources
+            try:
+                from packaging.version import parse as _parse_version
+            except Exception:
+                try:
+                    from pkg_resources import parse_version as _parse_version
+                except Exception:
+                    _parse_version = None
+
             for req in requirements:
                 mod = req["module"]
                 pkg = req.get("package", mod)
@@ -78,12 +88,32 @@ def requires(*requirements):
                 if min_version:
                     try:
                         actual_version = importlib.metadata.version(pkg)
-                        if actual_version < min_version:
-                            version_issues.append(
-                                f"- python package `{pkg}` version `{actual_version}` found, "
-                                f"but `{min_version}` or higher is required.\n\t"
-                                f"Update the packge to the required minimum version to use this command."
-                            )
+                        if _parse_version is not None:
+                            try:
+                                if _parse_version(actual_version) < _parse_version(
+                                    min_version
+                                ):
+                                    version_issues.append(
+                                        f"- python package `{pkg}` version `{actual_version}` found, "
+                                        f"but `{min_version}` or higher is required.\n\t"
+                                        f"Update the package to the required minimum version to use this command."
+                                    )
+                            except Exception:
+                                # Fall back to string comparison if parsing fails
+                                if actual_version < min_version:
+                                    version_issues.append(
+                                        f"- python package `{pkg}` version `{actual_version}` found, "
+                                        f"but `{min_version}` or higher is required.\n\t"
+                                        f"Update the package to the required minimum version to use this command."
+                                    )
+                        else:
+                            # No parser available — fall back to lexical comparison
+                            if actual_version < min_version:
+                                version_issues.append(
+                                    f"- python package `{pkg}` version `{actual_version}` found, "
+                                    f"but `{min_version}` or higher is required.\n\t"
+                                    f"Update the package to the required minimum version to use this command."
+                                )
                     except importlib.metadata.PackageNotFoundError:
                         version_issues.append(
                             f"- `{pkg}` is installed but version could not be verified"
