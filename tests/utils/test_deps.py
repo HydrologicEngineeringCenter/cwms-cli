@@ -90,9 +90,13 @@ def test_unversioned_requirement_does_not_need_metadata(monkeypatch):
 def test_real_cli_blocks_newer_cwms_before_command_runs(monkeypatch):
     from cwmscli.__main__ import cli
 
+    monkeypatch.delenv("CDA_API_ROOT", raising=False)
     monkeypatch.setattr(deps.importlib, "import_module", Mock())
     monkeypatch.setattr(deps.importlib.metadata, "version", lambda _: "2.0.0")
-    result = CliRunner().invoke(cli, ["users", "roles", "list-all"])
-    assert result.exit_code == 1
+    result = CliRunner().invoke(
+        cli,
+        ["users", "roles", "list-all", "--api-root", "https://example.test/cda/"],
+    )
+    assert result.exit_code == 1, result.output
     assert "cwms-python" in result.output
     assert ">=1.0.7,<2.0.0" in result.output
