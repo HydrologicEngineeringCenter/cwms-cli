@@ -13,6 +13,9 @@
 /cwmscli/commands/blob.py charles.r.graham@usace.army.mil
 /docs/cli/blob.rst charles.r.graham@usace.army.mil
 /cwmscli/utils/update.py charles.r.graham@usace.army.mil
+/cwmscli/utils/deps.py charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil
+/cwmscli/requirements.py charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil
+/tests/utils/test_deps.py charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil
 /docs/cli/update.rst charles.r.graham@usace.army.mil
 /tests/cli/test_update_command.py charles.r.graham@usace.army.mil
 /cwmscli/load/ charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil

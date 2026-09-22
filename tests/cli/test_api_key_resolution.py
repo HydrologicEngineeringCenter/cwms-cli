@@ -46,7 +46,11 @@ def test_usgs_timeseries_api_key_loc_overrides_env(monkeypatch, tmp_path):
 
     monkeypatch.setitem(sys.modules, "cwmscli.usgs.getusgs_cda", fake_module)
     monkeypatch.setattr(deps.importlib, "import_module", lambda name: object())
-    monkeypatch.setattr(deps.importlib.metadata, "version", lambda name: "999.0.0")
+    monkeypatch.setattr(
+        deps.importlib.metadata,
+        "version",
+        lambda name: "1.0.7" if name == "cwms-python" else "999.0.0",
+    )
     monkeypatch.setattr(usgs_module, "get_api_key", utils.get_api_key)
     result = CliRunner().invoke(
         cli,
@@ -88,7 +92,11 @@ def test_shefcritimport_api_key_loc_overrides_env(monkeypatch, tmp_path):
         sys.modules, "cwmscli.commands.shef.import_critfile", fake_module
     )
     monkeypatch.setattr(deps.importlib, "import_module", lambda name: object())
-    monkeypatch.setattr(deps.importlib.metadata, "version", lambda name: "999.0.0")
+    monkeypatch.setattr(
+        deps.importlib.metadata,
+        "version",
+        lambda name: "1.0.7" if name == "cwms-python" else "999.0.0",
+    )
     monkeypatch.setattr(commands_cwms, "get_api_key", utils.get_api_key, raising=False)
     result = CliRunner().invoke(
         cli,
@@ -128,7 +136,11 @@ def test_shefinfile_import_api_key_loc_overrides_env(monkeypatch, tmp_path):
 
     monkeypatch.setitem(sys.modules, "cwmscli.commands.shef.import_infile", fake_module)
     monkeypatch.setattr(deps.importlib, "import_module", lambda name: object())
-    monkeypatch.setattr(deps.importlib.metadata, "version", lambda name: "999.0.0")
+    monkeypatch.setattr(
+        deps.importlib.metadata,
+        "version",
+        lambda name: "1.0.7" if name == "cwms-python" else "999.0.0",
+    )
     monkeypatch.setattr(commands_cwms, "get_api_key", utils.get_api_key, raising=False)
     result = CliRunner().invoke(
         cli,

@@ -118,7 +118,11 @@ def test_usgs_timeseries_command_shows_friendly_message_for_missing_configuratio
 
     monkeypatch.setitem(sys.modules, "cwmscli.usgs.getusgs_cda", fake_module)
     monkeypatch.setattr(deps.importlib, "import_module", lambda name: object())
-    monkeypatch.setattr(deps.importlib.metadata, "version", lambda name: "999.0.0")
+    monkeypatch.setattr(
+        deps.importlib.metadata,
+        "version",
+        lambda name: "1.0.7" if name == "cwms-python" else "999.0.0",
+    )
 
     result = CliRunner().invoke(
         cli,
