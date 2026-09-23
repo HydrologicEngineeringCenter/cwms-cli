@@ -130,9 +130,11 @@ def environment_token_file(api_root: str) -> Path:
     return config_dir("auth", "environments", key, "login.json")
 
 
-def saved_login_status(api_root: str) -> tuple[str, str]:
+def saved_login_status(
+    api_root: str, token_file: Optional[Path] = None
+) -> tuple[str, str]:
     """Describe local state without exposing credentials or making network requests."""
-    path = environment_token_file(api_root)
+    path = token_file or environment_token_file(api_root)
     if not path.exists():
         return "not logged in", "not available"
     try:
@@ -160,6 +162,33 @@ def saved_login_status(api_root: str) -> tuple[str, str]:
         return "expired (login required)", "expired"
     except (AuthError, OSError, KeyError, TypeError, ValueError):
         return "unreadable (login required)", "not available"
+
+
+def token_time_remaining(token: Dict[str, Any], *, refresh: bool = False) -> str:
+    """Human-readable remaining lifetime from saved metadata, without refreshing."""
+    prefix = "refresh" if refresh else "access"
+    if not token.get(f"{prefix}_token"):
+        return "not available"
+    expiry = token.get("refresh_expires_at" if refresh else "expires_at")
+    if expiry is None:
+        return "unknown (expiry not provided)"
+    try:
+        remaining = float(expiry) - time.time()
+        if not math.isfinite(remaining):
+            raise ValueError("Invalid expiry")
+    except (TypeError, ValueError):
+        return "unknown (invalid expiry)"
+    if remaining <= 0:
+        return "expired"
+    seconds = math.ceil(remaining)
+    days, seconds = divmod(seconds, 86400)
+    hours, seconds = divmod(seconds, 3600)
+    minutes, seconds = divmod(seconds, 60)
+    parts = []
+    for value, unit in ((days, "d"), (hours, "h"), (minutes, "m"), (seconds, "s")):
+        if value:
+            parts.append(f"{value}{unit}")
+    return " ".join(parts) + " remaining"
 
 
 def _swagger_docs_url(api_root: str) -> str:
@@ -449,7 +478,7 @@ def token_expiry_text(token: Dict[str, Any]) -> Optional[str]:
 def _local_timestamp_text(expires_at: Any) -> Optional[str]:
     try:
         expiry = dt.datetime.fromtimestamp(float(expires_at), tz=dt.timezone.utc)
-    except (TypeError, ValueError, OSError):
+    except (TypeError, ValueError, OSError, OverflowError):
         return None
     local_expiry = expiry.astimezone()
     hour = local_expiry.hour % 12 or 12
