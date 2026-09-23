@@ -137,7 +137,7 @@ Create or update an environment configuration.
 letting you attach an office and API key. All other environment names
 require ``--api-root``.
 
-On-premises and COOP default environments
+On-premises server setup and COOP default environments (optional) 
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Configure named environments for the primary on-premises server and the COOP
