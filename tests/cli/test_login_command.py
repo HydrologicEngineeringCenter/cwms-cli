@@ -22,6 +22,7 @@ def environment_logins(monkeypatch, tmp_path):
 
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
     monkeypatch.delenv("CDA_API_ROOT", raising=False)
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
     monkeypatch.setattr(
         auth,
         "discover_oidc_configuration",
@@ -46,6 +47,74 @@ def environment_logins(monkeypatch, tmp_path):
     return CliRunner()
 
 
+def test_named_environments_have_independent_sessions_for_same_root(
+    environment_logins, monkeypatch
+):
+    from cwmscli.utils import auth, get_saved_login_token
+    from cwmscli.utils.env_store import load_env
+
+    root = "https://shared.example"
+    for name in ["dev", "test"]:
+        monkeypatch.setenv("ENVIRONMENT", name)
+        monkeypatch.setenv("CDA_API_ROOT", root)
+        result = environment_logins.invoke(cli, ["login"])
+        assert result.exit_code == 0, result.output
+        path = auth.environment_token_file(root)
+        auth.save_login(
+            path,
+            auth.OIDCLoginConfig(api_root=root),
+            {"access_token": name, "expires_at": 4102444800},
+        )
+        assert path.name == name + ".json"
+        assert load_env(name)["CDA_API_ROOT"] == root
+    for name in ["dev", "test", "dev"]:
+        monkeypatch.setenv("ENVIRONMENT", name)
+        assert get_saved_login_token(api_root=root) == name
+    monkeypatch.delenv("ENVIRONMENT")
+    assert get_saved_login_token(api_root=root) is None
+
+
+def test_refresh_in_named_environment_preserves_config_and_other_sessions(
+    environment_logins, monkeypatch
+):
+    from cwmscli.utils import auth
+    from cwmscli.utils.env_store import load_env, save_env
+
+    root = "https://demo.example"
+    for name in ["dev", "test"]:
+        save_env(
+            name,
+            {
+                "ENVIRONMENT": name,
+                "CDA_API_ROOT": root,
+                "OFFICE": "SWT",
+                "CDA_API_KEY": "api-secret",
+            },
+        )
+        auth.save_login(
+            auth.environment_token_file(root, name),
+            auth.OIDCLoginConfig(api_root=root),
+            {"access_token": name, "refresh_token": name + "-refresh"},
+        )
+    before = auth.environment_token_file(root, "test").read_bytes()
+    monkeypatch.setenv("ENVIRONMENT", "dev")
+    monkeypatch.setenv("CDA_API_ROOT", root)
+    monkeypatch.setattr(
+        auth, "_request_token", lambda *a, **kw: {"access_token": "fresh"}
+    )
+    result = environment_logins.invoke(cli, ["login", "--refresh"])
+    assert result.exit_code == 0, result.output
+    assert load_env("dev")["OFFICE"] == "SWT"
+    assert load_env("dev")["CDA_API_KEY"] == "api-secret"
+    assert (
+        auth.load_saved_login(auth.environment_token_file(root), api_root=root)[
+            "token"
+        ]["access_token"]
+        == "fresh"
+    )
+    assert auth.environment_token_file(root, "test").read_bytes() == before
+
+
 def test_login_preserves_sessions_when_switching_environments(
     environment_logins, monkeypatch
 ):
@@ -59,7 +128,7 @@ def test_login_preserves_sessions_when_switching_environments(
         result = runner.invoke(cli, ["login", "--provider", "login.gov"])
         assert result.exit_code == 0, result.output
         assert root + "-secret" not in result.output
-        saved = load_saved_login(environment_token_file(root))
+        saved = load_saved_login(environment_token_file(root), api_root=root)
         assert saved["api_root"] == root
         assert saved["provider"] == "login.gov"
 
@@ -90,7 +159,9 @@ def test_login_refresh_only_changes_selected_environment(
             auth.OIDCLoginConfig(api_root=root),
             {"access_token": root, "refresh_token": root + "-refresh", "expires_at": 1},
         )
-    other_before = auth.environment_token_file(roots[1]).read_bytes()
+    other_before = auth.load_saved_login(
+        auth.environment_token_file(roots[1]), api_root=roots[1]
+    )
     monkeypatch.setattr(
         auth,
         "_request_token",
@@ -101,18 +172,23 @@ def test_login_refresh_only_changes_selected_environment(
     )
     assert result.exit_code == 0, result.output
     assert (
-        auth.load_saved_login(auth.environment_token_file(roots[0]))["token"][
-            "access_token"
-        ]
+        auth.load_saved_login(auth.environment_token_file(roots[0]), api_root=roots[0])[
+            "token"
+        ]["access_token"]
         == "new-token"
     )
-    assert auth.environment_token_file(roots[1]).read_bytes() == other_before
+    assert (
+        auth.load_saved_login(auth.environment_token_file(roots[1]), api_root=roots[1])
+        == other_before
+    )
 
 
-def test_explicit_token_file_cannot_refresh_other_environment(environment_logins):
+def test_explicit_token_file_cannot_refresh_other_environment(
+    environment_logins, tmp_path
+):
     from cwmscli.utils import auth
 
-    path = auth.environment_token_file("https://first.example")
+    path = tmp_path / "custom.json"
     auth.save_login(
         path,
         auth.OIDCLoginConfig(api_root="https://first.example"),

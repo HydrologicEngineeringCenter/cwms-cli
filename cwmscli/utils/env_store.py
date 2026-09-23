@@ -68,6 +68,16 @@ def save_env(name: str, config: Dict[str, str]) -> Path:
     file is never briefly world-readable between create and chmod.
     """
     path = _env_path(name)
+    # Keep login sessions when editing the environment's shell variables.
+    if path.exists():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as e:
+            raise EnvStoreError(
+                f"Cannot update unreadable environment file: {path}"
+            ) from e
+        if isinstance(existing, dict) and "_logins" in existing:
+            config = {**config, "_logins": existing["_logins"]}
     payload = json.dumps(config, indent=2, sort_keys=True) + "\n"
 
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
@@ -112,7 +122,8 @@ def load_env(name: str) -> Optional[Dict[str, str]]:
         return None
     if not isinstance(data, dict):
         return None
-    return data
+    # Login data is private metadata, never a shell variable or export value.
+    return {key: value for key, value in data.items() if key != "_logins"}
 
 
 def delete_env(name: str) -> bool:

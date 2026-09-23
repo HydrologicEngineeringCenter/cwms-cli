@@ -90,7 +90,7 @@ from cwmscli.utils.version import get_cwms_cli_version
     "--token-file",
     type=click.Path(dir_okay=False, path_type=Path),
     default=None,
-    help="Path to save the login session JSON. Defaults to a file for this CDA API root under ~/.config/cwms-cli/auth/environments/.",
+    help="Custom login session JSON. Defaults to envs/<ENVIRONMENT>.json, or login.json above envs/ when no environment is active.",
 )
 @click.option(
     "--status",
@@ -183,7 +183,7 @@ def login_cmd(
         click.echo(f"Access token: {token_state}")
         click.echo(f"Token file: {token_file.expanduser().resolve()}")
         try:
-            saved = load_saved_login(token_file)
+            saved = load_saved_login(token_file, api_root=api_root)
         except (AuthError, OSError):
             click.echo("Refresh session: not available")
             return
@@ -203,12 +203,14 @@ def login_cmd(
 
     try:
         if refresh_only:
-            saved = load_saved_login(token_file)
+            saved = load_saved_login(token_file, api_root=api_root)
             if saved.get("api_root") and saved["api_root"].rstrip("/") != api_root:
                 raise AuthError(
                     "Saved login belongs to a different CDA API root. Run login for this environment."
                 )
-            result = refresh_saved_login(token_file=token_file, verify=verify)
+            result = refresh_saved_login(
+                token_file=token_file, verify=verify, api_root=api_root
+            )
             config = result["config"]
             token = result["token"]
         else:

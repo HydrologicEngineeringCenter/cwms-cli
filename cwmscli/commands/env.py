@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import subprocess
@@ -8,7 +9,14 @@ from typing import Dict, Optional
 import click
 
 from cwmscli.utils import get_saved_login_token
-from cwmscli.utils.auth import saved_login_status
+from cwmscli.utils.auth import (
+    AuthError,
+    environment_token_file,
+    load_saved_login,
+    refresh_token_expiry_text,
+    saved_login_status,
+    token_time_remaining,
+)
 from cwmscli.utils.env_store import (
     ENV_DEFAULTS,
     EnvStoreError,
@@ -23,6 +31,22 @@ from cwmscli.utils.interaction import is_non_interactive
 from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
 
 SENSITIVE_KEYS = {"CDA_API_KEY"}
+
+
+def _show_login_details(api_root, token_file):
+    login_state, token_state = saved_login_status(api_root, token_file)
+    click.echo(f"    Login:    {login_state}")
+    click.echo(f"    Token:    {token_state}")
+    click.echo(f"    Token file: {token_file.resolve()}")
+    try:
+        token = load_saved_login(token_file, api_root=api_root)["token"]
+    except (AuthError, OSError):
+        token = {}
+    click.echo(f"    Access lifetime: {token_time_remaining(token)}")
+    click.echo(f"    Refresh session: {token_time_remaining(token, refresh=True)}")
+    expiry = refresh_token_expiry_text(token)
+    if token.get("refresh_token") and expiry:
+        click.echo(f"    Refresh expires: {expiry}")
 
 
 def _stdout_is_tty() -> bool:
@@ -68,7 +92,10 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
             "error": f"HTTP {resp.status_code}",
         }
 
-    token = get_saved_login_token(api_root=api_root)
+    token = get_saved_login_token(
+        api_root=api_root,
+        token_file=environment_token_file(api_root, env_config.get("ENVIRONMENT", "")),
+    )
     api_key = env_config.get("CDA_API_KEY")
     authorization = f"Bearer {token}" if token else api_key
     credential = "login token" if token else "API key"
@@ -232,6 +259,8 @@ def show_cmd(check: bool):
     for env_name in names:
         env_config = load_env(env_name)
         if not env_config:
+            click.echo(f"  {env_name} (unreadable environment file)")
+            _show_login_details("", environment_token_file("", env_name))
             continue
         marker = "* " if env_name == current_env else "  "
         builtin = " (built-in)" if not env_exists_on_disk(env_name) else ""
@@ -245,7 +274,7 @@ def show_cmd(check: bool):
         click.echo(f"    Status:   {has_key}")
 
         if check:
-            result = _check_env(env_config)
+            result = _check_env({**env_config, "ENVIRONMENT": env_name})
             if result["reachable"]:
                 latency = f" ({result['latency_ms']}ms)"
                 reach_str = click.style("reachable", fg="green") + latency
@@ -265,11 +294,22 @@ def show_cmd(check: bool):
             if auth_str:
                 click.echo(f"    Auth:     {auth_str}")
 
-        login_state, token_state = saved_login_status(
-            env_config.get("CDA_API_ROOT", "")
-        )
-        click.echo(f"    Login:    {login_state}")
-        click.echo(f"    Token:    {token_state}")
+        token_file = environment_token_file(api_root, env_name)
+        _show_login_details(api_root, token_file)
+
+    default_file = environment_token_file("", "")
+    if default_file.exists():
+        click.echo("\nDefault logins (no named environment):")
+        try:
+            document = json.loads(default_file.read_text(encoding="utf-8"))
+            roots = document.get("_logins", {})
+            if not isinstance(roots, dict):
+                raise ValueError("Invalid sessions")
+        except (OSError, ValueError, AttributeError):
+            roots = {"": None}
+        for root in sorted(roots):
+            click.echo(f"    API Root: {root or 'unknown'}")
+            _show_login_details(root, default_file)
 
 
 @env_group.command(

@@ -3,21 +3,31 @@ Login command
 
 Use ``cwms-cli login`` to start the CWBI OIDC PKCE flow and save the resulting
 session for reuse. The command already has working defaults for the provider,
-client ID, scope, callback host, callback port, timeout, and the
-API-root-specific token file path under ``~/.config/cwms-cli/auth/environments/``.
+client ID, scope, callback host, callback port, timeout, and token storage.
 
 Login uses ``CDA_API_ROOT`` from the active environment unless ``--api-root``
-is supplied. Each CDA API root keeps its own access and refresh tokens, so
-logging into development does not replace your production session. Environment
-names pointing to the same API root share a session; trailing slashes are ignored.
-Both identity providers use the same session slot for that API root.
+is supplied. When ``ENVIRONMENT`` is set, access and refresh tokens are stored
+inside ``~/.config/cwms-cli/envs/<ENVIRONMENT>.json`` alongside the environment's
+configuration. Each named environment keeps its own login, even when two names
+use the same API root. Without ``ENVIRONMENT``, sessions are stored in
+``~/.config/cwms-cli/login.json``, one directory above ``envs/``.
+
+Both kinds of file keep sessions indexed by API root, so an explicit API-root
+override cannot overwrite or reuse another root's tokens. Trailing slashes are
+ignored. Named environments do not fall back to the default login file. Both
+identity providers use the same session slot for a given environment and root.
+``XDG_CONFIG_HOME`` overrides the config directory on all platforms.
 
 Switch with ``env activate`` or ``env export``. Returning to an environment
 reuses its saved token, refreshing it when expired. ``env show`` reports local
-login/token state without network calls; ``env check`` (also ``env show --check``)
+login/token state, remaining access and refresh lifetimes, refresh expiry, and
+token-file locations without network calls. It also lists default logins.
+``env check`` (also ``env show --check``)
 checks connectivity and calls the protected ``/roles`` endpoint using the saved
 token, or the environment's API key when no usable token is available.
 Token values are never included in these status displays or environment exports.
+Updating an environment with ``env setup`` preserves its saved sessions;
+deleting its environment file also deletes its sessions.
 
 Older provider-only login files do not identify their CDA API root and are not
 automatically reused. Run ``cwms-cli login`` once for each environment after
