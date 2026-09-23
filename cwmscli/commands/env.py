@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import subprocess
@@ -7,6 +8,15 @@ from typing import Dict, Optional
 
 import click
 
+from cwmscli.utils import get_saved_login_token
+from cwmscli.utils.auth import (
+    AuthError,
+    environment_token_file,
+    load_saved_login,
+    refresh_token_expiry_text,
+    saved_login_status,
+    token_time_remaining,
+)
 from cwmscli.utils.env_store import (
     ENV_DEFAULTS,
     EnvStoreError,
@@ -21,6 +31,22 @@ from cwmscli.utils.interaction import is_non_interactive
 from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
 
 SENSITIVE_KEYS = {"CDA_API_KEY"}
+
+
+def _show_login_details(api_root, token_file):
+    login_state, token_state = saved_login_status(api_root, token_file)
+    click.echo(f"    Login:    {login_state}")
+    click.echo(f"    Token:    {token_state}")
+    click.echo(f"    Token file: {token_file.resolve()}")
+    try:
+        token = load_saved_login(token_file, api_root=api_root)["token"]
+    except (AuthError, OSError):
+        token = {}
+    click.echo(f"    Access lifetime: {token_time_remaining(token)}")
+    click.echo(f"    Refresh session: {token_time_remaining(token, refresh=True)}")
+    expiry = refresh_token_expiry_text(token)
+    if token.get("refresh_token") and expiry:
+        click.echo(f"    Refresh expires: {expiry}")
 
 
 def _stdout_is_tty() -> bool:
@@ -66,8 +92,14 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
             "error": f"HTTP {resp.status_code}",
         }
 
+    token = get_saved_login_token(
+        api_root=api_root,
+        token_file=environment_token_file(api_root, env_config.get("ENVIRONMENT", "")),
+    )
     api_key = env_config.get("CDA_API_KEY")
-    if not api_key:
+    authorization = f"Bearer {token}" if token else api_key
+    credential = "login token" if token else "API key"
+    if not authorization:
         return {
             "reachable": True,
             "latency_ms": latency_ms,
@@ -76,7 +108,12 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
         }
 
     try:
-        auth_resp = requests.get(url, headers={"Authorization": api_key}, timeout=5)
+        auth_resp = requests.get(
+            f"{api_root}/roles",
+            headers={"Authorization": authorization},
+            timeout=5,
+            allow_redirects=False,
+        )
     except requests.RequestException as e:
         if is_cert_verify_error(e):
             error = ssl_help_text().strip()
@@ -96,8 +133,12 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
             "latency_ms": latency_ms,
             "auth": "failed",
             "error": (
-                "CDA rejected the API key (HTTP 401). Update CDA_API_KEY in this "
-                "environment, then retry."
+                f"CDA rejected the {credential} (HTTP 401). "
+                + (
+                    "Run cwms-cli login for this environment, then retry."
+                    if token
+                    else "Update CDA_API_KEY in this environment, then retry."
+                )
             ),
         }
 
@@ -112,10 +153,17 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
             ),
         }
 
+    if not 200 <= auth_resp.status_code < 300:
+        return {
+            "reachable": True,
+            "latency_ms": latency_ms,
+            "auth": "failed",
+            "error": f"Authentication check returned HTTP {auth_resp.status_code}",
+        }
     return {"reachable": True, "latency_ms": latency_ms, "auth": "ok", "error": None}
 
 
-@click.group("env", help="Manage CDA environments and API keys")
+@click.group("env", help="Manage CDA environments, login sessions, and API keys")
 def env_group():
     """Environment management commands for cwms-cli."""
     pass
@@ -190,7 +238,7 @@ def show_cmd(check: bool):
     Display current environment and list all configured environments.
 
     Lists all environments with API root, office, and key status.
-    Use --check to test connectivity and API key validity (requires network).
+    Use --check to test connectivity and saved credentials (requires network).
     """
     current_env = os.environ.get("ENVIRONMENT")
 
@@ -211,6 +259,8 @@ def show_cmd(check: bool):
     for env_name in names:
         env_config = load_env(env_name)
         if not env_config:
+            click.echo(f"  {env_name} (unreadable environment file)")
+            _show_login_details("", environment_token_file("", env_name))
             continue
         marker = "* " if env_name == current_env else "  "
         builtin = " (built-in)" if not env_exists_on_disk(env_name) else ""
@@ -224,7 +274,7 @@ def show_cmd(check: bool):
         click.echo(f"    Status:   {has_key}")
 
         if check:
-            result = _check_env(env_config)
+            result = _check_env({**env_config, "ENVIRONMENT": env_name})
             if result["reachable"]:
                 latency = f" ({result['latency_ms']}ms)"
                 reach_str = click.style("reachable", fg="green") + latency
@@ -232,7 +282,7 @@ def show_cmd(check: bool):
                 err = f" — {result['error']}" if result["error"] else ""
                 reach_str = click.style("unreachable", fg="red") + err
 
-            auth_str = ""
+            auth_str = "not checked"
             if result["auth"] == "ok":
                 auth_str = click.style("authenticated", fg="green")
             elif result["auth"] == "failed":
@@ -243,6 +293,32 @@ def show_cmd(check: bool):
             click.echo(f"    Connect:  {reach_str}")
             if auth_str:
                 click.echo(f"    Auth:     {auth_str}")
+
+        token_file = environment_token_file(api_root, env_name)
+        _show_login_details(api_root, token_file)
+
+    default_file = environment_token_file("", "")
+    if default_file.exists():
+        click.echo("\nDefault logins (no named environment):")
+        try:
+            document = json.loads(default_file.read_text(encoding="utf-8"))
+            roots = document.get("_logins", {})
+            if not isinstance(roots, dict):
+                raise ValueError("Invalid sessions")
+        except (OSError, ValueError, AttributeError):
+            roots = {"": None}
+        for root in sorted(roots):
+            click.echo(f"    API Root: {root or 'unknown'}")
+            _show_login_details(root, default_file)
+
+
+@env_group.command(
+    "check",
+    help="Show login state and check connectivity and authentication for each environment",
+)
+@click.pass_context
+def check_cmd(ctx):
+    ctx.invoke(show_cmd, check=True)
 
 
 @env_group.command("delete", help="Delete an environment configuration")

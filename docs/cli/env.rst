@@ -2,7 +2,7 @@ Environment Manager
 ===================
 
 Manage named CDA environments with ``cwms-cli env``. Each environment stores
-a CDA API root URL, office code, and optional API key in a JSON file under
+a CDA API root URL, office code, optional API key, and saved login sessions in a JSON file under
 ``~/.config/cwms-cli/envs/`` (or ``$XDG_CONFIG_HOME/cwms-cli/envs/`` when that
 variable is set), on all platforms. Files are created with mode ``0600``
 (owner-only read/write) so only your user account can read them.
@@ -38,6 +38,40 @@ to attach an office (and optionally an API key):
 
 Quick Start
 -----------
+
+Saved logins
+~~~~~~~~~~~~
+
+Each named environment has a separate saved login. For example, in
+PowerShell, switch environments and log in once to each:
+
+.. code-block:: powershell
+
+   cwms-cli env export dev --format powershell | Out-String | Invoke-Expression
+   cwms-cli login
+   cwms-cli env export prod --format powershell | Out-String | Invoke-Expression
+   cwms-cli login
+   cwms-cli env export dev --format powershell | Out-String | Invoke-Expression
+   cwms-cli env check
+
+The last switch reuses the development session. Login tokens are stored inside
+``~/.config/cwms-cli/envs/<name>.json`` with that environment's settings, in
+private ``_logins`` metadata that is never exported into the shell. Different
+names keep separate sessions even when they use the same URL. Sessions within
+each file are indexed by API root, so changing a root selects a different session.
+
+When no named environment is active (``ENVIRONMENT`` is unset), logins are
+stored in ``~/.config/cwms-cli/login.json``, directly above ``envs/``. Named
+environments do not fall back to these default logins. ``env setup`` preserves
+saved sessions while changing settings; ``env delete`` removes the environment
+and its sessions together.
+
+``env show`` displays local login state, token availability, access and refresh
+time remaining, refresh expiry, and the file location for each environment.
+It also lists default logins. Expired, missing, and unreadable sessions are
+labeled explicitly. A saved token is not proof that the
+server will accept it. ``env check`` or ``env show --check`` additionally checks
+reachability and authentication, refreshing expired tokens when possible.
 
 **1. Create environments:**
 
