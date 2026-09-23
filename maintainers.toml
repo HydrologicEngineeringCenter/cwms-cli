@@ -24,6 +24,7 @@ default = ["charles", "eric"]
 "cwms-cli usgs" = ["eric"]
 "cwms-cli shef" = ["eric"]
 "cwms-cli env" = ["mitch", "charles"]
+"cwms-cli env check" = ["mitch", "charles"]
 
 [docs.pages]
 "cli" = "cwms-cli"

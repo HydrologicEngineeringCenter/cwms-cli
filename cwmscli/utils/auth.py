@@ -2,6 +2,7 @@ import datetime as dt
 import hashlib
 import http.server
 import json
+import math
 import os
 import re
 import secrets
@@ -57,6 +58,7 @@ class OIDCLoginConfig:
     provider: str = "federation-eams"
     timeout_seconds: int = DEFAULT_TIMEOUT_SECONDS
     verify: Optional[str] = None
+    api_root: Optional[str] = None
 
     @property
     def redirect_uri(self) -> str:
@@ -120,6 +122,44 @@ def _oidc_cache_file() -> Path:
 
 def _normalize_api_root(api_root: str) -> str:
     return api_root.rstrip("/")
+
+
+def environment_token_file(api_root: str) -> Path:
+    """One login per CDA endpoint, shared by environment aliases for that endpoint."""
+    key = hashlib.sha256(_normalize_api_root(api_root).encode("utf-8")).hexdigest()
+    return config_dir("auth", "environments", key, "login.json")
+
+
+def saved_login_status(api_root: str) -> tuple[str, str]:
+    """Describe local state without exposing credentials or making network requests."""
+    path = environment_token_file(api_root)
+    if not path.exists():
+        return "not logged in", "not available"
+    try:
+        saved = load_saved_login(path)
+        if saved.get("api_root") and _normalize_api_root(
+            saved["api_root"]
+        ) != _normalize_api_root(api_root):
+            return "wrong API root (login required)", "not available"
+        token = saved["token"]
+        if not token.get("access_token"):
+            return "not logged in", "not available"
+        expires_at = token.get("expires_at")
+        if expires_at is None:
+            return "saved (expiry unknown; not verified)", "available (expiry unknown)"
+        expiry = float(expires_at)
+        if not math.isfinite(expiry):
+            raise ValueError("Invalid expiry")
+        if expiry > time.time():
+            return "saved (not verified)", "available"
+        refresh_expiry = token.get("refresh_expires_at")
+        if token.get("refresh_token") and (
+            refresh_expiry is None or float(refresh_expiry) > time.time()
+        ):
+            return "expired (refresh available)", "expired"
+        return "expired (login required)", "expired"
+    except (AuthError, OSError, KeyError, TypeError, ValueError):
+        return "unreadable (login required)", "not available"
 
 
 def _swagger_docs_url(api_root: str) -> str:
@@ -426,7 +466,19 @@ def refresh_token_expiry_text(token: Dict[str, Any]) -> Optional[str]:
 def load_saved_login(token_file: Path) -> Dict[str, Any]:
     try:
         with token_file.open("r", encoding="utf-8") as f:
-            return json.load(f)
+            payload = json.load(f)
+        if not isinstance(payload, dict) or not isinstance(payload.get("token"), dict):
+            raise AuthError(f"Saved login file has an invalid structure: {token_file}")
+        if payload.get("api_root") is not None and not isinstance(
+            payload["api_root"], str
+        ):
+            raise AuthError(f"Saved login file has an invalid API root: {token_file}")
+        for field in ("access_token", "refresh_token"):
+            if payload["token"].get(field) is not None and not isinstance(
+                payload["token"][field], str
+            ):
+                raise AuthError(f"Saved login file has an invalid token: {token_file}")
+        return payload
     except FileNotFoundError as e:
         raise AuthError(f"No saved login found at {token_file}") from e
     except json.JSONDecodeError as e:
@@ -438,6 +490,7 @@ def save_login(
 ) -> None:
     token_file.parent.mkdir(parents=True, exist_ok=True)
     payload = {
+        "api_root": config.api_root,
         "saved_at": dt.datetime.now(tz=dt.timezone.utc).isoformat(),
         "client_id": config.client_id,
         "oidc_base_url": config.oidc_base_url,
@@ -448,10 +501,14 @@ def save_login(
         "redirect_uri": config.redirect_uri,
         "token": token,
     }
-    with token_file.open("w", encoding="utf-8") as f:
+    fd = os.open(token_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2, sort_keys=True)
         f.write("\n")
     os.chmod(token_file, 0o600)
+    from cwmscli.utils.env_store import _restrict_windows_acl
+
+    _restrict_windows_acl(token_file)
 
 
 def _verify_setting(verify: Optional[str]) -> Any:
@@ -536,12 +593,17 @@ def _request_token(
 ) -> Dict[str, Any]:
     import requests
 
-    response = requests.post(
-        url,
-        data=data,
-        verify=_verify_setting(verify),
-        timeout=30,
-    )
+    try:
+        response = requests.post(
+            url,
+            data=data,
+            verify=_verify_setting(verify),
+            timeout=30,
+        )
+    except requests.RequestException as e:
+        raise AuthError(
+            "Could not reach the token endpoint. Check connectivity and retry login."
+        ) from e
     try:
         payload = response.json()
     except ValueError as e:
@@ -663,7 +725,7 @@ def refresh_saved_login(
         raise AuthError(f"No refresh token is stored in {token_file}")
 
     refreshed = _request_token(
-        f"{saved['oidc_base_url']}/token",
+        saved.get("token_endpoint") or f"{saved['oidc_base_url']}/token",
         data={
             "grant_type": "refresh_token",
             "client_id": saved["client_id"],
@@ -674,8 +736,11 @@ def refresh_saved_login(
     )
     if "refresh_token" not in refreshed:
         refreshed["refresh_token"] = refresh_token
+        if "refresh_expires_at" not in refreshed and "refresh_expires_at" in token:
+            refreshed["refresh_expires_at"] = token["refresh_expires_at"]
     return {
         "config": OIDCLoginConfig(
+            api_root=saved.get("api_root"),
             client_id=saved["client_id"],
             oidc_base_url=saved["oidc_base_url"],
             authorization_endpoint_url=saved.get("authorization_endpoint"),

@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
@@ -15,6 +16,123 @@ from cwmscli.utils.auth import (
 )
 
 
+@pytest.fixture
+def environment_logins(monkeypatch, tmp_path):
+    from cwmscli.utils import auth
+
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.delenv("CDA_API_ROOT", raising=False)
+    monkeypatch.setattr(
+        auth,
+        "discover_oidc_configuration",
+        lambda **kwargs: {
+            "oidc_base_url": DEFAULT_OIDC_BASE_URL,
+            "authorization_endpoint": DEFAULT_OIDC_BASE_URL + "/auth",
+            "token_endpoint": DEFAULT_OIDC_BASE_URL + "/token",
+        },
+    )
+    monkeypatch.setattr(
+        auth,
+        "login_with_browser",
+        lambda config, **kwargs: {
+            "browser_opened": True,
+            "config": config,
+            "token": {
+                "access_token": config.api_root + "-secret",
+                "expires_at": 4102444800,
+            },
+        },
+    )
+    return CliRunner()
+
+
+def test_login_preserves_sessions_when_switching_environments(
+    environment_logins, monkeypatch
+):
+    from cwmscli.utils import init_cwms_session
+    from cwmscli.utils.auth import environment_token_file, load_saved_login
+
+    runner = environment_logins
+    roots = ["https://dev.example/cwms-data", "https://prod.example/cwms-data"]
+    for root in roots:
+        monkeypatch.setenv("CDA_API_ROOT", root)
+        result = runner.invoke(cli, ["login", "--provider", "login.gov"])
+        assert result.exit_code == 0, result.output
+        assert root + "-secret" not in result.output
+        saved = load_saved_login(environment_token_file(root))
+        assert saved["api_root"] == root
+        assert saved["provider"] == "login.gov"
+
+    calls = []
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(**kwargs):
+            calls.append(kwargs)
+
+    for root in [roots[0], roots[1], roots[0]]:
+        init_cwms_session(FakeCwms, api_root=root + "/")
+        assert calls[-1]["token"] == root + "-secret"
+    init_cwms_session(FakeCwms, api_root="https://other.example/cwms-data")
+    assert calls[-1]["api_key"] is None
+    assert "token" not in calls[-1]
+
+
+def test_login_refresh_only_changes_selected_environment(
+    environment_logins, monkeypatch
+):
+    from cwmscli.utils import auth
+
+    roots = ["https://dev.example/cwms-data", "https://prod.example/cwms-data"]
+    for root in roots:
+        auth.save_login(
+            auth.environment_token_file(root),
+            auth.OIDCLoginConfig(api_root=root),
+            {"access_token": root, "refresh_token": root + "-refresh", "expires_at": 1},
+        )
+    other_before = auth.environment_token_file(roots[1]).read_bytes()
+    monkeypatch.setattr(
+        auth,
+        "_request_token",
+        lambda *args, **kwargs: {"access_token": "new-token", "expires_at": 4102444800},
+    )
+    result = environment_logins.invoke(
+        cli, ["login", "--refresh", "--api-root", roots[0]]
+    )
+    assert result.exit_code == 0, result.output
+    assert (
+        auth.load_saved_login(auth.environment_token_file(roots[0]))["token"][
+            "access_token"
+        ]
+        == "new-token"
+    )
+    assert auth.environment_token_file(roots[1]).read_bytes() == other_before
+
+
+def test_explicit_token_file_cannot_refresh_other_environment(environment_logins):
+    from cwmscli.utils import auth
+
+    path = auth.environment_token_file("https://first.example")
+    auth.save_login(
+        path,
+        auth.OIDCLoginConfig(api_root="https://first.example"),
+        {"refresh_token": "secret"},
+    )
+    result = environment_logins.invoke(
+        cli,
+        [
+            "login",
+            "--refresh",
+            "--api-root",
+            "https://second.example",
+            "--token-file",
+            str(path),
+        ],
+    )
+    assert result.exit_code == 1
+    assert "different CDA API root" in result.output
+
+
 def test_login_defaults_can_start_and_prompt(monkeypatch):
     runner = CliRunner()
     saved = {}
@@ -27,8 +145,8 @@ def test_login_defaults_can_start_and_prompt(monkeypatch):
     def fake_version(_package):
         return "999.0.0"
 
-    def fake_default_token_file(provider):
-        return Path(f"/tmp/{provider}.json")
+    def fake_environment_token_file(api_root):
+        return Path("/tmp/environment-login.json")
 
     def fake_login_with_browser(
         config, launch_browser=True, authorization_url_callback=None
@@ -56,7 +174,7 @@ def test_login_defaults_can_start_and_prompt(monkeypatch):
     )
     monkeypatch.setattr("cwmscli.utils.deps.importlib.metadata.version", fake_version)
     monkeypatch.setattr(
-        "cwmscli.utils.auth.default_token_file", fake_default_token_file
+        "cwmscli.utils.auth.environment_token_file", fake_environment_token_file
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.discover_oidc_configuration",
@@ -85,7 +203,7 @@ def test_login_defaults_can_start_and_prompt(monkeypatch):
         "Your refresh session is good until October 22, 2040 at 8:18 PM CDT."
         in result.output
     )
-    assert "Saved login session to /tmp/federation-eams.json" not in result.output
+    assert "Saved login session to /tmp/environment-login.json" not in result.output
     assert "Refresh token is available for future reuse." not in result.output
 
     config = saved["config"]
@@ -99,7 +217,7 @@ def test_login_defaults_can_start_and_prompt(monkeypatch):
     assert config.timeout_seconds == DEFAULT_TIMEOUT_SECONDS
     assert saved["launch_browser"] is True
     assert saved["authorization_url_callback"] is None
-    assert saved["token_file"] == Path("/tmp/federation-eams.json")
+    assert saved["token_file"] == Path("/tmp/environment-login.json")
 
 
 def test_login_debug_output_includes_saved_session_details(monkeypatch):
@@ -113,8 +231,8 @@ def test_login_debug_output_includes_saved_session_details(monkeypatch):
     def fake_version(_package):
         return "999.0.0"
 
-    def fake_default_token_file(provider):
-        return Path(f"/tmp/{provider}.json")
+    def fake_environment_token_file(api_root):
+        return Path("/tmp/environment-login.json")
 
     def fake_login_with_browser(
         config, launch_browser=True, authorization_url_callback=None
@@ -138,7 +256,7 @@ def test_login_debug_output_includes_saved_session_details(monkeypatch):
     )
     monkeypatch.setattr("cwmscli.utils.deps.importlib.metadata.version", fake_version)
     monkeypatch.setattr(
-        "cwmscli.utils.auth.default_token_file", fake_default_token_file
+        "cwmscli.utils.auth.environment_token_file", fake_environment_token_file
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.discover_oidc_configuration",
@@ -166,7 +284,7 @@ def test_login_debug_output_includes_saved_session_details(monkeypatch):
         in result.output
     )
     assert "Saved login session to" in result.output
-    assert "federation-eams.json" in result.output
+    assert "environment-login.json" in result.output
     assert "Access token expires at 2009-02-13T23:31:30+00:00" in result.output
     assert "A refresh token is available for future reuse." in result.output
 
@@ -183,8 +301,8 @@ def test_login_saves_selected_fallback_callback_port(monkeypatch):
     def fake_version(_package):
         return "999.0.0"
 
-    def fake_default_token_file(provider):
-        return Path(f"/tmp/{provider}.json")
+    def fake_environment_token_file(api_root):
+        return Path("/tmp/environment-login.json")
 
     def fake_login_with_browser(
         config, launch_browser=True, authorization_url_callback=None
@@ -219,7 +337,7 @@ def test_login_saves_selected_fallback_callback_port(monkeypatch):
     )
     monkeypatch.setattr("cwmscli.utils.deps.importlib.metadata.version", fake_version)
     monkeypatch.setattr(
-        "cwmscli.utils.auth.default_token_file", fake_default_token_file
+        "cwmscli.utils.auth.environment_token_file", fake_environment_token_file
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.discover_oidc_configuration",
@@ -297,8 +415,8 @@ def test_login_discovers_oidc_config_from_api_root(monkeypatch):
     def fake_version(_package):
         return "999.0.0"
 
-    def fake_default_token_file(provider):
-        return Path(f"/tmp/{provider}.json")
+    def fake_environment_token_file(api_root):
+        return Path("/tmp/environment-login.json")
 
     def fake_discover_oidc_configuration(api_root, verify=None):
         saved["api_root"] = api_root
@@ -327,7 +445,7 @@ def test_login_discovers_oidc_config_from_api_root(monkeypatch):
     )
     monkeypatch.setattr("cwmscli.utils.deps.importlib.metadata.version", fake_version)
     monkeypatch.setattr(
-        "cwmscli.utils.auth.default_token_file", fake_default_token_file
+        "cwmscli.utils.auth.environment_token_file", fake_environment_token_file
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.discover_oidc_configuration",

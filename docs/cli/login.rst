@@ -4,7 +4,25 @@ Login command
 Use ``cwms-cli login`` to start the CWBI OIDC PKCE flow and save the resulting
 session for reuse. The command already has working defaults for the provider,
 client ID, scope, callback host, callback port, timeout, and the
-provider-specific token file path under ``~/.config/cwms-cli/auth/``.
+API-root-specific token file path under ``~/.config/cwms-cli/auth/environments/``.
+
+Login uses ``CDA_API_ROOT`` from the active environment unless ``--api-root``
+is supplied. Each CDA API root keeps its own access and refresh tokens, so
+logging into development does not replace your production session. Environment
+names pointing to the same API root share a session; trailing slashes are ignored.
+Both identity providers use the same session slot for that API root.
+
+Switch with ``env activate`` or ``env export``. Returning to an environment
+reuses its saved token, refreshing it when expired. ``env show`` reports local
+login/token state without network calls; ``env check`` (also ``env show --check``)
+checks connectivity and calls the protected ``/roles`` endpoint using the saved
+token, or the environment's API key when no usable token is available.
+Token values are never included in these status displays or environment exports.
+
+Older provider-only login files do not identify their CDA API root and are not
+automatically reused. Run ``cwms-cli login`` once for each environment after
+upgrading. Explicit ``--token-file`` paths remain supported for login and
+refresh, but are not automatically selected by other commands or ``env check``.
 
 By default, cwms-cli discovers the OIDC realm from the target CDA API's OpenAPI
 spec at ``<api-root>/swagger-docs`` and caches the discovered value locally.

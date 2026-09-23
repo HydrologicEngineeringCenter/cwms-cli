@@ -34,10 +34,12 @@ def _resolve_optional_api_key(api_key: Optional[str], anonymous: bool) -> Option
     return get_api_key(api_key, None)
 
 
-def _resolve_credential_kind(api_key: Optional[str], anonymous: bool) -> Optional[str]:
+def _resolve_credential_kind(
+    api_key: Optional[str], anonymous: bool, api_root: Optional[str] = None
+) -> Optional[str]:
     if anonymous:
         return None
-    if get_saved_login_token():
+    if get_saved_login_token(api_root=api_root):
         return "token"
     if _resolve_optional_api_key(api_key, anonymous):
         return "api_key"
@@ -211,7 +213,7 @@ def download_cmd(
             f"DRY RUN: would GET {api_root} clob with clob-id={clob_id} office={office}."
         )
         return
-    credential_kind = _resolve_credential_kind(api_key, anonymous)
+    credential_kind = _resolve_credential_kind(api_key, anonymous, api_root)
     init_cwms_session(cwms, api_root=api_root, api_key=api_key, anonymous=anonymous)
     bid = clob_id.upper()
     logging.debug(f"Office={office} clobID={bid}")
@@ -333,7 +335,7 @@ def list_cmd(
     api_key: str,
     anonymous: bool = False,
 ):
-    credential_kind = _resolve_credential_kind(api_key, anonymous)
+    credential_kind = _resolve_credential_kind(api_key, anonymous, api_root)
     init_cwms_session(cwms, api_root=api_root, api_key=api_key, anonymous=anonymous)
     try:
         df = list_clobs(
