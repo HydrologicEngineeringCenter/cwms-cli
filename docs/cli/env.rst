@@ -137,6 +137,55 @@ Create or update an environment configuration.
 letting you attach an office and API key. All other environment names
 require ``--api-root``.
 
+On-premises and COOP default environments
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Configure named environments for the primary on-premises server and the COOP
+server with their respective CDA API roots, API keys, and offices:
+
+.. code-block:: bash
+
+   cwms-cli env setup onprem \
+     --api-root https://example.usace.army.mil/XXX-data/ \
+     --api-key YOUR_KEY \
+     --office XXX
+
+   cwms-cli env setup coop \
+     --api-root https://example.coop.usace.army.mil/XXX-data/ \
+     --api-key YOUR_KEY \
+     --office XXX
+
+On the primary on-premises server, place the following at the **bottom of
+your** ``~/.bashrc`` **file** to load ``onprem`` by default:
+
+.. code-block:: bash
+
+   # Load on-premises defaults unless `cwms-cli env activate` supplied another environment.
+   if [ -z "${ENVIRONMENT:-}" ]; then
+       eval "$(cwms-cli --quiet env export onprem --format bash)"
+   fi
+
+On the COOP server, use the same guarded block at the **bottom of
+``~/.bashrc``**, but load ``coop`` by default:
+
+.. code-block:: bash
+
+   # Load COOP defaults unless `cwms-cli env activate` supplied another environment.
+   if [ -z "${ENVIRONMENT:-}" ]; then
+       eval "$(cwms-cli --quiet env export coop --format bash)"
+   fi
+
+Each block loads ``CDA_API_ROOT``, ``CDA_API_KEY``, ``OFFICE``, and
+``ENVIRONMENT`` from its corresponding environment. Before adding the block,
+remove any existing lines in ``~/.bashrc`` that
+assign or export ``CDA_API_ROOT``, ``CDA_API_KEY``, ``OFFICE``, or
+``ENVIRONMENT``. Those assignments would override values inherited from
+``cwms-cli env activate <name>``. Keep the new block at the bottom of the file
+and after any setup that adds ``cwms-cli`` to ``PATH``. The ``ENVIRONMENT``
+guard preserves any environment selected with ``env activate``. The
+``--quiet`` option suppresses routine log messages during shell startup while
+still displaying warnings and errors.
+
 
 cwms-cli env show
 ~~~~~~~~~~~~~~~~~
@@ -257,15 +306,6 @@ or press ``Ctrl+D`` to return to your original shell.
 
    This changes the current shell rather than creating a child shell. The
    values remain set until they are changed, unset, or the current shell exits.
-
-If startup files provide defaults that should not replace an activated
-environment, make those assignments conditional:
-
-.. code-block:: bash
-
-   [ -z "${CDA_API_ROOT:-}" ] && \
-      export CDA_API_ROOT="https://default.example/cwms-data"
-   [ -z "${OFFICE:-}" ] && export OFFICE="SWT"
 
 .. note::
 
