@@ -36,7 +36,9 @@ def test_automatic_refresh_preserves_other_environment(monkeypatch, tmp_path):
                 "refresh_expires_at": 4102444800,
             },
         )
-    other_before = auth.environment_token_file(roots[1]).read_bytes()
+    other_before = auth.load_saved_login(
+        auth.environment_token_file(roots[1]), api_root=roots[1]
+    )
     calls = []
 
     def request(url, data, verify=None):
@@ -47,8 +49,13 @@ def test_automatic_refresh_preserves_other_environment(monkeypatch, tmp_path):
     assert get_saved_login_token(api_root=roots[0]) == "refreshed"
     assert calls[0][0] == "https://identity.example/custom-token"
     assert calls[0][1]["refresh_token"] == roots[0] + "-refresh"
-    assert auth.environment_token_file(roots[1]).read_bytes() == other_before
-    saved = auth.load_saved_login(auth.environment_token_file(roots[0]))
+    assert (
+        auth.load_saved_login(auth.environment_token_file(roots[1]), api_root=roots[1])
+        == other_before
+    )
+    saved = auth.load_saved_login(
+        auth.environment_token_file(roots[0]), api_root=roots[0]
+    )
     assert saved["api_root"] == roots[0]
     assert saved["token"]["refresh_expires_at"] == 4102444800
 
@@ -94,7 +101,7 @@ def test_get_saved_login_token_returns_access_token(monkeypatch):
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.load_saved_login",
-        lambda path: {"token": {"access_token": "saved-token"}},
+        lambda path, **kwargs: {"token": {"access_token": "saved-token"}},
     )
 
     assert get_saved_login_token() == "saved-token"
@@ -153,7 +160,9 @@ def test_get_saved_login_token_ignores_expired_token(monkeypatch):
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.load_saved_login",
-        lambda path: {"token": {"access_token": "saved-token", "expires_at": 1}},
+        lambda path, **kwargs: {
+            "token": {"access_token": "saved-token", "expires_at": 1}
+        },
     )
 
     assert get_saved_login_token() is None
@@ -168,11 +177,13 @@ def test_get_saved_login_token_refreshes_expired_token(monkeypatch):
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.load_saved_login",
-        lambda path: {"token": {"access_token": "stale-token", "expires_at": 1}},
+        lambda path, **kwargs: {
+            "token": {"access_token": "stale-token", "expires_at": 1}
+        },
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.refresh_saved_login",
-        lambda token_file: {
+        lambda token_file, **kwargs: {
             "config": "config-object",
             "token": {"access_token": "fresh-token", "refresh_token": "refresh"},
         },
@@ -199,7 +210,9 @@ def test_get_saved_login_token_falls_back_when_refresh_fails(monkeypatch):
     )
     monkeypatch.setattr(
         "cwmscli.utils.auth.load_saved_login",
-        lambda path: {"token": {"access_token": "stale-token", "expires_at": 1}},
+        lambda path, **kwargs: {
+            "token": {"access_token": "stale-token", "expires_at": 1}
+        },
     )
 
     class FakeAuthError(Exception):
@@ -207,7 +220,7 @@ def test_get_saved_login_token_falls_back_when_refresh_fails(monkeypatch):
 
     monkeypatch.setattr("cwmscli.utils.auth.AuthError", FakeAuthError)
 
-    def fail_refresh(token_file):
+    def fail_refresh(token_file, **kwargs):
         raise FakeAuthError("invalid_grant")
 
     monkeypatch.setattr("cwmscli.utils.auth.refresh_saved_login", fail_refresh)

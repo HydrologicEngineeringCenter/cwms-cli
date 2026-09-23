@@ -135,6 +135,7 @@ def get_saved_login_token(
     from cwmscli.utils.auth import (
         DEFAULT_CDA_API_ROOT,
         AuthError,
+        NoSavedLoginError,
         environment_token_file,
         load_saved_login,
         refresh_saved_login,
@@ -146,7 +147,9 @@ def get_saved_login_token(
     )
     candidate = Path(token_file) if token_file else environment_token_file(api_root)
     try:
-        saved = load_saved_login(candidate)
+        saved = load_saved_login(candidate, api_root=api_root)
+    except NoSavedLoginError:
+        return None
     except (AuthError, OSError) as error:
         if candidate.exists():
             py_logging.warning("Ignoring saved login at %s: %s", candidate, error)
@@ -169,7 +172,9 @@ def get_saved_login_token(
             if float(expires_at) <= time.time():
                 py_logging.info("Refreshing expired saved login token at %s", candidate)
                 try:
-                    refreshed = refresh_saved_login(token_file=candidate)
+                    refreshed = refresh_saved_login(
+                        token_file=candidate, api_root=api_root
+                    )
                     save_login(
                         token_file=candidate,
                         config=refreshed["config"],
