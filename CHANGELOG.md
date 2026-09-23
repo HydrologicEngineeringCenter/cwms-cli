@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.1](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.9.0...v0.9.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* fix LRN rating ini import ([#272](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/272)) ([2c134e6](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/2c134e645add6ecdc06dcabec8b4f582e1671f78))
+
 ## [0.9.0](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.8.1...v0.9.0) (2026-09-21)
 
 
