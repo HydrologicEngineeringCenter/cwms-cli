@@ -133,6 +133,121 @@ def test_explicit_token_file_cannot_refresh_other_environment(environment_logins
     assert "different CDA API root" in result.output
 
 
+def test_login_status_is_offline_and_shows_remaining_time(
+    environment_logins, monkeypatch
+):
+    from cwmscli.utils import auth
+
+    root = "https://dev.example/cwms-data"
+    monkeypatch.setenv("CDA_API_ROOT", root)
+    monkeypatch.setattr(auth.time, "time", lambda: 1800000000)
+    path = auth.environment_token_file(root)
+    auth.save_login(
+        path,
+        auth.OIDCLoginConfig(api_root=root),
+        {
+            "access_token": "access-secret",
+            "refresh_token": "refresh-secret",
+            "expires_at": 1800000300,
+            "refresh_expires_at": 1800093723,
+        },
+    )
+    before = path.read_bytes()
+    for name in (
+        "login_with_browser",
+        "discover_oidc_configuration",
+        "refresh_saved_login",
+    ):
+        monkeypatch.setattr(
+            auth, name, lambda *a, **kw: pytest.fail("Status must be offline")
+        )
+    result = environment_logins.invoke(cli, ["login", "--status"])
+    assert result.exit_code == 0, result.output
+    assert "Login: saved (not verified)" in result.output
+    assert "Access lifetime: 5m remaining" in result.output
+    assert "Refresh session: 1d 2h 2m 3s remaining" in result.output
+    assert "Refresh expires:" in result.output
+    assert str(path.resolve()) in result.output
+    assert "secret" not in result.output
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize(
+    "token, expected",
+    [
+        ({"access_token": "secret"}, "not available"),
+        ({"refresh_token": "secret"}, "unknown (expiry not provided)"),
+        ({"refresh_token": "secret", "refresh_expires_at": 1}, "expired"),
+        (
+            {"refresh_token": "secret", "refresh_expires_at": "bad"},
+            "unknown (invalid expiry)",
+        ),
+        (
+            {"refresh_token": "secret", "refresh_expires_at": float("inf")},
+            "unknown (invalid expiry)",
+        ),
+    ],
+)
+def test_login_status_refresh_states(environment_logins, tmp_path, token, expected):
+    from cwmscli.utils import auth
+
+    path = tmp_path / "custom.json"
+    auth.save_login(path, auth.OIDCLoginConfig(), token)
+    result = environment_logins.invoke(
+        cli, ["login", "--status", "--token-file", str(path)]
+    )
+    assert result.exit_code == 0, result.output
+    assert "Refresh session: " + expected in result.output
+    assert "secret" not in result.output
+
+
+def test_login_status_missing_and_corrupt(environment_logins, tmp_path):
+    path = tmp_path / "missing.json"
+    args = ["login", "--status", "--token-file", str(path)]
+    result = environment_logins.invoke(cli, args)
+    assert result.exit_code == 0
+    assert "Login: not logged in" in result.output
+    assert "Refresh session: not available" in result.output
+    assert not path.exists()
+    path.write_text("invalid json")
+    result = environment_logins.invoke(cli, args)
+    assert result.exit_code == 0
+    assert "Login: unreadable" in result.output
+
+
+def test_login_token_location_selects_root_without_reading(
+    environment_logins, monkeypatch
+):
+    from cwmscli.utils import auth
+
+    monkeypatch.setenv("CDA_API_ROOT", "https://other.example")
+    monkeypatch.setattr(
+        auth, "load_saved_login", lambda *a: pytest.fail("Must not read tokens")
+    )
+    result = environment_logins.invoke(
+        cli, ["login", "--token-location", "--api-root", "https://dev.example/"]
+    )
+    assert result.exit_code == 0
+    assert (
+        str(auth.environment_token_file("https://dev.example").resolve())
+        in result.output
+    )
+
+
+@pytest.mark.parametrize(
+    "flags",
+    [
+        ["--status", "--refresh"],
+        ["--token-location", "--refresh"],
+        ["--status", "--token-location"],
+    ],
+)
+def test_login_inspection_options_are_exclusive(environment_logins, flags):
+    result = environment_logins.invoke(cli, ["login", *flags])
+    assert result.exit_code == 2
+    assert "Use only one" in result.output
+
+
 def test_login_defaults_can_start_and_prompt(monkeypatch):
     runner = CliRunner()
     saved = {}

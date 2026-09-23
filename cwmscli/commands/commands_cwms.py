@@ -93,6 +93,16 @@ from cwmscli.utils.version import get_cwms_cli_version
     help="Path to save the login session JSON. Defaults to a file for this CDA API root under ~/.config/cwms-cli/auth/environments/.",
 )
 @click.option(
+    "--status",
+    is_flag=True,
+    help="Show local login state, token lifetimes, and token-file location without refreshing.",
+)
+@click.option(
+    "--token-location",
+    is_flag=True,
+    help="Print the current token-file path without reading tokens or logging in.",
+)
+@click.option(
     "--refresh",
     "refresh_only",
     is_flag=True,
@@ -129,6 +139,8 @@ def login_cmd(
     redirect_port: int,
     token_file: Path,
     refresh_only: bool,
+    status: bool,
+    token_location: bool,
     no_browser: bool,
     timeout: int,
     ca_bundle: Path,
@@ -147,14 +159,44 @@ def login_cmd(
         refresh_saved_login,
         refresh_token_expiry_text,
         save_login,
+        saved_login_status,
         token_expiry_text,
+        token_time_remaining,
     )
     from cwmscli.utils.colors import c, err
 
     provider = provider.lower()
     verify = str(ca_bundle) if ca_bundle else None
     api_root = (api_root or DEFAULT_CDA_API_ROOT).rstrip("/")
-    token_file = token_file or environment_token_file(api_root)
+    token_file = (token_file or environment_token_file(api_root)).expanduser()
+    if sum((status, token_location, refresh_only)) > 1:
+        raise click.UsageError(
+            "Use only one of --status, --token-location, or --refresh."
+        )
+    if token_location:
+        click.echo(str(token_file.expanduser().resolve()))
+        return
+    if status:
+        click.echo(f"CDA API root: {api_root}")
+        login_state, token_state = saved_login_status(api_root, token_file)
+        click.echo(f"Login: {login_state}")
+        click.echo(f"Access token: {token_state}")
+        click.echo(f"Token file: {token_file.expanduser().resolve()}")
+        try:
+            saved = load_saved_login(token_file)
+        except (AuthError, OSError):
+            click.echo("Refresh session: not available")
+            return
+        if saved.get("api_root") and saved["api_root"].rstrip("/") != api_root:
+            click.echo("Refresh session: not available for this API root")
+            return
+        token = saved["token"]
+        click.echo(f"Access lifetime: {token_time_remaining(token)}")
+        click.echo(f"Refresh session: {token_time_remaining(token, refresh=True)}")
+        refresh_expiry = refresh_token_expiry_text(token)
+        if token.get("refresh_token") and refresh_expiry:
+            click.echo(f"Refresh expires: {refresh_expiry}")
+        return
     action = (
         "refreshed your saved sign-in for" if refresh_only else "authenticated against"
     )

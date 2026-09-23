@@ -36,6 +36,23 @@ authorization URL so the user can continue manually.
 Examples
 --------
 
+- Inspect the current environment's saved login without contacting the server:
+
+  ``cwms-cli login --status``
+
+  Shows local login state, access-token availability and remaining lifetime,
+  refresh-session time remaining and expiration, and the absolute token-file
+  location. Missing, expired, and unknown lifetimes are labeled explicitly.
+  This does not verify server acceptance or refresh the session.
+
+- Print just the current token-file location (even before logging in):
+
+  ``cwms-cli login --token-location``
+
+  Both inspection options honor ``CDA_API_ROOT``, ``--api-root``, and
+  ``--token-file``. They never print token values and cannot be combined with
+  ``--refresh`` or with each other.
+
 - Use the default login settings:
 
   ``cwms-cli login``
