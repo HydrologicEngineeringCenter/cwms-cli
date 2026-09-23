@@ -7,6 +7,8 @@ from typing import Dict, Optional
 
 import click
 
+from cwmscli.utils import get_saved_login_token
+from cwmscli.utils.auth import saved_login_status
 from cwmscli.utils.env_store import (
     ENV_DEFAULTS,
     EnvStoreError,
@@ -66,8 +68,11 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
             "error": f"HTTP {resp.status_code}",
         }
 
+    token = get_saved_login_token(api_root=api_root)
     api_key = env_config.get("CDA_API_KEY")
-    if not api_key:
+    authorization = f"Bearer {token}" if token else api_key
+    credential = "login token" if token else "API key"
+    if not authorization:
         return {
             "reachable": True,
             "latency_ms": latency_ms,
@@ -76,7 +81,12 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
         }
 
     try:
-        auth_resp = requests.get(url, headers={"Authorization": api_key}, timeout=5)
+        auth_resp = requests.get(
+            f"{api_root}/roles",
+            headers={"Authorization": authorization},
+            timeout=5,
+            allow_redirects=False,
+        )
     except requests.RequestException as e:
         if is_cert_verify_error(e):
             error = ssl_help_text().strip()
@@ -96,8 +106,12 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
             "latency_ms": latency_ms,
             "auth": "failed",
             "error": (
-                "CDA rejected the API key (HTTP 401). Update CDA_API_KEY in this "
-                "environment, then retry."
+                f"CDA rejected the {credential} (HTTP 401). "
+                + (
+                    "Run cwms-cli login for this environment, then retry."
+                    if token
+                    else "Update CDA_API_KEY in this environment, then retry."
+                )
             ),
         }
 
@@ -112,10 +126,17 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
             ),
         }
 
+    if not 200 <= auth_resp.status_code < 300:
+        return {
+            "reachable": True,
+            "latency_ms": latency_ms,
+            "auth": "failed",
+            "error": f"Authentication check returned HTTP {auth_resp.status_code}",
+        }
     return {"reachable": True, "latency_ms": latency_ms, "auth": "ok", "error": None}
 
 
-@click.group("env", help="Manage CDA environments and API keys")
+@click.group("env", help="Manage CDA environments, login sessions, and API keys")
 def env_group():
     """Environment management commands for cwms-cli."""
     pass
@@ -190,7 +211,7 @@ def show_cmd(check: bool):
     Display current environment and list all configured environments.
 
     Lists all environments with API root, office, and key status.
-    Use --check to test connectivity and API key validity (requires network).
+    Use --check to test connectivity and saved credentials (requires network).
     """
     current_env = os.environ.get("ENVIRONMENT")
 
@@ -232,7 +253,7 @@ def show_cmd(check: bool):
                 err = f" — {result['error']}" if result["error"] else ""
                 reach_str = click.style("unreachable", fg="red") + err
 
-            auth_str = ""
+            auth_str = "not checked"
             if result["auth"] == "ok":
                 auth_str = click.style("authenticated", fg="green")
             elif result["auth"] == "failed":
@@ -243,6 +264,21 @@ def show_cmd(check: bool):
             click.echo(f"    Connect:  {reach_str}")
             if auth_str:
                 click.echo(f"    Auth:     {auth_str}")
+
+        login_state, token_state = saved_login_status(
+            env_config.get("CDA_API_ROOT", "")
+        )
+        click.echo(f"    Login:    {login_state}")
+        click.echo(f"    Token:    {token_state}")
+
+
+@env_group.command(
+    "check",
+    help="Show login state and check connectivity and authentication for each environment",
+)
+@click.pass_context
+def check_cmd(ctx):
+    ctx.invoke(show_cmd, check=True)
 
 
 @env_group.command("delete", help="Delete an environment configuration")

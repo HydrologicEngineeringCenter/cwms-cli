@@ -37,6 +37,112 @@ def isolated_envs(monkeypatch, tmp_path):
     return tmp_path
 
 
+@pytest.mark.parametrize(
+    "token, login_state, token_state",
+    [
+        ({}, "not logged in", "not available"),
+        (
+            {"access_token": "secret", "expires_at": 4102444800},
+            "saved (not verified)",
+            "available",
+        ),
+        ({"access_token": "secret"}, "expiry unknown", "available (expiry unknown)"),
+        (
+            {"access_token": "secret", "expires_at": 1},
+            "expired (login required)",
+            "expired",
+        ),
+        (
+            {
+                "access_token": "secret",
+                "expires_at": 1,
+                "refresh_token": "refresh-secret",
+            },
+            "expired (refresh available)",
+            "expired",
+        ),
+        (
+            {"access_token": "secret", "expires_at": "bad"},
+            "unreadable",
+            "not available",
+        ),
+    ],
+)
+def test_show_login_states_without_network(
+    isolated_envs, monkeypatch, token, login_state, token_state
+):
+    import requests
+
+    from cwmscli.utils.auth import OIDCLoginConfig, environment_token_file, save_login
+
+    root = "https://demo.example/cwms-data"
+    save_env("demo", {"CDA_API_ROOT": root})
+    save_login(environment_token_file(root), OIDCLoginConfig(api_root=root), token)
+    monkeypatch.setattr(
+        requests, "get", lambda *a, **kw: pytest.fail("env show must be offline")
+    )
+    result = CliRunner().invoke(env_group, ["show"])
+    assert result.exit_code == 0, result.output
+    assert login_state in result.output
+    assert "Token:    " + token_state in result.output
+    assert "secret" not in result.output
+
+
+@pytest.mark.parametrize("contents", ["not json", "[]", '{"token": null}'])
+def test_show_corrupt_login(isolated_envs, contents):
+    from cwmscli.utils.auth import environment_token_file
+
+    root = "https://demo.example"
+    save_env("demo", {"CDA_API_ROOT": root})
+    path = environment_token_file(root)
+    path.parent.mkdir(parents=True)
+    path.write_text(contents)
+    result = CliRunner().invoke(env_group, ["show"])
+    assert result.exit_code == 0
+    assert "unreadable (login required)" in result.output
+
+
+@pytest.mark.parametrize(
+    "status, expected",
+    [(200, "ok"), (401, "failed"), (403, "failed"), (500, "failed"), (302, "failed")],
+)
+def test_check_uses_environment_token_on_protected_endpoint(
+    isolated_envs, monkeypatch, status, expected
+):
+    from types import SimpleNamespace
+
+    import requests
+
+    from cwmscli.utils.auth import OIDCLoginConfig, environment_token_file, save_login
+
+    root = "https://demo.example/cwms-data"
+    save_login(
+        environment_token_file(root),
+        OIDCLoginConfig(api_root=root),
+        {"access_token": "demo-secret", "expires_at": 4102444800},
+    )
+    calls = []
+
+    def get(url, **kwargs):
+        calls.append((url, kwargs))
+        return SimpleNamespace(status_code=200 if len(calls) == 1 else status)
+
+    monkeypatch.setattr(requests, "get", get)
+    result = _check_env({"CDA_API_ROOT": root, "CDA_API_KEY": "fallback"})
+    assert result["auth"] == expected
+    assert calls[1][0] == root + "/roles"
+    assert calls[1][1]["headers"] == {"Authorization": "Bearer demo-secret"}
+
+
+def test_env_check_alias(isolated_envs, monkeypatch):
+    monkeypatch.setattr("cwmscli.commands.env._check_env", _fake_check({}))
+    runner = CliRunner()
+    assert (
+        runner.invoke(env_group, ["check"]).output
+        == runner.invoke(env_group, ["show", "--check"]).output
+    )
+
+
 # ---------- env_store ----------
 
 

@@ -2,6 +2,7 @@ import logging
 import os
 import subprocess
 import textwrap
+from dataclasses import replace
 from pathlib import Path
 from typing import Optional
 
@@ -89,7 +90,7 @@ from cwmscli.utils.version import get_cwms_cli_version
     "--token-file",
     type=click.Path(dir_okay=False, path_type=Path),
     default=None,
-    help="Path to save the login session JSON. Defaults to a provider-specific file under ~/.config/cwms-cli/auth/.",
+    help="Path to save the login session JSON. Defaults to a file for this CDA API root under ~/.config/cwms-cli/auth/environments/.",
 )
 @click.option(
     "--refresh",
@@ -138,9 +139,10 @@ def login_cmd(
         CallbackBindError,
         LoginTimeoutError,
         OIDCLoginConfig,
-        default_token_file,
         discover_oidc_base_url,
         discover_oidc_configuration,
+        environment_token_file,
+        load_saved_login,
         login_with_browser,
         refresh_saved_login,
         refresh_token_expiry_text,
@@ -150,15 +152,20 @@ def login_cmd(
     from cwmscli.utils.colors import c, err
 
     provider = provider.lower()
-    token_file = token_file or default_token_file(provider)
     verify = str(ca_bundle) if ca_bundle else None
     api_root = (api_root or DEFAULT_CDA_API_ROOT).rstrip("/")
+    token_file = token_file or environment_token_file(api_root)
     action = (
         "refreshed your saved sign-in for" if refresh_only else "authenticated against"
     )
 
     try:
         if refresh_only:
+            saved = load_saved_login(token_file)
+            if saved.get("api_root") and saved["api_root"].rstrip("/") != api_root:
+                raise AuthError(
+                    "Saved login belongs to a different CDA API root. Run login for this environment."
+                )
             result = refresh_saved_login(token_file=token_file, verify=verify)
             config = result["config"]
             token = result["token"]
@@ -176,6 +183,7 @@ def login_cmd(
                 )
             )
             config = OIDCLoginConfig(
+                api_root=api_root,
                 client_id=client_id,
                 oidc_base_url=discovered_oidc["oidc_base_url"].rstrip("/"),
                 authorization_endpoint_url=discovered_oidc["authorization_endpoint"],
@@ -206,6 +214,7 @@ def login_cmd(
                 click.echo(result["authorization_url"])
             token = result["token"]
 
+        config = replace(config, api_root=api_root)
         save_login(token_file=token_file, config=config, token=token)
     except LoginTimeoutError as e:
         click.echo(err(f"ALERT: {e}"), err=True)
@@ -219,6 +228,7 @@ def login_cmd(
         raise click.ClickException(f"Login setup failed: {e}") from e
 
     click.echo(f"You have successfully {action} CWBI.")
+    click.echo(f"CDA API root: {api_root}")
     refresh_expiry = refresh_token_expiry_text(token)
     if refresh_expiry:
         click.echo(

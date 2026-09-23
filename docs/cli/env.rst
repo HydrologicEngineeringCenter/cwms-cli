@@ -39,6 +39,31 @@ to attach an office (and optionally an API key):
 Quick Start
 -----------
 
+Saved logins
+~~~~~~~~~~~~
+
+Each environment's CDA API root has a separate saved login. For example, in
+PowerShell, switch environments and log in once to each:
+
+.. code-block:: powershell
+
+   cwms-cli env export dev --format powershell | Out-String | Invoke-Expression
+   cwms-cli login
+   cwms-cli env export prod --format powershell | Out-String | Invoke-Expression
+   cwms-cli login
+   cwms-cli env export dev --format powershell | Out-String | Invoke-Expression
+   cwms-cli env check
+
+The last switch reuses the development session. Login tokens stay in private
+files under ``~/.config/cwms-cli/auth/environments/`` and are not exported into
+the shell. Names with the same API root share a session. Changing an
+environment's API root selects a different session.
+
+``env show`` displays local login state and token availability, including
+expired, missing, and unreadable sessions. A saved token is not proof that the
+server will accept it. ``env check`` or ``env show --check`` additionally checks
+reachability and authentication, refreshing expired tokens when possible.
+
 **1. Create environments:**
 
 .. code-block:: bash
