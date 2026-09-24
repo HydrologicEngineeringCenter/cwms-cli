@@ -425,6 +425,8 @@ def _startup_warning_lines(env_name: str, shell_kind: str) -> str:
                 f"Warning: {startup_config} may override CDA_API_ROOT, "
                 "CDA_API_KEY, OFFICE, or ENVIRONMENT."
             ),
+            "After the shell opens, verify the environment and CDA connection with:",
+            "  cwms-cli env show --check",
             f"If those values do not match '{env_name}' after startup, reapply with:",
             f"  {recipe}",
         ]
@@ -478,6 +480,11 @@ def activate_cmd(env_name: str):
 
     \b
         eval "$(cwms-cli env export <name> --format bash)"
+
+    Verify the activated values, connectivity, and authentication with:
+
+    \b
+        cwms-cli env show --check
 
     \b
     Examples:
@@ -555,7 +562,7 @@ def _format_env(env_vars: Dict[str, str], fmt: str) -> str:
     "-o",
     type=click.Path(dir_okay=False, writable=True, resolve_path=True),
     default=None,
-    help="Write to FILE (mode 0600) instead of standard output.",
+    help="Write to FILE instead of standard output (mode 0600 on POSIX).",
 )
 @click.option(
     "--no-key",
@@ -629,7 +636,8 @@ def export_cmd(
         except OSError as e:
             click.echo(f"Error writing {path}: {e}", err=True)
             sys.exit(1)
-        click.echo(f"Wrote {path} (0600)", err=True)
+        permission_note = " (0600)" if sys.platform != "win32" else ""
+        click.echo(f"Wrote {path}{permission_note}", err=True)
         if path.endswith(".env") or os.path.basename(path).startswith(".env"):
             click.echo("Reminder: add this file to .gitignore.", err=True)
         return

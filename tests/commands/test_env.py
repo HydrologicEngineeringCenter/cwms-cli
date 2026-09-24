@@ -513,6 +513,7 @@ def test_activate_help_explains_shell_startup_precedence():
     assert "Shell startup files can" in result.output
     assert "Solaris profiles" in result.output
     assert "cwms-cli env export <name> --format bash" in result.output
+    assert "cwms-cli env show --check" in result.output
 
 
 @pytest.mark.parametrize(
@@ -568,6 +569,8 @@ def test_activate_warns_about_shell_startup_configuration(
     assert result.exit_code == 0
     assert f"Warning: {startup_config} may override CDA_API_ROOT" in result.output
     assert "CDA_API_KEY, OFFICE, or ENVIRONMENT" in result.output
+    assert "verify the environment and CDA connection" in result.output
+    assert "cwms-cli env show --check" in result.output
     assert "If those values do not match 'demo' after startup" in result.output
     assert reapply_command in result.output
     assert "secret" not in result.output

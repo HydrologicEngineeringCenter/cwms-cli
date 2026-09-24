@@ -2,14 +2,15 @@ Environment Manager
 ===================
 
 Manage named CDA environments with ``cwms-cli env``. Each environment stores
-a CDA API root URL, office code, and optional API key in a JSON file under
-``~/.config/cwms-cli/envs/`` (or ``$XDG_CONFIG_HOME/cwms-cli/envs/`` when that
-variable is set), on all platforms. Files are created with mode ``0600``
-(owner-only read/write) so only your user account can read them.
+its name and CDA API root URL, plus an optional office code and API key, in a
+JSON file under ``~/.config/cwms-cli/envs/`` (or
+``$XDG_CONFIG_HOME/cwms-cli/envs/`` when that variable is set), on all
+platforms. Files use mode ``0600`` on POSIX. On Windows, ``cwms-cli`` attempts
+to restrict the file ACL to the current user.
 
-This keeps API keys out of project directories, shell history, and command
-lines, and lets you reference environments by name instead of juggling
-URLs and credentials.
+This keeps saved API keys out of project directories and lets you reference
+environments by name instead of repeatedly putting URLs and credentials on
+command lines.
 
 
 Built-in Environments
@@ -137,6 +138,14 @@ Create or update an environment configuration.
 letting you attach an office and API key. All other environment names
 require ``--api-root``.
 
+.. warning::
+
+   Supplying ``--api-key`` can place the key in shell history and make it
+   briefly visible in process arguments during setup. Apply your shell's
+   history controls when entering sensitive values. Once saved, later
+   commands use the environment name instead of placing the key on their
+   command lines.
+
 On-premises server setup and COOP default environments (optional)
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
@@ -219,15 +228,18 @@ On a fresh install (before any ``env setup``), ``prod`` appears with
 The ``*`` marks the environment selected by the ``ENVIRONMENT`` variable.
 ``env show`` also compares that environment's configured ``CDA_API_ROOT``,
 ``CDA_API_KEY``, ``OFFICE``, and ``ENVIRONMENT`` values with the current
-shell. If an assigned value differs or is missing, the command displays a
-warning and identifies the affected variables. API key values remain redacted.
-This can reveal when shell startup configuration replaced values supplied by
-``env activate``.
+shell, whether or not ``--check`` is used. If an assigned value differs or is
+missing, the command displays a warning and identifies the affected variables.
+API key values remain redacted. This can reveal when shell startup
+configuration replaced values supplied by ``env activate``.
 
 **Options:**
 
-- ``--check`` — test connectivity and API key validity for each environment
-  (requires network access). Adds ``Connect`` and ``Auth`` lines to the output.
+- ``--check`` — after the live-shell comparison, test the saved API root and
+  API key for each configured environment (requires network access). Adds
+  ``Connect`` and ``Auth`` lines to the output. If the live shell differs from
+  the saved environment, the mismatch warning remains authoritative for the
+  activated shell.
 
 .. code-block:: bash
 
@@ -270,12 +282,13 @@ Export an environment's variables to your current shell or a file.
 **Safety:** The API key is never printed to a terminal by default. If stdout
 is a TTY and the environment has an API key, ``export`` shows shell-specific
 recipes instead. Use ``--show-key`` to override, or ``--output FILE`` to write
-directly to disk (recommended — guarantees ``0600`` permissions and no
-scrollback exposure).
+directly to disk without scrollback exposure. Output files use mode ``0600``
+on POSIX; on Windows, they inherit the destination directory's ACL.
 
 **Options:**
 
-- ``--output FILE`` — write to a file with ``0600`` permissions instead of stdout.
+- ``--output FILE`` — write to a file instead of stdout (mode ``0600`` on
+  POSIX).
 - ``--no-key`` — omit ``CDA_API_KEY`` (useful for templates or sharing).
 - ``--show-key`` — allow the API key to be displayed in the terminal.
 
@@ -293,7 +306,12 @@ This spawns a child shell with the environment variables set. Type ``exit`` to
 return to your original shell; in Unix-like shells, you can also press
 ``Ctrl+D``. Before opening the shell, ``activate`` warns that startup
 configuration may replace the selected values and prints a shell-specific
-command that reapplies them after startup.
+command that reapplies them after startup. Once the child shell opens, verify
+the live values, CDA connectivity, and authentication:
+
+.. code-block:: bash
+
+   cwms-cli env show --check
 
 .. warning::
 
@@ -306,15 +324,18 @@ command that reapplies them after startup.
    environment. This is a common configuration on Solaris systems, but the
    same limitation applies on any platform.
 
-   To ensure the selected values take precedence, load them into the current
-   bash or zsh session after shell initialization:
+   ``cwms-cli env show --check`` first reports whether the selected
+   environment's configured values match the child shell. It then checks the
+   saved configurations' connectivity and authentication. If it reports a
+   live-value mismatch, use the shell-specific reapply command printed by
+   ``activate``. For bash or zsh, that command is:
 
    .. code-block:: bash
 
       eval "$(cwms-cli env export <name> --format bash)"
 
-   This changes the current shell rather than creating a child shell. The
-   values remain set until they are changed, unset, or the current shell exits.
+   This changes the child shell after its startup files have run. The values
+   remain set until they are changed, unset, or the child shell exits.
 
 .. note::
 
@@ -346,19 +367,22 @@ Storage and Security
   (respects ``XDG_CONFIG_HOME`` when set)
 
 **File permissions:** ``0600`` on POSIX (owner-only read/write). On Windows,
-an ACL restricts access to the current user.
+``cwms-cli`` attempts to restrict the ACL to the current user.
 
 **Security model:** The user account is the security boundary, matching
 ``aws``, ``gcloud``, ``kubectl``, and ``gh``. This feature defends against:
 
 - Accidental ``git add`` of a key — files live in ``~/.config/``, not the repo
 - Key pasted into an LLM — users share ``env show`` output (always redacted)
-- Key visible in ``ps`` or shell history — users reference the env name, not values
+- Repeated key exposure in ``ps`` or shell history — after setup, users
+  reference the environment name rather than the key
 - Key in terminal scrollback — ``export`` refuses TTY output by default
 
 This feature does **not** defend against root access or same-user process
-reads. For encrypted-at-rest storage, use a vault (1Password CLI, HashiCorp
-Vault, AWS Secrets Manager) and feed values in via environment variables.
+reads. The initial ``env setup --api-key`` invocation can also be recorded in
+shell history or process arguments. For encrypted-at-rest storage, use a vault
+(1Password CLI, HashiCorp Vault, AWS Secrets Manager) and feed values in via
+environment variables.
 
 
 Headless and CI Usage
