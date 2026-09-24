@@ -137,8 +137,8 @@ Create or update an environment configuration.
 letting you attach an office and API key. All other environment names
 require ``--api-root``.
 
-On-premises server setup and COOP default environments (optional) 
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+On-premises server setup and COOP default environments (optional)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Configure named environments for the primary on-premises server and the COOP
 server with their respective CDA API roots, API keys, and offices:
