@@ -1,0 +1,38 @@
+{
+  "office": "MVM",
+  "pi_namespace": "http://www.wldelft.nl/fews/PI",
+  "location_alias_groups": [
+    {
+      "group_id": "NWS Handbook 5 ID",
+      "category_id": "Agency Aliases",
+      "group_office_id": "CWMS",
+      "category_office_id": "CWMS"
+    },
+    {
+      "group_id": "NAEFS LCL",
+      "category_id": "LMRFC",
+      "group_office_id": "MVM",
+      "category_office_id": "MVM"
+    }
+  ],
+  "timeseries_group": {
+    "group_id": "Default",
+    "category_id": "Default",
+    "category_office_id": "CWMS",
+    "alias_key_template": "{locationId}.{parameterId}",
+    "derived": true
+  },
+  "build_missing_timeseries": false,
+  "parameter_map": {},
+  "default_type": "Inst",
+  "default_duration": "0",
+  "runs": [
+    {
+      "match": {"default": true},
+      "version_part": "",
+      "versioned": true,
+      "version_source": "creation_date",
+      "version_snap_time": "12:00:00"
+    }
+  ]
+}
