@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.9.2](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.9.1...v0.9.2) (2026-09-24)
+
+
+### Bug Fixes
+
+* clarify use of cwms-cli env activate ([#269](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/269)) ([0c4635a](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/0c4635a3886ebad00fc2a0fca61b2de744ea3871))
+
 ## [0.9.1](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.9.0...v0.9.1) (2026-09-23)
 
 
