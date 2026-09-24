@@ -7,6 +7,7 @@ from typing import Dict, Optional
 
 import click
 
+from cwmscli.utils import colors
 from cwmscli.utils.env_store import (
     ENV_DEFAULTS,
     EnvStoreError,
@@ -310,9 +311,9 @@ def _detect_shell_kind() -> str:
     return "bash"
 
 
-def _export_help_lines(env_name: str) -> str:
-    """Per-shell instructions for loading an env into the current shell."""
-    recipes = {
+def _export_recipes(env_name: str) -> Dict[str, str]:
+    """Return per-shell commands for loading an env into the current shell."""
+    return {
         "bash": f'eval "$(cwms-cli env export {env_name} --format bash)"',
         "zsh": f'eval "$(cwms-cli env export {env_name} --format bash)"',
         "powershell": (
@@ -325,6 +326,11 @@ def _export_help_lines(env_name: str) -> str:
         ),
         "fish": f"cwms-cli env export {env_name} --format fish | source",
     }
+
+
+def _export_help_lines(env_name: str) -> str:
+    """Per-shell instructions for loading an env into the current shell."""
+    recipes = _export_recipes(env_name)
     detected = _detect_shell_kind()
     primary = recipes.get(detected, recipes["bash"])
 
@@ -349,19 +355,48 @@ def _export_help_lines(env_name: str) -> str:
     return "\n".join(lines)
 
 
+def _startup_warning_lines(env_name: str, shell_kind: str) -> str:
+    """Explain how shell startup configuration can replace activated values."""
+    startup_config = {
+        "bash": "startup files such as .bashrc",
+        "zsh": "startup files such as .zshrc",
+        "fish": "startup files such as config.fish",
+        "powershell": "PowerShell profiles",
+        "cmd": "cmd.exe AutoRun commands",
+    }.get(shell_kind, "shell startup configuration")
+    recipes = _export_recipes(env_name)
+    recipe = recipes.get(shell_kind, recipes["bash"])
+
+    return "\n".join(
+        [
+            colors.warn(
+                f"Warning: {startup_config} may override CDA_API_ROOT, "
+                "CDA_API_KEY, OFFICE, or ENVIRONMENT."
+            ),
+            f"If those values do not match '{env_name}' after startup, reapply with:",
+            f"  {recipe}",
+        ]
+    )
+
+
 def spawn_shell_with_env(env_vars: Dict[str, str], env_name: str):
     """Spawn a new shell with environment variables set."""
     user_shell = _detect_shell()
+    shell_kind = _detect_shell_kind()
     new_env = os.environ.copy()
     new_env.update(env_vars)
 
     click.echo(
-        f"Activating environment: {click.style(env_name, fg='green', bold=True)}",
+        f"Activating environment: {colors.ok(env_name)}",
         err=True,
     )
     click.echo(f"Shell: {user_shell}", err=True)
+    click.echo(_startup_warning_lines(env_name, shell_kind), err=True)
+    exit_hint = "Type 'exit' to return to your original environment"
+    if shell_kind in {"bash", "zsh", "fish"}:
+        exit_hint += " (or press Ctrl+D)"
     click.echo(
-        "Type 'exit' or press Ctrl+D to return to your original environment\n",
+        f"\n{exit_hint}\n",
         err=True,
     )
 

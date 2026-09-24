@@ -284,18 +284,22 @@ Activate an environment in a new shell session.
 
    cwms-cli env activate prod
 
-This spawns a child shell with the environment variables set. Type ``exit``
-or press ``Ctrl+D`` to return to your original shell.
+This spawns a child shell with the environment variables set. Type ``exit`` to
+return to your original shell; in Unix-like shells, you can also press
+``Ctrl+D``. Before opening the shell, ``activate`` warns that startup
+configuration may replace the selected values and prints a shell-specific
+command that reapplies them after startup.
 
 .. warning::
 
    ``activate`` passes the configured variables to the child shell before that
-   shell initializes. Shell startup files such as ``.bash_profile`` or
-   ``.bashrc`` can then replace inherited values. For example, if a startup
-   file unconditionally exports ``CDA_API_ROOT``, ``CDA_API_KEY``, ``OFFICE``,
-   or ``ENVIRONMENT``, that value takes precedence over the selected
-   cwms-cli environment. This is a common configuration on Solaris systems,
-   but the same limitation applies on any platform.
+   shell initializes. Startup configuration such as ``.bash_profile``,
+   ``.bashrc``, PowerShell profiles, or ``cmd.exe`` AutoRun commands can then
+   replace inherited values. For example, if startup configuration
+   unconditionally sets ``CDA_API_ROOT``, ``CDA_API_KEY``, ``OFFICE``, or
+   ``ENVIRONMENT``, that value takes precedence over the selected cwms-cli
+   environment. This is a common configuration on Solaris systems, but the
+   same limitation applies on any platform.
 
    To ensure the selected values take precedence, load them into the current
    bash or zsh session after shell initialization:

@@ -472,6 +472,68 @@ def test_activate_help_explains_shell_startup_precedence():
     assert "cwms-cli env export <name> --format bash" in result.output
 
 
+@pytest.mark.parametrize(
+    ("shell", "startup_config", "reapply_command"),
+    [
+        (
+            "/bin/bash",
+            "startup files such as .bashrc",
+            'eval "$(cwms-cli env export demo --format bash)"',
+        ),
+        (
+            "powershell.exe",
+            "PowerShell profiles",
+            (
+                "cwms-cli env export demo --format powershell "
+                "| Out-String | Invoke-Expression"
+            ),
+        ),
+        (
+            "cmd.exe",
+            "cmd.exe AutoRun commands",
+            (
+                "cwms-cli env export demo --format cmd "
+                "--output %TEMP%\\cwms-env.cmd && call %TEMP%\\cwms-env.cmd"
+            ),
+        ),
+    ],
+)
+def test_activate_warns_about_shell_startup_configuration(
+    isolated_envs,
+    monkeypatch,
+    shell,
+    startup_config,
+    reapply_command,
+):
+    save_env(
+        "demo",
+        {
+            "ENVIRONMENT": "demo",
+            "CDA_API_ROOT": "https://x.mil/cwms-data",
+            "CDA_API_KEY": "secret",
+            "OFFICE": "SWT",
+        },
+    )
+    monkeypatch.setattr("cwmscli.commands.env._detect_shell", lambda: shell)
+    monkeypatch.setattr(
+        "cwmscli.commands.env.subprocess.run",
+        lambda command, env: subprocess.CompletedProcess(command, 0),
+    )
+
+    result = CliRunner().invoke(env_group, ["activate", "demo"])
+
+    assert result.exit_code == 0
+    assert f"Warning: {startup_config} may override CDA_API_ROOT" in result.output
+    assert "CDA_API_KEY, OFFICE, or ENVIRONMENT" in result.output
+    assert "If those values do not match 'demo' after startup" in result.output
+    assert reapply_command in result.output
+    assert "secret" not in result.output
+    if shell == "/bin/bash":
+        assert "or press Ctrl+D" in result.output
+    else:
+        assert "Ctrl+D" not in result.output
+
+
 # ---------- quoting helpers ----------
 
 
