@@ -84,6 +84,7 @@ class TestRatingTypesConfig:
         assert "store_corr" in rating_types
         assert "store_base" in rating_types
         assert "store_exsa" in rating_types
+        assert "replace_exsa" in rating_types
 
     def test_store_corr_config(self):
         """Test store_corr configuration."""
@@ -102,6 +103,10 @@ class TestRatingTypesConfig:
         config = rating_types["store_exsa"]
         assert config["db_type"] == "db_exsa"
         assert config["db_disc"] == "USGS-EXSA"
+
+    def test_replace_exsa_uses_exsa_config(self):
+        """Test the legacy replace_exsa command configuration."""
+        assert rating_types["replace_exsa"] == rating_types["store_exsa"]
 
 
 class TestUpdateRatingSpec:
@@ -278,6 +283,37 @@ store_corr $($db_corr)
                     )
 
                     mock_update.assert_called_once()
+        finally:
+            os.unlink(temp_file)
+
+    def test_import_with_legacy_replace_exsa_line(self):
+        """Test importing a legacy replace_exsa command."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
+            f.write(r"""
+cwms_office=LRN
+cwmsid=CDZK2-LittleR-CadizKY
+textfile1=$rdb_rating_dir1/\$cwmsid.rdb
+dss1_exsa=$dssfilename;//\$cwmsid/stage-flow//@type/$rating_id/
+db_exsa=\$cwmsid.Stage;Flow.EXSA.PRODUCTION
+replace_exsa $($textfile1) $($dss1_exsa) $($db_exsa)
+""")
+            temp_file = f.name
+
+        try:
+            with patch("cwmscli.usgs.rating_ini_file_import.init_cwms_session"):
+                with patch(
+                    "cwmscli.usgs.rating_ini_file_import.update_rating_spec"
+                ) as mock_update:
+                    rating_ini_file_import(
+                        "http://localhost:8080", "test_key", temp_file
+                    )
+
+                    mock_update.assert_called_once_with(
+                        "CDZK2-LittleR-CadizKY.Stage;Flow.EXSA.PRODUCTION",
+                        "LRN",
+                        "USGS-EXSA",
+                        dry_run=False,
+                    )
         finally:
             os.unlink(temp_file)
 
