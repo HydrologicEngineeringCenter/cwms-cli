@@ -246,10 +246,53 @@ def test_show_lists_envs_and_redacts_key(isolated_envs):
 def test_show_marks_current_env(isolated_envs, monkeypatch):
     save_env("active", {"CDA_API_ROOT": "https://x"})
     monkeypatch.setenv("ENVIRONMENT", "active")
+    monkeypatch.setenv("CDA_API_ROOT", "https://x")
     runner = CliRunner()
     result = runner.invoke(env_group, ["show"])
     assert "Current environment:" in result.output
     assert "* active" in result.output
+    assert "values differ" not in result.output
+
+
+def test_show_warns_when_current_shell_differs(isolated_envs, monkeypatch):
+    save_env(
+        "active",
+        {
+            "ENVIRONMENT": "active",
+            "CDA_API_ROOT": "https://expected",
+            "CDA_API_KEY": "expected-secret",
+            "OFFICE": "SWT",
+        },
+    )
+    monkeypatch.setenv("ENVIRONMENT", "active")
+    monkeypatch.setenv("CDA_API_ROOT", "https://unexpected")
+    monkeypatch.setenv("CDA_API_KEY", "unexpected-secret")
+    monkeypatch.delenv("OFFICE", raising=False)
+
+    result = CliRunner().invoke(env_group, ["show"])
+
+    assert result.exit_code == 0
+    assert "Current environment: active (values differ)" in result.output
+    assert "current shell values do not match environment 'active'" in result.output
+    assert (
+        "CDA_API_ROOT: expected 'https://expected', found 'https://unexpected'"
+        in result.output
+    )
+    assert "CDA_API_KEY: current value does not match" in result.output
+    assert "OFFICE: expected 'SWT', but it is not set" in result.output
+    assert "Shell startup configuration may have overridden" in result.output
+    assert "expected-secret" not in result.output
+    assert "unexpected-secret" not in result.output
+
+
+def test_show_warns_when_selected_environment_is_unknown(isolated_envs, monkeypatch):
+    monkeypatch.setenv("ENVIRONMENT", "missing")
+
+    result = CliRunner().invoke(env_group, ["show"])
+
+    assert result.exit_code == 0
+    assert "ENVIRONMENT references 'missing'" in result.output
+    assert "environment is not configured" in result.output
 
 
 # ---------- env show --check ----------
@@ -457,6 +500,84 @@ def test_delete_missing_env_errors(isolated_envs):
     result = runner.invoke(env_group, ["delete", "ghost", "--yes"])
     assert result.exit_code != 0
     assert "not found" in result.output
+
+
+# ---------- env activate ----------
+
+
+def test_activate_help_explains_shell_startup_precedence():
+    runner = CliRunner()
+    result = runner.invoke(env_group, ["activate", "--help"])
+
+    assert result.exit_code == 0
+    assert "Shell startup files can" in result.output
+    assert "Solaris profiles" in result.output
+    assert "cwms-cli env export <name> --format bash" in result.output
+    assert "cwms-cli env show --check" in result.output
+
+
+@pytest.mark.parametrize(
+    ("shell", "startup_config", "reapply_command"),
+    [
+        (
+            "/bin/bash",
+            "startup files such as .bashrc",
+            'eval "$(cwms-cli env export demo --format bash)"',
+        ),
+        (
+            "powershell.exe",
+            "PowerShell profiles",
+            (
+                "cwms-cli env export demo --format powershell "
+                "| Out-String | Invoke-Expression"
+            ),
+        ),
+        (
+            "cmd.exe",
+            "cmd.exe AutoRun commands",
+            (
+                "cwms-cli env export demo --format cmd "
+                "--output %TEMP%\\cwms-env.cmd && call %TEMP%\\cwms-env.cmd"
+            ),
+        ),
+    ],
+)
+def test_activate_warns_about_shell_startup_configuration(
+    isolated_envs,
+    monkeypatch,
+    shell,
+    startup_config,
+    reapply_command,
+):
+    save_env(
+        "demo",
+        {
+            "ENVIRONMENT": "demo",
+            "CDA_API_ROOT": "https://x.mil/cwms-data",
+            "CDA_API_KEY": "secret",
+            "OFFICE": "SWT",
+        },
+    )
+    monkeypatch.setattr("cwmscli.commands.env._detect_shell", lambda: shell)
+    monkeypatch.setattr(
+        "cwmscli.commands.env.subprocess.run",
+        lambda command, env: subprocess.CompletedProcess(command, 0),
+    )
+
+    result = CliRunner().invoke(env_group, ["activate", "demo"])
+
+    assert result.exit_code == 0
+    assert f"Warning: {startup_config} may override CDA_API_ROOT" in result.output
+    assert "CDA_API_KEY, OFFICE, or ENVIRONMENT" in result.output
+    assert "verify the environment and CDA connection" in result.output
+    assert "cwms-cli env show --check" in result.output
+    assert "If those values do not match 'demo' after startup" in result.output
+    assert reapply_command in result.output
+    assert "secret" not in result.output
+    if shell == "/bin/bash":
+        assert "or press Ctrl+D" in result.output
+    else:
+        assert "Ctrl+D" not in result.output
 
 
 # ---------- quoting helpers ----------
