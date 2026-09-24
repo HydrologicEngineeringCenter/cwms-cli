@@ -4,7 +4,7 @@ import sys
 
 import click
 from packaging.specifiers import SpecifierSet
-from packaging.version import InvalidVersion
+from packaging.version import InvalidVersion, Version
 
 
 def _pip_command():
@@ -59,9 +59,10 @@ def requires(*requirements):
                 if version_range:
                     try:
                         actual_version = importlib.metadata.version(pkg)
+                        parsed_version = Version(actual_version)
                         # Preserve support for installed prereleases within the range;
                         # PEP 440 still excludes prereleases of the upper boundary.
-                        if not supported.contains(actual_version, prereleases=True):
+                        if not supported.contains(parsed_version, prereleases=True):
                             version_issues.append(
                                 f"- python package `{pkg}` version `{actual_version}` found, "
                                 f"but this command requires `{version_range}`.\n"
