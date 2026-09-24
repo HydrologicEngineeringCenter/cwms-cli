@@ -1,6 +1,6 @@
 import importlib
 import importlib.metadata
-import os
+import sys
 
 import click
 from packaging.specifiers import SpecifierSet
@@ -8,12 +8,7 @@ from packaging.version import InvalidVersion
 
 
 def _pip_command():
-    # Check OS to determine pip vs pip3
-    if os.name == "nt":
-        return "pip"
-    # Avoid potential issues with multiple python (2/3) versions on Unix/Linux systems
-    else:
-        return "pip3"
+    return f'"{sys.executable}" -m pip'
 
 
 def requires(*requirements):
@@ -73,7 +68,7 @@ def requires(*requirements):
                                 f"  Upgrade cwms-cli to check for support for newer dependencies:\n"
                                 f"    {_pip_command()} install --upgrade cwms-cli\n"
                                 f"  Or install a version supported by this command:\n"
-                                f"    {_pip_command()} install {install_target}"
+                                f"    {_pip_command()} install --upgrade {install_target}"
                             )
                     except importlib.metadata.PackageNotFoundError:
                         version_issues.append(
@@ -84,7 +79,8 @@ def requires(*requirements):
                             f"- `{pkg}` has an invalid version `{actual_version}`; "
                             f"version could not be verified.\n"
                             f"  Reinstall a supported version:\n"
-                            f"    {_pip_command()} install --force-reinstall {install_target}"
+                            f"    {_pip_command()} install --upgrade --force-reinstall "
+                            f"{install_target}"
                         )
 
             if missing or version_issues:
@@ -93,7 +89,7 @@ def requires(*requirements):
                     error_lines.append("Missing module(s):")
                     for msg, _ in missing:
                         error_lines.append(msg)
-                    install_cmd = f"{_pip_command()} install " + " ".join(
+                    install_cmd = f"{_pip_command()} install --upgrade " + " ".join(
                         target for _, target in missing
                     )
                     error_lines.append(

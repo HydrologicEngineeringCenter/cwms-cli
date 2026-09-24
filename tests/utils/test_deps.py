@@ -1,4 +1,5 @@
 import importlib.metadata
+import sys
 from unittest.mock import Mock
 
 import click
@@ -7,6 +8,10 @@ from click.testing import CliRunner
 
 from cwmscli import requirements
 from cwmscli.utils import deps
+
+
+def expected_pip_command(*args):
+    return f'"{sys.executable}" -m pip install {" ".join(args)}'
 
 
 @pytest.mark.parametrize("version", ["2.0.0", "2.1.0", "10.0.0", "2.0.0rc1"])
@@ -19,8 +24,11 @@ def test_cwms_rejects_unsupported_versions(monkeypatch, version):
     assert result.exit_code == 1
     assert version in result.output
     assert ">=1.0.7,<2.0.0" in result.output
-    assert "install --upgrade cwms-cli" in result.output
-    assert '"cwms-python>=1.0.7,<2.0.0"' in result.output
+    assert expected_pip_command("--upgrade", "cwms-cli") in result.output
+    assert (
+        expected_pip_command("--upgrade", '"cwms-python>=1.0.7,<2.0.0"')
+        in result.output
+    )
     callback.assert_not_called()
 
 
@@ -40,8 +48,12 @@ def test_cwms_rejects_old_or_unverifiable_versions(monkeypatch, version):
     monkeypatch.setattr(deps.importlib, "import_module", Mock())
     monkeypatch.setattr(deps.importlib.metadata, "version", lambda _: version)
     callback = Mock()
-    with pytest.raises(click.ClickException):
+    with pytest.raises(click.ClickException) as exc:
         deps.requires(requirements.cwms)(callback)()
+    expected_args = ["--upgrade", '"cwms-python>=1.0.7,<2.0.0"']
+    if version == "invalid":
+        expected_args.insert(1, "--force-reinstall")
+    assert expected_pip_command(*expected_args) in str(exc.value)
     callback.assert_not_called()
 
 
@@ -57,7 +69,9 @@ def test_missing_module_suggests_supported_range(monkeypatch):
     monkeypatch.setattr(deps.importlib, "import_module", Mock(side_effect=ImportError))
     with pytest.raises(click.ClickException, match="Missing module") as exc:
         deps.requires(requirements.cwms)(Mock())()
-    assert '"cwms-python>=1.0.7,<2.0.0"' in str(exc.value)
+    assert expected_pip_command("--upgrade", '"cwms-python>=1.0.7,<2.0.0"') in str(
+        exc.value
+    )
 
 
 def test_missing_metadata_blocks_command(monkeypatch):
