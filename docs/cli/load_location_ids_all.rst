@@ -12,6 +12,10 @@ Both commands can write selected locations to CSV files instead of storing them
 to a target CDA. The ``ids-all`` command can also read locations back from a
 CSV file and store them to a target CDA.
 
+After loading locations, use :doc:`load_timeseries` to copy time-series
+identifiers and values. Use ``--dry-run`` to preview a location load; CDA reads
+and the target service preflight still run, but records are not stored.
+
 The ``ids-all`` command passes ``--like`` and ``--location-kind-like`` directly
 to the source CDA catalog, so both options use CDA regular expression behavior.
 The CLI does not apply extra exact-match filtering. For CDA regex syntax, see

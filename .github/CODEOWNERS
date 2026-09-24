@@ -21,9 +21,11 @@
 /tests/commands/test_load_*.py charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil
 /tests/test_preview_docs.py charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil  # Local docs preview helper tests
 /cwmscli/usgs/ eric.v.novotny@usace.army.mil
+/docs/cli/usgs.rst eric.v.novotny@usace.army.mil
 /tests/usgs/ eric.v.novotny@usace.army.mil
 /tests/cli/test_usgs_*.py eric.v.novotny@usace.army.mil
 /cwmscli/commands/shef/ eric.v.novotny@usace.army.mil
+/docs/cli/shef.rst eric.v.novotny@usace.army.mil
 /tests/commands/test_shef_*.py eric.v.novotny@usace.army.mil
 /cwmscli/commands/commands_cwms.py charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil  # Shared Click wrappers span commands owned by both maintainers
 /cwmscli/commands/env.py mitchell.s.weier@usace.army.mil charles.r.graham@usace.army.mil

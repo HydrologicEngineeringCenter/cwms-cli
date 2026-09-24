@@ -1,81 +1,81 @@
 cwms-cli Documentation
 ======================
 
-``cwms-cli`` provides command-line workflows for common CWMS and CDA tasks,
-including CSV time-series loading, blob management, installation/update
-helpers, and shared API argument handling.
+``cwms-cli`` loads and manages CWMS data through the CWMS Data API (CDA).
+Start with :doc:`cli/setup`, then choose a workflow below. For every command's
+options and defaults, use the generated :doc:`cli` or ``cwms-cli --help``.
 
-Start here if you want to:
+Choose a workflow
+-----------------
 
-- install the CLI and optional dependencies
-- learn which commands are available
-- jump directly to task-specific guides and references
+.. list-table::
+   :header-rows: 1
+   :widths: 45 55
 
-Quick Start
------------
-
-- :doc:`Installation and Setup <cli/setup>` for install steps, optional
-  dependencies, shared CDA inputs, and a working ``csv2cwms`` example
-- :doc:`CLI reference <cli>` for the full generated command reference
-- :doc:`Common API Arguments <cli/api_arguments>` for shared CDA connection
-  flags and environment variables
-
-Task Guides
------------
-
-- :doc:`csv2cwms <cli/csv2cwms>` to load CSV time series into CDA
-- :doc:`Blob commands <cli/blob>` to upload, download, list, delete, and
-  update blobs
-- :doc:`Load Locations <cli/load_location_ids_all>` to copy locations from a
-  source CDA catalog or location group into a target CDA or CSV file
-- :doc:`DSS transfers <cli/dss>` to move time-series data between HEC-DSS and
-  CWMS through CDA
-- :doc:`Update command <cli/update>` to update the installed package with pip
-- :doc:`Version argument <cli/version>` to print the installed version and see
-  upgrade guidance
-
-Reference Pages
----------------
-
-- :doc:`CDA Regex Guide <cli/cda_regex>` for CDA regex syntax and usage
-- :doc:`csv2cwms Complete Config Example <cli/csv2cwms_complete_config>` for
-  the full JSON config structure
-- :doc:`csv2cwms Supported Interval Identifiers <cli/csv2cwms_intervals>` for
-  interval names accepted by ``csv2cwms``
-- :doc:`Version Guard Decorator <cli/version_guard>` for adding optional dependency checks to new commands
-
-Contents
---------
+   * - Task
+     - Guide
+   * - Connect to CDA and authenticate
+     - :doc:`cli/api_arguments`, :doc:`cli/login`, :doc:`cli/env`
+   * - Load CSV observations
+     - :doc:`cli/csv2cwms`
+   * - Copy locations or time series between CDA instances
+     - :doc:`cli/load_location_ids_all`, :doc:`cli/load_timeseries`
+   * - Transfer data to or from HEC-DSS
+     - :doc:`cli/dss`
+   * - Retrieve USGS observations, ratings, or measurements
+     - :doc:`cli/usgs`
+   * - Import SHEF acquisition or export configuration
+     - :doc:`cli/shef`
+   * - Manage binary files or text stored in CWMS
+     - :doc:`cli/blob`, :doc:`cli/clob`
+   * - Manage users and office roles
+     - :doc:`cli/users`
+   * - Check or update the installed version
+     - :doc:`cli/version`, :doc:`cli/update`
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Getting Started
 
    cli/setup
-   cli/shell_completion
-   cli
    cli/api_arguments
+   cli/login
+   cli/env
+   cli/shell_completion
+   cli/troubleshooting
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Command Guides
+   :maxdepth: 1
+   :caption: Data Loading and Transfers
 
    cli/csv2cwms
-   cli/blob
-   cli/env
-   cli/login
-   cli/clob
-   cli/users
    cli/load_location_ids_all
+   cli/load_timeseries
    cli/dss
-   cli/update
-   cli/version
+   cli/usgs
+   cli/shef
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
+   :caption: Data and User Management
+
+   cli/blob
+   cli/clob
+   cli/users
+
+.. toctree::
+   :maxdepth: 1
    :caption: Reference
 
+   cli
    cli/cda_regex
    cli/csv2cwms_complete_config
    cli/csv2cwms_intervals
+   cli/version
+   cli/update
+
+.. toctree::
+   :maxdepth: 1
+   :caption: Development
+
    cli/version_guard
