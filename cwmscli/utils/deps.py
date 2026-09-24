@@ -1,56 +1,30 @@
 import importlib
 import importlib.metadata
-import os
-from typing import Callable
+import sys
 
 import click
+from packaging.specifiers import SpecifierSet
+from packaging.version import InvalidVersion, Version
 
 
 def _pip_command():
-    # Check OS to determine pip vs pip3
-    if os.name == "nt":
-        return "pip"
-    # Avoid potential issues with multiple python (2/3) versions on Unix/Linux systems
-    else:
-        return "pip3"
+    return f'"{sys.executable}" -m pip'
 
 
 def requires(*requirements):
-    """
-    Decorator that ensures required Python modules are installed and meet optional minimum version constraints.
+    """Check that command dependencies are installed and in their supported range.
 
-    Parameters:
-        *requirements: One or more dictionaries describing a module requirement.
-            Each dictionary may contain the following keys:
+    Each requirement dictionary accepts:
+      - module: importable module name.
+      - package: distribution name, if different from the module name.
+      - version: inclusive minimum version (optional).
+      - max_version: exclusive upper version bound (optional).
+      - desc: description included in missing-module errors (optional).
+      - link: documentation URL (optional).
 
-            - module (str): The importable module name (e.g., "requests").
-
-            - package (str, optional): The name of the package to install via pip.
-              Use this if the pip install name differs from the import name
-              (e.g., module="cwms", package="cwms-python").
-
-            - version (str, optional): A minimum required version string (e.g., "2.30.0").
-
-            - desc (str, optional): A short description of what the module is or why it's needed.
-              Included in the error message to help users understand the dependency.
-
-            - link (str, optional): A URL pointing to documentation or the package's homepage.
-
-    Example:
-        @requires(
-            {
-                "module": "cwms",
-                "package": "cwms-python",
-                "version": "1.0.7",
-                "desc": "CWMS REST API Python client",
-                "link": "https://github.com/hydrologicengineeringcenter/cwms-python"
-            },
-            {
-                "module": "requests",
-                "version": "2.30.0",
-                "desc": "Required for HTTP API access"
-            }
-        )
+    For example, {"module": "cwms", "package": "cwms-python",
+    "version": "1.0.7", "max_version": "2.0.0"} accepts >=1.0.7,<2.0.0.
+    Requirements without max_version retain their minimum-only behavior.
     """
 
     def decorator(func):
@@ -58,22 +32,19 @@ def requires(*requirements):
             missing = []
             version_issues = []
 
-            # choose a version parsing function: prefer packaging, fallback to pkg_resources
-            try:
-                from packaging.version import parse as _parse_version
-            except Exception:
-                try:
-                    from pkg_resources import parse_version as _parse_version
-                except Exception:
-                    _parse_version = None
-
             for req in requirements:
                 mod = req["module"]
                 pkg = req.get("package", mod)
-                min_version = req.get("version")
+                constraints = []
+                if req.get("version"):
+                    constraints.append(f">={req['version']}")
+                if req.get("max_version"):
+                    constraints.append(f"<{req['max_version']}")
+                version_range = ",".join(constraints)
+                supported = SpecifierSet(version_range)
+                install_target = f'"{pkg}{version_range}"' if version_range else pkg
                 desc = req.get("desc")
                 link = req.get("link")
-                # Check if the provided requirement is already imported
                 try:
                     importlib.import_module(mod)
                 except ImportError:
@@ -82,60 +53,52 @@ def requires(*requirements):
                         msg += f" — {desc}"
                     if link:
                         msg += f" [docs]({link})"
-                    missing.append((msg, pkg))
+                    missing.append((msg, install_target))
                     continue
-                # Confirm the minimum version is met
-                if min_version:
+
+                if version_range:
                     try:
                         actual_version = importlib.metadata.version(pkg)
-                        if _parse_version is not None:
-                            try:
-                                if _parse_version(actual_version) < _parse_version(
-                                    min_version
-                                ):
-                                    version_issues.append(
-                                        f"- python package `{pkg}` version `{actual_version}` found, "
-                                        f"but `{min_version}` or higher is required.\n\t"
-                                        f"Update the package to the required minimum version to use this command."
-                                    )
-                            except Exception:
-                                # Fall back to string comparison if parsing fails
-                                if actual_version < min_version:
-                                    version_issues.append(
-                                        f"- python package `{pkg}` version `{actual_version}` found, "
-                                        f"but `{min_version}` or higher is required.\n\t"
-                                        f"Update the package to the required minimum version to use this command."
-                                    )
-                        else:
-                            # No parser available — fall back to lexical comparison
-                            if actual_version < min_version:
-                                version_issues.append(
-                                    f"- python package `{pkg}` version `{actual_version}` found, "
-                                    f"but `{min_version}` or higher is required.\n\t"
-                                    f"Update the package to the required minimum version to use this command."
-                                )
+                        parsed_version = Version(actual_version)
+                        # Preserve support for installed prereleases within the range;
+                        # PEP 440 still excludes prereleases of the upper boundary.
+                        if not supported.contains(parsed_version, prereleases=True):
+                            version_issues.append(
+                                f"- python package `{pkg}` version `{actual_version}` found, "
+                                f"but this command requires `{version_range}`.\n"
+                                f"  Upgrade cwms-cli to check for support for newer dependencies:\n"
+                                f"    {_pip_command()} install --upgrade cwms-cli\n"
+                                f"  Or install a version supported by this command:\n"
+                                f"    {_pip_command()} install --upgrade {install_target}"
+                            )
                     except importlib.metadata.PackageNotFoundError:
                         version_issues.append(
                             f"- `{pkg}` is installed but version could not be verified"
                         )
-            # Build out the error response
+                    except InvalidVersion:
+                        version_issues.append(
+                            f"- `{pkg}` has an invalid version `{actual_version}`; "
+                            f"version could not be verified.\n"
+                            f"  Reinstall a supported version:\n"
+                            f"    {_pip_command()} install --upgrade --force-reinstall "
+                            f"{install_target}"
+                        )
+
             if missing or version_issues:
                 error_lines = []
                 if missing:
                     error_lines.append("Missing module(s):")
                     for msg, _ in missing:
                         error_lines.append(msg)
-                    install_cmd = f"{_pip_command()} install " + " ".join(
-                        pkg for _, pkg in missing
+                    install_cmd = f"{_pip_command()} install --upgrade " + " ".join(
+                        target for _, target in missing
                     )
                     error_lines.append(
                         f"\nInstall missing packages:\n    {install_cmd}"
                     )
-
                 if version_issues:
                     error_lines.append("\nVersion issues:")
                     error_lines.extend(version_issues)
-
                 raise click.ClickException("\n".join(error_lines))
 
             return func(*args, **kwargs)
