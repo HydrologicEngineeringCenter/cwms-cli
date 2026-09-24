@@ -22,6 +22,7 @@ from cwmscli.utils.interaction import is_non_interactive
 from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
 
 SENSITIVE_KEYS = {"CDA_API_KEY"}
+MANAGED_ENV_KEYS = ("CDA_API_ROOT", "CDA_API_KEY", "OFFICE", "ENVIRONMENT")
 
 
 def _stdout_is_tty() -> bool:
@@ -116,6 +117,30 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
     return {"reachable": True, "latency_ms": latency_ms, "auth": "ok", "error": None}
 
 
+def _active_env_mismatches(
+    env_name: str, env_config: Dict[str, str]
+) -> Dict[str, tuple]:
+    """Return configured values that differ from the current process environment."""
+    expected = {key: env_config[key] for key in MANAGED_ENV_KEYS if key in env_config}
+    expected.setdefault("ENVIRONMENT", env_name)
+    return {
+        key: (value, os.environ.get(key))
+        for key, value in expected.items()
+        if value != os.environ.get(key)
+    }
+
+
+def _format_env_mismatch(key: str, expected: str, actual: Optional[str]) -> str:
+    """Describe an environment mismatch without exposing sensitive values."""
+    if key in SENSITIVE_KEYS:
+        if actual is None:
+            return f"  {key}: configured, but not set in the current shell"
+        return f"  {key}: current value does not match the configured value"
+    if actual is None:
+        return f"  {key}: expected {expected!r}, but it is not set"
+    return f"  {key}: expected {expected!r}, found {actual!r}"
+
+
 @click.group("env", help="Manage CDA environments and API keys")
 def env_group():
     """Environment management commands for cwms-cli."""
@@ -196,9 +221,36 @@ def show_cmd(check: bool):
     current_env = os.environ.get("ENVIRONMENT")
 
     if current_env:
-        click.echo(
-            f"Current environment: {click.style(current_env, fg='green', bold=True)}\n"
-        )
+        active_config = load_env(current_env)
+        if active_config is None:
+            click.echo(f"Current environment: {colors.warn(current_env)}")
+            click.echo(
+                colors.warn(
+                    f"Warning: ENVIRONMENT references '{current_env}', but that "
+                    "environment is not configured."
+                )
+            )
+        else:
+            mismatches = _active_env_mismatches(current_env, active_config)
+            if mismatches:
+                click.echo(
+                    f"Current environment: "
+                    f"{colors.warn(f'{current_env} (values differ)')}"
+                )
+                click.echo(
+                    colors.warn(
+                        f"Warning: current shell values do not match environment "
+                        f"'{current_env}':"
+                    )
+                )
+                for key, (expected, actual) in mismatches.items():
+                    click.echo(_format_env_mismatch(key, expected, actual))
+                click.echo(
+                    "Shell startup configuration may have overridden these values."
+                )
+            else:
+                click.echo(f"Current environment: {colors.ok(current_env)}")
+        click.echo()
     else:
         click.echo("No environment currently active\n")
 

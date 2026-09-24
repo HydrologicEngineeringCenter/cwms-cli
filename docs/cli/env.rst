@@ -216,8 +216,13 @@ The API key is always redacted — only ``has API key`` or ``no API key`` is sho
 On a fresh install (before any ``env setup``), ``prod`` appears with
 ``(built-in)`` and shows ``Office: not set``.
 
-The ``*`` marks the currently active environment (from the ``ENVIRONMENT``
-variable).
+The ``*`` marks the environment selected by the ``ENVIRONMENT`` variable.
+``env show`` also compares that environment's configured ``CDA_API_ROOT``,
+``CDA_API_KEY``, ``OFFICE``, and ``ENVIRONMENT`` values with the current
+shell. If an assigned value differs or is missing, the command displays a
+warning and identifies the affected variables. API key values remain redacted.
+This can reveal when shell startup configuration replaced values supplied by
+``env activate``.
 
 **Options:**
 
