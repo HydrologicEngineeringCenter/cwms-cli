@@ -13,12 +13,17 @@ Shared options
 
 Some commands also expose ``--api-key-loc`` / ``-kl`` to read the API key from
 the first line of a file instead of passing the key inline. This is currently
-available on the USGS subcommands and ``shefcritimport``.
+available on USGS, SHEF, and user-management subcommands.
 
 These are the standard API inputs used by commands such as ``csv2cwms``.
-If you have already run ``cwms-cli login``, cwms-cli will prefer the saved
+Commands using the shared session helper prefer the saved
 access token from ``~/.config/cwms-cli/auth/federation-eams.json`` over an API
 key. If no saved token is available, it falls back to the configured API key.
+
+``load`` uses separate ``--source-cda`` / ``CDA_SOURCE_URL`` and
+``--target-cda`` / ``CDA_TARGET_URL`` inputs, plus ``--source-office`` /
+``CDA_SOURCE_OFFICE`` and ``--target-api-key`` / ``CDA_API_KEY``. See
+:doc:`load_location_ids_all`, :doc:`load_timeseries`, and :doc:`env`.
 
 Environment setup
 -----------------
@@ -26,13 +31,25 @@ Environment setup
 .. raw:: html
 
    <details>
-   <summary>Windows</summary>
+   <summary>Windows Command Prompt</summary>
 
 .. code-block:: batch
 
    set CDA_API_KEY=your-api-key
    set CDA_API_ROOT=https://cwms-data.usace.army.mil/cwms-data
    set OFFICE=SWT
+
+.. raw:: html
+
+   </details>
+   <details>
+   <summary>PowerShell</summary>
+
+.. code-block:: powershell
+
+   $env:CDA_API_KEY = "your-api-key"
+   $env:CDA_API_ROOT = "https://cwms-data.usace.army.mil/cwms-data"
+   $env:OFFICE = "SWT"
 
 .. raw:: html
 
@@ -59,7 +76,7 @@ Notes
 - When ``--api-key-loc`` is provided for a command that supports it, the key
   read from that file takes precedence over ``--api-key`` and over a
   ``CDA_API_KEY`` value coming from the environment.
-- When a saved login token exists, cwms-cli uses that token before consulting
+- When using the shared session helper, a saved login token takes precedence over
   ``--api-key``, ``--api-key-loc``, or ``CDA_API_KEY``.
 - For CDA-backed regex filters such as ``--like``, ``--location-kind-like``, and ``--timeseries-id-regex``, see the :doc:`CWMS Data API regular expression guide <cda_regex>`.
 - Commands may still expose additional non-API options such as config files,
@@ -129,3 +146,4 @@ See also
 
 - :doc:`CLI reference <../cli>`
 - :doc:`csv2cwms <csv2cwms>`
+- :doc:`troubleshooting`

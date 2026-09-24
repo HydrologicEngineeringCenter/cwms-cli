@@ -32,6 +32,9 @@ default = ["charles", "eric"]
 "update" = "cwms-cli update"
 "load_location_ids_all" = "cwms-cli load"
 "env" = "cwms-cli env"
+"load_timeseries" = "cwms-cli load"
+"usgs" = "cwms-cli usgs"
+"shef" = "cwms-cli shef"
 
 [[codeowners.rule]]
 pattern = "*"
@@ -117,6 +120,10 @@ pattern = "/cwmscli/usgs/"
 owners = ["eric"]
 
 [[codeowners.rule]]
+pattern = "/docs/cli/usgs.rst"
+owners = ["eric"]
+
+[[codeowners.rule]]
 pattern = "/tests/usgs/"
 owners = ["eric"]
 
@@ -126,6 +133,10 @@ owners = ["eric"]
 
 [[codeowners.rule]]
 pattern = "/cwmscli/commands/shef/"
+owners = ["eric"]
+
+[[codeowners.rule]]
+pattern = "/docs/cli/shef.rst"
 owners = ["eric"]
 
 [[codeowners.rule]]
