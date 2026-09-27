@@ -32,6 +32,9 @@ The API documentation uses fields including ``name``, ``filename``,
    cwms-cli ldm product get --product-slug coerr1lrn
    cwms-cli ldm product create --input-json product.json
    cwms-cli ldm product update --product-slug coerr1lrn --input-json product.json
+   cwms-cli ldm product destination-remove \
+     --product-slug coerr1lrn \
+     --destination-slug cumulus
 
 Product files
 -------------
@@ -60,6 +63,21 @@ The file list returns a ``file`` value such as
      --file products/coerr1lrn/report_123.shef \
      --dest report.shef
 
-The current LDM API does not implement product or product-file deletion. The
-registered product-file ``DELETE`` route returns ``501 Not Implemented``, so
-cwms-cli does not expose a delete command for LDM.
+Maintenance
+-----------
+
+Product-file records older than 30 days can be purged by an administrator.
+The API removes the database records. Object storage removes the corresponding
+objects through its lifecycle policy.
+
+Because this affects all old product-file records, the command requires an
+explicit confirmation flag:
+
+.. code-block:: console
+
+   cwms-cli ldm file purge --confirm
+
+The current LDM API does not implement per-file deletion. The registered
+product-file ``DELETE`` route returns ``501 Not Implemented``. The supported
+``destination-remove`` command only removes a product's association with one
+destination. It does not delete the product or its files.

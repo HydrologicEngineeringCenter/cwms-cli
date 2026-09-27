@@ -89,6 +89,30 @@ def update_product(
     )
 
 
+def remove_product_destination(
+    api_root: str,
+    api_key: Optional[str],
+    product_slug: str,
+    destination_slug: str,
+) -> None:
+    response = _request(
+        "DELETE",
+        api_root,
+        f"products/{quote(product_slug, safe='')}/destination/{quote(destination_slug, safe='')}",
+        api_key,
+    )
+    _emit(response)
+
+
+def purge_product_files(api_root: str, api_key: Optional[str], confirm: bool) -> None:
+    if not confirm:
+        raise ValueError(
+            "Purge deletes product-file records older than 30 days. "
+            "Repeat with --confirm to continue."
+        )
+    _emit(_request("POST", api_root, "admin/productfiles/purge", api_key))
+
+
 def list_product_files(
     api_root: str,
     api_key: Optional[str],

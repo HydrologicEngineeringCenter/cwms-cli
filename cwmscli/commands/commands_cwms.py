@@ -821,6 +821,19 @@ def ldm_product_update(product_slug, input_json, api_root, api_key):
     update_product(api_root, api_key, product_slug, input_json)
 
 
+@ldm_product_group.command(
+    "destination-remove",
+    help="Remove one destination association from an LDM product.",
+)
+@click.option("--product-slug", required=True, help="Product slug.")
+@click.option("--destination-slug", required=True, help="Destination slug.")
+@_ldm_options
+def ldm_product_destination_remove(product_slug, destination_slug, api_root, api_key):
+    from cwmscli.commands.ldm import remove_product_destination
+
+    remove_product_destination(api_root, api_key, product_slug, destination_slug)
+
+
 @ldm_group.group("file", help="Upload, retrieve, and list LDM product files.")
 def ldm_file_group():
     pass
@@ -850,6 +863,22 @@ def ldm_file_upload(product_slug, input_file, api_root, api_key):
     from cwmscli.commands.ldm import upload_product_file
 
     upload_product_file(api_root, api_key, product_slug, input_file)
+
+
+@ldm_file_group.command(
+    "purge",
+    help="Purge product-file records older than 30 days.",
+)
+@click.option(
+    "--confirm",
+    is_flag=True,
+    help="Confirm the broad 30-day product-file purge.",
+)
+@_ldm_options
+def ldm_file_purge(confirm, api_root, api_key):
+    from cwmscli.commands.ldm import purge_product_files
+
+    purge_product_files(api_root, api_key, confirm)
 
 
 @ldm_file_group.command(

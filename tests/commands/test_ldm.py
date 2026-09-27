@@ -85,3 +85,47 @@ def test_download_product_file_uses_returned_file_key(monkeypatch, tmp_path):
     )
     assert calls[0][2]["headers"]["key"] == "secret"
     assert destination.read_bytes() == b"payload"
+
+
+def test_remove_product_destination_uses_delete(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        ldm.requests,
+        "request",
+        lambda method, url, **kwargs: (
+            calls.append((method, url, kwargs)) or FakeResponse({"message": "removed"})
+        ),
+    )
+
+    ldm.remove_product_destination(
+        "https://ldm.example/api", "secret", "coerr1lrn", "cumulus"
+    )
+
+    assert calls[0][0:2] == (
+        "DELETE",
+        "https://ldm.example/api/products/coerr1lrn/destination/cumulus",
+    )
+
+
+def test_purge_product_files_requires_confirmation(monkeypatch):
+    calls = []
+    monkeypatch.setattr(
+        ldm.requests,
+        "request",
+        lambda method, url, **kwargs: (
+            calls.append((method, url, kwargs)) or FakeResponse({"message": "purged"})
+        ),
+    )
+
+    try:
+        ldm.purge_product_files("https://ldm.example/api", "secret", False)
+    except ValueError as error:
+        assert "--confirm" in str(error)
+    else:
+        raise AssertionError("purge should require confirmation")
+
+    ldm.purge_product_files("https://ldm.example/api", "secret", True)
+    assert calls[0][0:2] == (
+        "POST",
+        "https://ldm.example/api/admin/productfiles/purge",
+    )
