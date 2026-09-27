@@ -746,6 +746,137 @@ def list_cmd(**kwargs):
 # endregion
 
 
+# region LDM
+# ================================================================================
+#  LDM
+# ================================================================================
+@click.group("ldm", help="Manage products and product files in CWBI LDM.")
+def ldm_group():
+    pass
+
+
+def _ldm_options(function):
+    function = click.option(
+        "--api-key",
+        envvar="LDM_API_KEY",
+        default=None,
+        help="LDM application key. Defaults to LDM_API_KEY.",
+    )(function)
+    return click.option(
+        "--api-root",
+        envvar="LDM_API_ROOT",
+        required=True,
+        help="LDM API root, normally ending in /api. Defaults to LDM_API_ROOT.",
+    )(function)
+
+
+@ldm_group.group("product", help="Create, retrieve, update, and list LDM products.")
+def ldm_product_group():
+    pass
+
+
+@ldm_product_group.command("list", help="List LDM products.")
+@_ldm_options
+def ldm_product_list(api_root, api_key):
+    from cwmscli.commands.ldm import list_products
+
+    list_products(api_root, api_key)
+
+
+@ldm_product_group.command("get", help="Retrieve one LDM product by slug.")
+@click.option("--product-slug", required=True, help="Product slug.")
+@_ldm_options
+def ldm_product_get(product_slug, api_root, api_key):
+    from cwmscli.commands.ldm import get_product
+
+    get_product(api_root, api_key, product_slug)
+
+
+@ldm_product_group.command("create", help="Create an LDM product from a JSON object.")
+@click.option(
+    "--input-json",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help="JSON product payload.",
+)
+@_ldm_options
+def ldm_product_create(input_json, api_root, api_key):
+    from cwmscli.commands.ldm import create_product
+
+    create_product(api_root, api_key, input_json)
+
+
+@ldm_product_group.command("update", help="Update an LDM product from a JSON object.")
+@click.option("--product-slug", required=True, help="Product slug.")
+@click.option(
+    "--input-json",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help="JSON product payload.",
+)
+@_ldm_options
+def ldm_product_update(product_slug, input_json, api_root, api_key):
+    from cwmscli.commands.ldm import update_product
+
+    update_product(api_root, api_key, product_slug, input_json)
+
+
+@ldm_group.group("file", help="Upload, retrieve, and list LDM product files.")
+def ldm_file_group():
+    pass
+
+
+@ldm_file_group.command("list", help="List files for a product or time window.")
+@click.option("--product-slug", default=None, help="Limit results to one product.")
+@click.option("--start", default=None, help="ISO start timestamp.")
+@click.option("--end", default=None, help="ISO end timestamp.")
+@_ldm_options
+def ldm_file_list(product_slug, start, end, api_root, api_key):
+    from cwmscli.commands.ldm import list_product_files
+
+    list_product_files(api_root, api_key, product_slug, start, end)
+
+
+@ldm_file_group.command("upload", help="Upload a file for an LDM product.")
+@click.option("--product-slug", required=True, help="Product slug.")
+@click.option(
+    "--input-file",
+    required=True,
+    type=click.Path(exists=True, dir_okay=False, readable=True),
+    help="File to upload.",
+)
+@_ldm_options
+def ldm_file_upload(product_slug, input_file, api_root, api_key):
+    from cwmscli.commands.ldm import upload_product_file
+
+    upload_product_file(api_root, api_key, product_slug, input_file)
+
+
+@ldm_file_group.command(
+    "download", help="Download a product file using its returned file key."
+)
+@click.option(
+    "--file",
+    "file_key",
+    required=True,
+    help="The file value returned by LDM, such as products/slug/name_123.txt.",
+)
+@click.option(
+    "--dest",
+    default=None,
+    type=click.Path(dir_okay=False, writable=True),
+    help="Destination path. Defaults to the source filename.",
+)
+@_ldm_options
+def ldm_file_download(file_key, dest, api_root, api_key):
+    from cwmscli.commands.ldm import download_product_file
+
+    download_product_file(api_root, api_key, file_key, dest)
+
+
+# endregion
+
+
 # region Clob
 # ================================================================================
 #  CLOB
