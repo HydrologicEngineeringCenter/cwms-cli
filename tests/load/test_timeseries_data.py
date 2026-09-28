@@ -9,6 +9,59 @@ from cwmscli.__main__ import cli
 from cwmscli.load.timeseries.timeseries_data import _load_timeseries_data
 
 
+@pytest.mark.parametrize("outcome", ["fetch", "store", "success", "empty", "dry"])
+def test_load_timeseries_data_exit_status(monkeypatch, outcome):
+    """Batch must receive a nonzero exit status when any series fails to copy."""
+    import cwms
+
+    monkeypatch.setattr(
+        "cwmscli.load.root._validate_cda_api_root", lambda *a, **k: None
+    )
+    monkeypatch.setattr(cwms, "init_session", lambda **kwargs: None)
+    failure = RuntimeError(
+        "3 time series failed to store: HTTP 404; incidentIdentifier=test-incident"
+    )
+    stores = []
+
+    def fetch(**kwargs):
+        if outcome == "fetch":
+            raise failure
+        return pd.DataFrame([] if outcome == "empty" else [{"value": 1.0}])
+
+    def store(**kwargs):
+        stores.append(kwargs)
+        if outcome == "store":
+            raise failure
+
+    monkeypatch.setattr(cwms, "get_multi_timeseries_df", fetch)
+    monkeypatch.setattr(cwms, "store_multi_timeseries_df", store)
+    args = [
+        "load",
+        "timeseries",
+        "data",
+        "--source-cda",
+        "https://example.com/cwms-data/",
+        "--source-office",
+        "MVP",
+        "--target-cda",
+        "http://localhost:8082/cwms-data/",
+        "--ts-id",
+        "A.Flow.Inst.1Hour.0.Test",
+        "--verbose",
+    ]
+    if outcome == "dry":
+        args.append("--dry-run")
+    result = CliRunner().invoke(cli, args)
+
+    if outcome in {"fetch", "store"}:
+        assert result.exit_code == 1, result.output
+        assert str(failure) in result.output
+        assert "copy operation completed" not in result.output
+    else:
+        assert result.exit_code == 0, result.output
+    assert len(stores) == (1 if outcome in {"store", "success"} else 0)
+
+
 def test_load_timeseries_data_command_allows_group_without_category_filters(
     monkeypatch,
 ):
