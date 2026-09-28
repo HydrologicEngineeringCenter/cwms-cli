@@ -152,10 +152,9 @@ def _load_timeseries_data(
 
             if is_fatal_service_error(e):
                 raise
-            click.echo(
-                f"Error storing timeseries ({', '.join(current_ts_ids)}) data: {e}",
-                err=True,
-            )
+            raise click.ClickException(
+                f"Error copying timeseries ({', '.join(current_ts_ids)}) data: {e}"
+            ) from e
 
     if verbose:
         click.echo("Timeseries data copy operation completed.")
