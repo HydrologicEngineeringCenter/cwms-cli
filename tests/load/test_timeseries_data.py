@@ -9,8 +9,12 @@ from cwmscli.__main__ import cli
 from cwmscli.load.timeseries.timeseries_data import _load_timeseries_data
 
 
+@pytest.mark.parametrize("source_office", ["MVP", "mvp", "MvP", " mvp "])
+@pytest.mark.parametrize("office_from_env", [False, True])
 def test_load_timeseries_data_command_allows_group_without_category_filters(
     monkeypatch,
+    source_office,
+    office_from_env,
 ):
     monkeypatch.setattr(
         "cwmscli.load.root._validate_cda_api_root", lambda *a, **k: None
@@ -26,6 +30,7 @@ def test_load_timeseries_data_command_allows_group_without_category_filters(
     )
 
     runner = CliRunner()
+    monkeypatch.setenv("CDA_SOURCE_OFFICE", source_office)
     result = runner.invoke(
         cli,
         [
@@ -34,8 +39,7 @@ def test_load_timeseries_data_command_allows_group_without_category_filters(
             "data",
             "--source-cda",
             "https://cwms-data.usace.army.mil/cwms-data/",
-            "--source-office",
-            "MVP",
+            *([] if office_from_env else ["--source-office", source_office]),
             "--target-cda",
             "http://localhost:8082/cwms-data/",
             "--ts-group",
@@ -46,13 +50,17 @@ def test_load_timeseries_data_command_allows_group_without_category_filters(
 
     assert result.exit_code == 0, result.output
     assert len(calls) == 1
+    assert calls[0]["source_office"] == "MVP"
     assert calls[0]["ts_group"] == "Include.*"
     assert calls[0]["ts_group_category_id"] is None
     assert calls[0]["ts_group_category_office_id"] is None
 
 
+@pytest.mark.parametrize("source_office", ["MVP", "mvp", "MvP", " mvp "])
+@pytest.mark.parametrize("member_office", ["MVP", "mvp", "MvP"])
+@pytest.mark.parametrize("dry_run", [False, True])
 def test_load_timeseries_data_group_filters_to_single_source_office(
-    monkeypatch, capsys
+    monkeypatch, capsys, source_office, member_office, dry_run
 ):
     captured = {
         "get_timeseries_groups": [],
@@ -72,8 +80,13 @@ def test_load_timeseries_data_group_filters_to_single_source_office(
                     "id": "MVP Include",
                     "time-series-category": {"id": "MVP Dissemination"},
                     "assigned-time-series": [
-                        {"office-id": "MVP", "timeseries-id": "A.Flow.Inst.1Hour.0"},
+                        {
+                            "office-id": member_office,
+                            "timeseries-id": "A.Flow.Inst.1Hour.0",
+                        },
                         {"office-id": "SWT", "timeseries-id": "B.Flow.Inst.1Hour.0"},
+                        {"timeseries-id": "Missing.Flow.Inst.1Hour.0"},
+                        {"office-id": None, "timeseries-id": "Null.Flow.Inst.1Hour.0"},
                     ],
                 },
                 {
@@ -112,11 +125,11 @@ def test_load_timeseries_data_group_filters_to_single_source_office(
 
     _load_timeseries_data(
         source_cda="https://cwms-data.usace.army.mil/cwms-data/",
-        source_office="MVP",
+        source_office=source_office,
         target_cda="http://localhost:8082/cwms-data/",
         target_api_key=None,
         verbose=0,
-        dry_run=True,
+        dry_run=dry_run,
         ts_group="Include.*",
         ts_group_category_id="MVP Dissemination",
     )
@@ -139,7 +152,17 @@ def test_load_timeseries_data_group_filters_to_single_source_office(
             "end": None,
         }
     ]
-    assert captured["store_multi_timeseries_df"] == []
+    if dry_run:
+        assert captured["store_multi_timeseries_df"] == []
+    else:
+        assert len(captured["store_multi_timeseries_df"]) == 1
+        stored = captured["store_multi_timeseries_df"][0]
+        assert stored["office_id"] == "MVP"
+        assert stored["data"]["value"].tolist() == [1.0]
+        assert captured["init_session"][-1] == (
+            "http://localhost:8082/cwms-data/",
+            None,
+        )
 
     output = capsys.readouterr().out
     assert "Matched 2 timeseries group(s) for office 'MVP'" in output
