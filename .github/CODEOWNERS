@@ -12,6 +12,9 @@
 /docs/cli/csv2cwms*.rst charles.r.graham@usace.army.mil
 /cwmscli/commands/blob.py charles.r.graham@usace.army.mil
 /docs/cli/blob.rst charles.r.graham@usace.army.mil
+/cwmscli/commands/ldm.py charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil
+/docs/cli/ldm.rst charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil
+/tests/commands/test_ldm.py charles.r.graham@usace.army.mil eric.v.novotny@usace.army.mil
 /cwmscli/utils/update.py charles.r.graham@usace.army.mil
 /docs/cli/update.rst charles.r.graham@usace.army.mil
 /tests/cli/test_update_command.py charles.r.graham@usace.army.mil

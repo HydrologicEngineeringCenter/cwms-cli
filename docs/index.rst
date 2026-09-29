@@ -26,6 +26,7 @@ Task Guides
 - :doc:`csv2cwms <cli/csv2cwms>` to load CSV time series into CDA
 - :doc:`Blob commands <cli/blob>` to upload, download, list, delete, and
   update blobs
+- :doc:`LDM commands <cli/ldm>` to manage LDM products and product files
 - :doc:`Load Locations <cli/load_location_ids_all>` to copy locations from a
   source CDA catalog or location group into a target CDA or CSV file
 - :doc:`DSS transfers <cli/dss>` to move time-series data between HEC-DSS and
@@ -65,6 +66,7 @@ Contents
    cli/env
    cli/login
    cli/clob
+   cli/ldm
    cli/users
    cli/load_location_ids_all
    cli/dss
