@@ -1,10 +1,11 @@
-# Shared minimum version requirements for optional dependencies used by
+# Shared version requirements for optional dependencies used by
 # the `@requires` decorator in `cwmscli.utils.deps`.
 
 cwms = {
     "module": "cwms",
     "package": "cwms-python",
     "version": "1.0.7",
+    "max_version": "2.0.0",
     "desc": "CWMS REST API Python client",
     "link": "https://github.com/HydrologicEngineeringCenter/cwms-python",
 }

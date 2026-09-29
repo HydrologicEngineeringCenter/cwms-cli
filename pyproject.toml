@@ -26,7 +26,8 @@ requests = [
 ]
 hecdss  = { version = ">=0.1.24", optional = true }  # Via https://github.com/HydrologicEngineeringCenter/hec-python-library/blob/main/hec/shared.py#L9-10
 hec-python-library = { version = ">=0.9.5", optional = true }
-cwms-python = { version = ">=1.0.7", optional = true}
+cwms-python = { version = ">=1.0.7,<2.0.0", optional = true}
+packaging = ">=24.2,<27"
 colorama = "^0.4.6"
 
 [tool.poetry.extras]

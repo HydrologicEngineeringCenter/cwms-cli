@@ -84,6 +84,18 @@ pattern = "/cwmscli/utils/update.py"
 owners = ["charles"]
 
 [[codeowners.rule]]
+pattern = "/cwmscli/utils/deps.py"
+owners = ["charles", "eric"]
+
+[[codeowners.rule]]
+pattern = "/cwmscli/requirements.py"
+owners = ["charles", "eric"]
+
+[[codeowners.rule]]
+pattern = "/tests/utils/test_deps.py"
+owners = ["charles", "eric"]
+
+[[codeowners.rule]]
 pattern = "/docs/cli/update.rst"
 owners = ["charles"]
 

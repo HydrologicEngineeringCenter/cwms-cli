@@ -961,7 +961,7 @@ version = "26.0"
 description = "Core utilities for Python packages"
 optional = false
 python-versions = ">=3.8"
-groups = ["dev"]
+groups = ["main", "dev"]
 files = [
     {file = "packaging-26.0-py3-none-any.whl", hash = "sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529"},
     {file = "packaging-26.0.tar.gz", hash = "sha256:00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4"},
@@ -1754,4 +1754,4 @@ dss = ["cwms-python", "hec-python-library", "hecdss"]
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.9"
-content-hash = "d3f12074984e710e3e989746121b28f188d1ba46a468de1e6bc8108369216a87"
+content-hash = "6911223ecd6180c672d5b1c1f64bf20da981fcf49185e7a9584947262df74f15"
