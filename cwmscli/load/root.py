@@ -186,6 +186,10 @@ def validate_cda_targets(func):
         source_office = _norm_office(kwargs.get("source_office"))
         target_office = _norm_office(kwargs.get("target_office"))
 
+        # Pass the same canonical office used for validation and logging to loaders.
+        if kwargs.get("source_office") is not None:
+            kwargs["source_office"] = source_office
+
         if source_cda and not source_office:
             raise click.ClickException(
                 "--source-office is required when reading from a source CDA."
