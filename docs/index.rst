@@ -2,7 +2,8 @@ cwms-cli Documentation
 ======================
 
 ``cwms-cli`` loads and manages CWMS data through the CWMS Data API (CDA).
-Start with :doc:`cli/setup`, then choose a workflow below. For every command's
+Start with :doc:`cli/about` to understand the tool, then read :doc:`cli/setup`
+and choose a workflow below. For every command's
 options and defaults, use the generated :doc:`cli` or ``cwms-cli --help``.
 
 Choose a workflow
@@ -37,6 +38,7 @@ Choose a workflow
    :maxdepth: 1
    :caption: Getting Started
 
+   cli/about
    cli/setup
    cli/api_arguments
    cli/login
