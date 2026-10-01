@@ -35,3 +35,21 @@ Next steps
 
 Start with :doc:`setup` and then choose a workflow from the project
 documentation home page.
+
+What can I do after installation?
+---------------------------------
+
+Once the CLI is installed and configured, you can use it to:
+
+- retrieve USGS observations, ratings, and measurements and prepare them for
+  CWMS;
+- preview a CSV time-series import with ``csv2cwms --dry-run`` before writing
+  data;
+- copy locations, time-series identifiers, and values between CDA instances;
+- inspect or update CWMS locations, users, offices, blobs, and CLOBs when your
+  account has the required permissions; and
+- transfer data with HEC-DSS or import SHEF configuration.
+
+Each workflow guide includes command examples and links to the relevant
+options. Start from the workflow table on the documentation home page when
+you are not sure which command to choose.
