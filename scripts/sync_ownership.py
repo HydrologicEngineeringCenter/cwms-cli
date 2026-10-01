@@ -17,7 +17,6 @@ MAINTAINERS_TOML = ROOT / "maintainers.toml"
 PYPROJECT_TOML = ROOT / "pyproject.toml"
 CODEOWNERS = ROOT / ".github" / "CODEOWNERS"
 OWNERSHIP_DATA = ROOT / "cwmscli" / "_generated" / "ownership_data.py"
-DOCS_MAINTAINERS_DIR = ROOT / "docs" / "_generated" / "maintainers"
 
 
 def load_maintainers() -> dict:
@@ -93,22 +92,11 @@ def render_cli_ownership_data(data: dict) -> str:
     )
 
 
-def render_docs_include(data: dict, command_path: str) -> str:
-    people = data["people"]
-    command_owners = data["cli"]["commands"].get(command_path, data["cli"]["default"])
-    names = ", ".join(people[key]["name"] for key in command_owners)
-    return f".. note::\n\n   Maintainers: {names}\n"
-
-
 def expected_generated_files(data: dict) -> dict[Path, str]:
     generated = {
         CODEOWNERS: render_codeowners(data),
         OWNERSHIP_DATA: render_cli_ownership_data(data),
     }
-    for stem, command_path in data["docs"]["pages"].items():
-        generated[DOCS_MAINTAINERS_DIR / f"{stem}.inc"] = render_docs_include(
-            data, command_path
-        )
     return generated
 
 

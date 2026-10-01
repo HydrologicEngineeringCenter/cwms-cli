@@ -4,17 +4,12 @@ Users commands
 The ``cwms-cli users`` command group is the entry point for CWMS user-management
 operations in the CLI.
 
-Landing page
-------------
+List users and roles
+--------------------
 
-## ``cwms-cli users roles``. 
-
-This command lists the assignable roles returned by the CWMS Data API for the current credentials.
-
-In practice, ``cwms-cli users roles`` and ``cwms.get_roles()`` typically return
-the same role catalog regardless of office. Office context still matters for
-actual user-role assignment work, but the role list itself is usually the same
-for any given office.
+``cwms-cli users roles list-all`` lists the assignable role catalog returned
+by CDA. It does not accept ``--office``; office context applies to user-role
+assignments. ``cwms-cli users roles`` alone displays group help.
 
 If the command returns a permission error, use an API key for a user with
 user-management admin access such as ``CWMS User Admins``. You can alter this in server admin or by reaching out to your region's CWMS administrator.
@@ -24,11 +19,19 @@ Examples
 
 - List the available user-management roles:
 
-  ``cwms-cli users roles --office SPK --api-root http://localhost:8082/cwms-data/ --api-key <ADMIN_KEY>``
+  ``cwms-cli users roles list-all --api-root http://localhost:8082/cwms-data/ --api-key <ADMIN_KEY>``
 
-- Use API keys from the environment instead of a command-line arguments:
+- Use connection settings from the environment:
 
-  ``cwms-cli users roles``
+  ``cwms-cli users roles list-all``
+
+- Find user IDs, optionally filtering by office and part of a user name:
+
+  ``cwms-cli users user-ids --office SPK --username-like q0hec``
+
+- Inspect one user's assigned roles:
+
+  ``cwms-cli users roles list-user --user-name q0hectest --office SPK``
 
 Add a role to a user
 --------------------

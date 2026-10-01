@@ -5,14 +5,34 @@ This page covers installing ``cwms-cli``, adding optional dependencies required
 by certain subcommands, and configuring the shared CDA connection inputs used
 across CWMS-backed commands.
 
+Before you begin
+----------------
+
+Have the following information ready before installing or running a
+CDA-backed command:
+
+- Python 3.9 or newer on the workstation or server where you will run the CLI.
+- The CDA API root for the target database, usually ending in ``/cwms-data``.
+- An API key for that CDA target, or a supported account for browser login.
+- The office code and any pathname, location, or time-series identifiers used
+  by your workflow.
+- Permission to perform the requested operation in that office. The CLI uses
+  CDA permissions and cannot grant access by itself.
+
+Ask your office or CDA administrator how to obtain an API key and which API
+root, office code, and database identifiers to use. Keep API keys private and
+do not commit them to scripts or configuration files.
+
 Install cwms-cli
 ----------------
 
-Install the base CLI package:
+Use Python 3.9 or newer. Install the base CLI package into an activated virtual
+environment:
 
 .. code-block:: bash
 
-   pip install cwms-cli
+   python -m pip install cwms-cli
+   cwms-cli --help
 
 After installation, see :doc:`Shell Completion <shell_completion>` if you want
 tab completion for supported shells.
@@ -30,10 +50,20 @@ Commands that talk to CWMS, including ``csv2cwms``, require
 
 .. code-block:: bash
 
-   pip install cwms-python
+   python -m pip install cwms-python
 
-If you plan to use USGS-related commands, additional packages may also be
-required depending on the subcommand.
+For :doc:`USGS ratings and measurements <usgs>`, also install
+``dataretrieval``:
+
+.. code-block:: bash
+
+   python -m pip install dataretrieval
+
+For :doc:`HEC-DSS transfers <dss>`, install the DSS extra:
+
+.. code-block:: bash
+
+   python -m pip install "cwms-cli[dss]"
 
 How Missing Dependencies Are Reported
 -------------------------------------
@@ -62,9 +92,26 @@ Most CWMS-backed commands use the same CDA connection inputs:
 
 See :doc:`Common API Arguments <api_arguments>` for environment setup examples.
 
+Use :doc:`login` for browser authentication or configure an API key for your
+target. Browser login is not supported by every command. For example, the
+USGS commands require a CDA API key. :doc:`env` stores named connections for
+``load`` commands; creating an environment does not automatically select it
+for other commands.
+
+First workflow
+--------------
+
+- For CSV observations, follow the :doc:`csv2cwms` working example and preview
+  it with ``--dry-run`` before writing data.
+- To copy CDA data, :doc:`load locations <load_location_ids_all>` first, then
+  :doc:`time-series identifiers and values <load_timeseries>`.
+- Examples using a trailing ``\`` for line continuation are Bash syntax.
+  In PowerShell or Command Prompt, put the command on one line instead.
+
 See also
 --------
 
 - :doc:`Shell Completion <shell_completion>`
 - :doc:`csv2cwms <csv2cwms>`
 - :doc:`Common API Arguments <api_arguments>`
+- :doc:`troubleshooting`

@@ -1,8 +1,6 @@
 Load Locations
 ==============
 
-.. include:: ../_generated/maintainers/load_location_ids_all.inc
-
 Use ``cwms-cli load location ids-all`` to copy locations selected by the
 source CDA catalog into a target CDA. Use
 ``cwms-cli load location ids-bygroup`` to copy the locations that belong to a
@@ -11,6 +9,10 @@ source CDA location group.
 Both commands can write selected locations to CSV files instead of storing them
 to a target CDA. The ``ids-all`` command can also read locations back from a
 CSV file and store them to a target CDA.
+
+After loading locations, use :doc:`load_timeseries` to copy time-series
+identifiers and values. Use ``--dry-run`` to preview a location load; CDA reads
+and the target service preflight still run, but records are not stored.
 
 The ``ids-all`` command passes ``--like`` and ``--location-kind-like`` directly
 to the source CDA catalog, so both options use CDA regular expression behavior.

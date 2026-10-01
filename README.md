@@ -35,6 +35,11 @@ cwms-cli update --target-version 0.7.1 --yes
 
 ## Command line implementation
 
+Start with the [installation guide](https://cwms-cli.readthedocs.io/en/latest/cli/setup.html)
+or [choose a workflow](https://cwms-cli.readthedocs.io/en/latest/index.html#choose-a-workflow).
+The docs cover CSV, CDA-to-CDA and DSS transfers, USGS retrieval, SHEF
+configuration imports, file management, and user roles.
+
 View the help in terminal:
 ```sh
 cwms-cli --help
@@ -43,7 +48,7 @@ cwms-cli --help
 ## run from within python
 ```python
 from cwmscli.usgs.getusgs_cda import getusgs_cda
-from cwmscli.usgs.getusgs_measurements_cda import getusgs_measurements_cda
+from cwmscli.usgs.getusgs_measurements_cda import getusgs_measurement_cda
 from cwmscli.usgs.getUSGS_ratings_cda import getusgs_rating_cda
 ```
 
