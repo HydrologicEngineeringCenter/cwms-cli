@@ -1,4 +1,6 @@
 import logging as py_logging
+import math
+import os
 import re
 import time
 from pathlib import Path
@@ -128,23 +130,33 @@ def get_api_key(api_key: str, api_key_loc: str) -> str:
 def get_saved_login_token(
     token_file: Optional[Union[str, Path]] = None,
     provider: str = "federation-eams",
+    api_root: Optional[str] = None,
 ) -> Optional[str]:
     from cwmscli.utils.auth import (
+        DEFAULT_CDA_API_ROOT,
         AuthError,
-        default_token_file,
+        NoSavedLoginError,
+        environment_token_file,
         load_saved_login,
         refresh_saved_login,
         save_login,
     )
 
-    candidate = Path(token_file) if token_file else default_token_file(provider)
+    api_root = (api_root or os.getenv("CDA_API_ROOT") or DEFAULT_CDA_API_ROOT).rstrip(
+        "/"
+    )
+    candidate = Path(token_file) if token_file else environment_token_file(api_root)
     try:
-        saved = load_saved_login(candidate)
-    except AuthError as error:
+        saved = load_saved_login(candidate, api_root=api_root)
+    except NoSavedLoginError:
+        return None
+    except (AuthError, OSError) as error:
         if candidate.exists():
             py_logging.warning("Ignoring saved login at %s: %s", candidate, error)
         return None
 
+    if saved.get("api_root") and saved["api_root"].rstrip("/") != api_root:
+        return None
     token = saved.get("token", {})
     access_token = token.get("access_token")
     if not access_token:
@@ -155,16 +167,20 @@ def get_saved_login_token(
     expires_at = token.get("expires_at")
     if expires_at is not None:
         try:
+            if not math.isfinite(float(expires_at)):
+                return None
             if float(expires_at) <= time.time():
                 py_logging.info("Refreshing expired saved login token at %s", candidate)
                 try:
-                    refreshed = refresh_saved_login(token_file=candidate)
+                    refreshed = refresh_saved_login(
+                        token_file=candidate, api_root=api_root
+                    )
                     save_login(
                         token_file=candidate,
                         config=refreshed["config"],
                         token=refreshed["token"],
                     )
-                except AuthError as error:
+                except (AuthError, OSError, KeyError, TypeError) as error:
                     py_logging.warning(
                         "Could not refresh saved login at %s: %s. Falling back to API key if available.",
                         candidate,
@@ -199,7 +215,9 @@ def init_cwms_session(
     if anonymous:
         return init_fn(api_root=api_root, api_key=None)
 
-    token = get_saved_login_token(token_file=token_file, provider=provider)
+    token = get_saved_login_token(
+        token_file=token_file, provider=provider, api_root=api_root
+    )
     if token:
         return init_fn(api_root=api_root, token=token)
 
