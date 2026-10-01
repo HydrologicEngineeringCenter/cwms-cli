@@ -67,6 +67,27 @@ Environment setup
 
    </details>
 
+Windows notes
+-------------
+
+The ``set`` and ``$env:`` examples above set variables only in the current
+Command Prompt or PowerShell session. Open a new terminal, restart the
+computer, or start a script from another application and those variables will
+not be present unless you configure them again.
+
+For repeatable use, store the connection with ``cwms-cli env setup`` and start
+a child shell with ``cwms-cli env activate NAME``. Run the CLI commands from
+that child shell. Closing it ends that activation, while the saved environment
+remains available for the next activation. You can also export a named
+environment for a specific PowerShell session:
+
+.. code-block:: powershell
+
+   cwms-cli env export prod --format powershell | Out-String | Invoke-Expression
+
+Installing ``cwms-cli`` does not create an API key or grant CDA access. Ask
+your office or CDA administrator for the correct API root, office, and key.
+
 Notes
 -----
 
