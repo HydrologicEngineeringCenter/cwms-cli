@@ -223,6 +223,7 @@ def test_check_uses_environment_token_on_protected_endpoint(
     monkeypatch.setattr(requests, "get", get)
     result = _check_env({"CDA_API_ROOT": root, "CDA_API_KEY": "fallback"})
     assert result["auth"] == expected
+    assert result["credential"] == "login token"
     assert calls[1][0] == root + "/roles"
     assert calls[1][1]["headers"] == {"Authorization": "Bearer demo-secret"}
 

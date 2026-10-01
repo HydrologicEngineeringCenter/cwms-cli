@@ -88,6 +88,23 @@ def test_target_env_resolves_cda_and_api_key(isolated_envs, capture_load):
     assert capture_load["target_api_key"] == "apikey abc123"
 
 
+def test_target_env_warns_when_no_api_key_is_available(isolated_envs, capture_load):
+    save_env("local", {"CDA_API_ROOT": "http://localhost:8082/cwms-data"})
+    result = _invoke(
+        [
+            "--source-cda",
+            "https://prod.mil/cwms-data",
+            "--source-office",
+            "SWT",
+            "--target-env",
+            "local",
+        ]
+    )
+    assert result.exit_code == 0, result.output
+    assert "does not automatically use" in result.output
+    assert "--target-api-key" in result.output
+
+
 def test_both_envs_resolve(isolated_envs, capture_load):
     save_env(
         "prod",

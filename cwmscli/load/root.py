@@ -152,6 +152,13 @@ def validate_cda_targets(func):
                 "CDA_API_KEY"
             ):
                 kwargs["target_api_key"] = env_data["CDA_API_KEY"]
+            if not kwargs.get("target_api_key"):
+                click.echo(
+                    "Warning: --target-env does not automatically use that environment's "
+                    "saved login token for writes. Provide --target-api-key if the target "
+                    "requires authentication.",
+                    err=True,
+                )
 
         source_csv = kwargs.get("source_csv")
         target_csv = kwargs.get("target_csv")

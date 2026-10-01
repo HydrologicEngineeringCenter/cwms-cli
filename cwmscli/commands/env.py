@@ -8,8 +8,7 @@ from typing import Dict, Optional
 
 import click
 
-from cwmscli.utils import colors
-from cwmscli.utils import get_saved_login_token
+from cwmscli.utils import colors, get_saved_login_token
 from cwmscli.utils.auth import (
     AuthError,
     environment_token_file,
@@ -106,6 +105,7 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
             "reachable": True,
             "latency_ms": latency_ms,
             "auth": "skipped",
+            "credential": "none",
             "error": None,
         }
 
@@ -126,6 +126,7 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
             "reachable": True,
             "latency_ms": latency_ms,
             "auth": "failed",
+            "credential": credential,
             "error": error,
         }
 
@@ -134,6 +135,7 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
             "reachable": True,
             "latency_ms": latency_ms,
             "auth": "failed",
+            "credential": credential,
             "error": (
                 f"CDA rejected the {credential} (HTTP 401). "
                 + (
@@ -149,6 +151,7 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
             "reachable": True,
             "latency_ms": latency_ms,
             "auth": "failed",
+            "credential": credential,
             "error": (
                 "CDA recognized the credentials but denied access (HTTP 403). "
                 "Confirm the account's roles and office access."
@@ -160,9 +163,16 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
             "reachable": True,
             "latency_ms": latency_ms,
             "auth": "failed",
+            "credential": credential,
             "error": f"Authentication check returned HTTP {auth_resp.status_code}",
         }
-    return {"reachable": True, "latency_ms": latency_ms, "auth": "ok", "error": None}
+    return {
+        "reachable": True,
+        "latency_ms": latency_ms,
+        "auth": "ok",
+        "credential": credential,
+        "error": None,
+    }
 
 
 def _active_env_mismatches(
@@ -336,10 +346,15 @@ def show_cmd(check: bool):
                 reach_str = click.style("unreachable", fg="red") + err
 
             auth_str = "not checked"
+            credential = result.get("credential")
             if result["auth"] == "ok":
                 auth_str = click.style("authenticated", fg="green")
+                if credential and credential != "none":
+                    auth_str += f" via {credential}"
             elif result["auth"] == "failed":
                 auth_str = click.style("auth failed", fg="red")
+                if credential and credential != "none":
+                    auth_str += f" via {credential}"
                 if result["error"]:
                     auth_str += f" — {result['error']}"
 

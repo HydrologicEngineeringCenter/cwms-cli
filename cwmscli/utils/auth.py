@@ -7,6 +7,7 @@ import os
 import re
 import secrets
 import socketserver
+import tempfile
 import time
 import urllib.parse
 import webbrowser
@@ -589,10 +590,30 @@ def save_login(
             _normalize_api_root(config.api_root)
         ] = payload
         payload = document
-    fd = os.open(token_file, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, "w", encoding="utf-8") as f:
-        json.dump(payload, f, indent=2, sort_keys=True)
-        f.write("\n")
+    temporary_file = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=token_file.parent,
+            prefix=f".{token_file.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as f:
+            temporary_file = Path(f.name)
+            json.dump(payload, f, indent=2, sort_keys=True)
+            f.write("\n")
+            f.flush()
+            os.fsync(f.fileno())
+        os.chmod(temporary_file, 0o600)
+        os.replace(temporary_file, token_file)
+    except OSError:
+        if temporary_file is not None:
+            try:
+                temporary_file.unlink()
+            except FileNotFoundError:
+                pass
+        raise
     os.chmod(token_file, 0o600)
     from cwmscli.utils.env_store import _restrict_windows_acl
 

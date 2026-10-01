@@ -60,6 +60,34 @@ def test_automatic_refresh_preserves_other_environment(monkeypatch, tmp_path):
     assert saved["token"]["refresh_expires_at"] == 4102444800
 
 
+def test_save_login_keeps_original_when_replacement_fails(monkeypatch, tmp_path):
+    from cwmscli.utils import auth
+
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    root = "https://dev.example"
+    token_file = auth.environment_token_file(root)
+    auth.save_login(
+        token_file,
+        auth.OIDCLoginConfig(api_root=root),
+        {"access_token": "original"},
+    )
+    original = token_file.read_bytes()
+
+    def fail_replace(source, destination):
+        raise OSError("simulated replacement failure")
+
+    monkeypatch.setattr(auth.os, "replace", fail_replace)
+    with pytest.raises(OSError, match="simulated replacement failure"):
+        auth.save_login(
+            token_file,
+            auth.OIDCLoginConfig(api_root=root),
+            {"access_token": "replacement"},
+        )
+
+    assert token_file.read_bytes() == original
+    assert not list(token_file.parent.glob(f".{token_file.name}.*.tmp"))
+
+
 def test_refresh_network_failure_falls_back(monkeypatch, tmp_path):
     import requests
 
