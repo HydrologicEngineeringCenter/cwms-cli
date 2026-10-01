@@ -5,6 +5,24 @@ This page covers installing ``cwms-cli``, adding optional dependencies required
 by certain subcommands, and configuring the shared CDA connection inputs used
 across CWMS-backed commands.
 
+Before you begin
+----------------
+
+Have the following information ready before installing or running a
+CDA-backed command:
+
+- Python 3.9 or newer on the workstation or server where you will run the CLI.
+- The CDA API root for the target database, usually ending in ``/cwms-data``.
+- An API key for that CDA target, or a supported account for browser login.
+- The office code and any pathname, location, or time-series identifiers used
+  by your workflow.
+- Permission to perform the requested operation in that office. The CLI uses
+  CDA permissions and cannot grant access by itself.
+
+Ask your office or CDA administrator how to obtain an API key and which API
+root, office code, and database identifiers to use. Keep API keys private and
+do not commit them to scripts or configuration files.
+
 Install cwms-cli
 ----------------
 
