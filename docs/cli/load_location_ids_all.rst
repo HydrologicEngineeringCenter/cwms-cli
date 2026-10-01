@@ -1,8 +1,6 @@
 Load Locations
 ==============
 
-.. include:: ../_generated/maintainers/load_location_ids_all.inc
-
 Use ``cwms-cli load location ids-all`` to copy locations selected by the
 source CDA catalog into a target CDA. Use
 ``cwms-cli load location ids-bygroup`` to copy the locations that belong to a

@@ -1,8 +1,6 @@
 USGS Data Retrieval
 ===================
 
-.. include:: ../_generated/maintainers/usgs.inc
-
 ``cwms-cli usgs`` retrieves USGS data and stores it in CWMS through CDA.
 Configure :doc:`api_arguments` and install the optional packages:
 

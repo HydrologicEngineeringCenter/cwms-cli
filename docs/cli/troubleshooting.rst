@@ -9,6 +9,16 @@ CLI. Activate that environment before running ``cwms-cli --help``. Install
 optional packages into the same environment using ``python -m pip``; see
 :doc:`setup` for command-specific dependencies.
 
+Virtual environments
+--------------------
+
+A virtual environment is an isolated Python installation for one project. It
+keeps ``cwms-cli`` and its optional dependencies separate from other Python
+projects and from the operating system's Python installation. Activate the
+environment before installing or running the CLI so ``python -m pip`` and
+``cwms-cli`` use the same environment. See :doc:`setup` for the installation
+commands.
+
 Use ``cwms-cli COMMAND --help`` to check option placement. Global flags precede
 the command, for example ``cwms-cli --log-level DEBUG usgs timeseries --help``.
 

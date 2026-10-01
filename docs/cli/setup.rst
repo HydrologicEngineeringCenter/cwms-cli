@@ -75,8 +75,10 @@ Most CWMS-backed commands use the same CDA connection inputs:
 See :doc:`Common API Arguments <api_arguments>` for environment setup examples.
 
 Use :doc:`login` for browser authentication or configure an API key for your
-target. :doc:`env` stores named connections for ``load`` commands; creating an
-environment does not automatically select it for other commands.
+target. Browser login is not supported by every command. For example, the
+USGS commands require a CDA API key. :doc:`env` stores named connections for
+``load`` commands; creating an environment does not automatically select it
+for other commands.
 
 First workflow
 --------------

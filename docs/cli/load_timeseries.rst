@@ -1,8 +1,6 @@
 Load Time Series
 ================
 
-.. include:: ../_generated/maintainers/load_timeseries.inc
-
 Use ``cwms-cli load timeseries`` to copy identifiers or values between CDA
 instances. Install ``cwms-python`` as described in :doc:`setup` and
 :doc:`load locations <load_location_ids_all>` into the target first.

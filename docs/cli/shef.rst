@@ -1,8 +1,6 @@
 SHEF Configuration Imports
 ==========================
 
-.. include:: ../_generated/maintainers/shef.inc
-
 ``cwms-cli shef`` imports legacy configuration into CWMS time-series groups.
 It does not ingest SHEF observation messages. Install ``cwms-python`` and set
 the office and CDA connection using :doc:`api_arguments`.

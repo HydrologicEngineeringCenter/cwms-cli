@@ -1,3 +1,0 @@
-.. note::
-
-   Maintainers: Charles Graham

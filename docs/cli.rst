@@ -1,8 +1,6 @@
 CLI reference
 =============
 
-.. include:: _generated/maintainers/cli.inc
-
 See also
 --------
 
