@@ -1,3 +1,5 @@
+import logging
+
 import click
 
 from cwmscli import requirements as reqs
@@ -73,8 +75,30 @@ def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc, backfi
     type=str,
     help='subset of rating spec ids to grab latest rating for (e.g. "rating_spec_id1, rating_spec_id2").',
 )
+@click.option(
+    "--usgs-api-key",
+    default=None,
+    envvar="API_USGS_PAT",
+    type=str,
+    help=("Optional USGS Water Data API key. Can also be provided by " "API_USGS_PAT."),
+)
+@click.option(
+    "--dry-run",
+    is_flag=True,
+    default=False,
+    help="Preview ratings without storing them in CWMS",
+)
 @requires(reqs.cwms, reqs.requests, reqs.dataretrieval)
-def getusgs_ratings(office, days_back, api_root, api_key, api_key_loc, rating_subset):
+def getusgs_ratings(
+    office,
+    days_back,
+    api_root,
+    api_key,
+    api_key_loc,
+    rating_subset,
+    usgs_api_key,
+    dry_run,
+):
     from cwmscli.usgs.getUSGS_ratings_cda import getusgs_rating_cda
 
     if rating_subset is not None:
@@ -84,6 +108,12 @@ def getusgs_ratings(office, days_back, api_root, api_key, api_key_loc, rating_su
     else:
         rating_list = None
 
+    if not usgs_api_key:
+        logging.warning(
+            "No USGS Water Data API key supplied. Sign up for a key at "
+            "https://api.waterdata.usgs.gov/signup/"
+        )
+
     api_key = get_api_key(api_key, api_key_loc)
     getusgs_rating_cda(
         api_root=api_root,
@@ -91,6 +121,8 @@ def getusgs_ratings(office, days_back, api_root, api_key, api_key_loc, rating_su
         days_back=days_back,
         api_key=api_key,
         rating_subset=rating_list,
+        usgs_api_key=usgs_api_key,
+        dry_run=dry_run,
     )
 
 
