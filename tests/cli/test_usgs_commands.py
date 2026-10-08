@@ -50,6 +50,7 @@ def test_usgs_timeseries_backfill_preserves_internal_spaces(monkeypatch):
 def test_usgs_ratings_dry_run_is_forwarded(monkeypatch):
     captured = {}
     fake_module = types.ModuleType("cwmscli.usgs.getUSGS_ratings_cda")
+    monkeypatch.setattr(usgs_cli.sys, "version_info", (3, 10, 0))
 
     def fake_getusgs_rating_cda(**kwargs):
         captured.update(kwargs)
@@ -86,6 +87,7 @@ def test_usgs_ratings_dry_run_is_forwarded(monkeypatch):
 def test_usgs_ratings_reads_usgs_api_key_from_environment(monkeypatch):
     captured = {}
     fake_module = types.ModuleType("cwmscli.usgs.getUSGS_ratings_cda")
+    monkeypatch.setattr(usgs_cli.sys, "version_info", (3, 10, 0))
 
     def fake_getusgs_rating_cda(**kwargs):
         captured.update(kwargs)
@@ -120,6 +122,7 @@ def test_usgs_ratings_warns_and_runs_without_usgs_api_key(monkeypatch):
     captured = {}
     warning_messages = []
     fake_module = types.ModuleType("cwmscli.usgs.getUSGS_ratings_cda")
+    monkeypatch.setattr(usgs_cli.sys, "version_info", (3, 10, 0))
 
     def fake_getusgs_rating_cda(**kwargs):
         captured.update(kwargs)
