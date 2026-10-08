@@ -590,6 +590,7 @@ def get_current_usgs_rating(
 
     return ratings.get(rating_file_id)
 
+
 def migrate_extension(
     rating_id: str,
     office_id: str,
@@ -617,6 +618,7 @@ def migrate_extension(
     simple_rating["active"] = active
     simple_rating["description"] = description
     return rating_json
+
 
 def cwms_write_ratings(
     updated_ratings: pd.DataFrame,

@@ -210,7 +210,10 @@ def test_get_usgs_rating_description_falls_back_to_asset_url():
         source_url="https://example.test/rating.rdb",
     )
 
-    assert description == "USGS EXSA rating downloaded from https://example.test/rating.rdb"
+    assert (
+        description
+        == "USGS EXSA rating downloaded from https://example.test/rating.rdb"
+    )
 
 
 def test_convert_usgs_rating_df_converts_exsa_to_cwms_simple_rating(
@@ -657,9 +660,7 @@ def test_migrate_extension_fetches_previous_rating_and_preserves_extension_point
             "extension-points": extension_points,
         },
     }
-    cwms_rating = pd.DataFrame(
-        {"ind": [9.4, 11.6], "dep": [0.04, 260.0]}
-    )
+    cwms_rating = pd.DataFrame({"ind": [9.4, 11.6], "dep": [0.04, 260.0]})
     captured = {}
     monkeypatch.setattr(
         ratings.cwms,
