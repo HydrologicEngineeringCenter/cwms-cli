@@ -1,4 +1,5 @@
 import logging
+import sys
 
 import click
 
@@ -99,6 +100,15 @@ def getusgs_ratings(
     usgs_api_key,
     dry_run,
 ):
+    if sys.version_info < (3, 10):
+        logging.warning(
+            "USGS ratings requires Python 3.10 or newer; run this command "
+            "with Python 3.10+."
+        )
+        raise click.ClickException(
+            "Cannot run USGS ratings with Python 3.9 or earlier."
+        )
+
     from cwmscli.usgs.getUSGS_ratings_cda import getusgs_rating_cda
 
     if rating_subset is not None:

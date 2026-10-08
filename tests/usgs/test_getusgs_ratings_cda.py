@@ -19,6 +19,7 @@ def exsa_comment() -> str:
         [
             '# //STATION AGENCY="USGS" NUMBER="03275600" TIME_ZONE="EST"',
             '# //RATING SHIFTED="20261006143000 EST"',
+            '# //RATING REMARKS="Updated at Abington"',
             "# //RETRIEVED: 2026-10-06 14:35:00",
         ]
     )
@@ -190,6 +191,26 @@ def test_get_usgs_effective_date_falls_back_to_retrieved_date():
         "2026-10-06T14:35:00",
         tz="US/Eastern",
     )
+
+
+def test_get_usgs_rating_description_uses_rating_remarks():
+    description = ratings.get_usgs_rating_description(
+        ['# //RATING REMARKS="Rating shifted for debris"'],
+        rating_type="EXSA",
+        source_url="https://example.test/rating.rdb",
+    )
+
+    assert description == "Rating shifted for debris"
+
+
+def test_get_usgs_rating_description_falls_back_to_asset_url():
+    description = ratings.get_usgs_rating_description(
+        [],
+        rating_type="EXSA",
+        source_url="https://example.test/rating.rdb",
+    )
+
+    assert description == "USGS EXSA rating downloaded from https://example.test/rating.rdb"
 
 
 def test_convert_usgs_rating_df_converts_exsa_to_cwms_simple_rating(
@@ -603,8 +624,79 @@ def test_cwms_write_ratings_migrates_extension_from_previous_rating(
             exsa_rating.attrs["comment"], "EXSA"
         ).isoformat()
     )
+    assert update_kwargs["data"]["simple-rating"]["description"] == (
+        "Updated at Abington"
+    )
     assert "create-date" not in update_kwargs["data"]["simple-rating"]
     assert update_kwargs["data"]["simple-rating"]["active"] is True
+
+
+def test_migrate_extension_fetches_previous_rating_and_preserves_extension_points(
+    monkeypatch,
+):
+    rating_id = "ABRN8.Stage;Flow.USGS-BASE.USGS-NWIS"
+    office_id = "MVP"
+    cwms_effective_date = pd.Timestamp("2025-06-13T14:15:00Z")
+    effective_date = pd.Timestamp("2026-10-07T14:10:00Z")
+    extension_points = {
+        "point": [
+            {"ind": "-0.37", "dep": "0.0"},
+            {"ind": "29.0", "dep": "17000.0"},
+        ]
+    }
+    rating_json = {
+        "rating-spec": {
+            "auto-migrate-extension": True,
+            "template-id": "Stage;Flow.USGS-BASE",
+        },
+        "simple-rating": {
+            "effective-date": "2025-06-13T14:15:00Z",
+            "create-date": "2026-01-12T16:37:00Z",
+            "active": "true",
+            "rating-points": {"point": [{"ind": "9.35", "dep": "0.03"}]},
+            "extension-points": extension_points,
+        },
+    }
+    cwms_rating = pd.DataFrame(
+        {"ind": [9.4, 11.6], "dep": [0.04, 260.0]}
+    )
+    captured = {}
+    monkeypatch.setattr(
+        ratings.cwms,
+        "get_ratings",
+        lambda **kwargs: captured.setdefault("get_ratings_kwargs", kwargs)
+        and Mock(json=rating_json),
+    )
+
+    updated_rating = ratings.migrate_extension(
+        rating_id=rating_id,
+        office_id=office_id,
+        cwms_effective_date=cwms_effective_date,
+        cwms_rating=cwms_rating,
+        usgs_effective_date=effective_date,
+        active=False,
+        description="Current USGS remarks",
+    )
+
+    assert captured["get_ratings_kwargs"] == {
+        "rating_id": rating_id,
+        "office_id": office_id,
+        "begin": cwms_effective_date,
+        "end": cwms_effective_date,
+        "method": "EAGER",
+        "single_rating_df": True,
+    }
+    simple_rating = updated_rating["simple-rating"]
+    assert updated_rating["rating-spec"]["auto-migrate-extension"] is True
+    assert simple_rating["extension-points"] == extension_points
+    assert simple_rating["rating-points"]["point"] == [
+        {"ind": 9.4, "dep": 0.04},
+        {"ind": 11.6, "dep": 260.0},
+    ]
+    assert simple_rating["effective-date"] == effective_date.isoformat()
+    assert "create-date" not in simple_rating
+    assert simple_rating["active"] is False
+    assert simple_rating["description"] == "Current USGS remarks"
 
 
 def test_cwms_write_ratings_skips_storage_when_effective_date_matches(

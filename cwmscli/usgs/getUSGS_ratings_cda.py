@@ -389,6 +389,23 @@ def rating_comment_lines(comment: str | list[str] | None) -> list[str]:
     return [line.strip() for line in lines if line.strip()]
 
 
+def get_usgs_rating_description(
+    comment: str | list[str] | None,
+    rating_type: str,
+    source_url: str,
+) -> str:
+    """Use USGS rating remarks as the description, with an asset URL fallback."""
+    for line in rating_comment_lines(comment):
+        if line.startswith("# //RATING REMARKS="):
+            remarks = line.split("=", 1)[1].strip()
+            if len(remarks) >= 2 and remarks[0] == remarks[-1] == '"':
+                remarks = remarks[1:-1].strip()
+            if remarks:
+                return remarks
+
+    return f"USGS {rating_type.upper()} rating downloaded from {source_url}"
+
+
 def get_usgs_tz(comment: str | list[str] | None) -> str:
     """
     Extract the station time zone from a USGS rating RDB header.
@@ -573,6 +590,33 @@ def get_current_usgs_rating(
 
     return ratings.get(rating_file_id)
 
+def migrate_extension(
+    rating_id: str,
+    office_id: str,
+    cwms_effective_date: pd.Timestamp,
+    cwms_rating: pd.DataFrame,
+    usgs_effective_date: pd.Timestamp,
+    active: bool,
+    description: str,
+) -> dict[str, Any]:
+    """Fetch and update a prior rating while retaining its extension data."""
+    current_rating = cwms.get_ratings(
+        rating_id=rating_id,
+        office_id=office_id,
+        begin=cwms_effective_date,
+        end=cwms_effective_date,
+        method="EAGER",
+        single_rating_df=True,
+    )
+    rating_json = current_rating.json
+    simple_rating = rating_json["simple-rating"]
+    points_json = loads(cwms_rating.to_json(orient="records"))
+    simple_rating["rating-points"] = {"point": points_json}
+    simple_rating["effective-date"] = usgs_effective_date.isoformat()
+    simple_rating.pop("create-date", None)
+    simple_rating["active"] = active
+    simple_rating["description"] = description
+    return rating_json
 
 def cwms_write_ratings(
     updated_ratings: pd.DataFrame,
@@ -685,29 +729,24 @@ def cwms_write_ratings(
                 usgs_rating,
                 rating_type,
             )
-
+            source_url = usgs_rating.attrs.get("url", "")
+            rating_description = get_usgs_rating_description(
+                comment=usgs_rating.attrs.get("comment", ""),
+                rating_type=rating_type,
+                source_url=source_url,
+            )
             if bool(row["auto-migrate-extension"]) and not is_new_cwms_spec:
-                current_rating = cwms.get_ratings(
+                rating_json = migrate_extension(
                     rating_id=rating_id,
                     office_id=row["office-id"],
-                    begin=cwms_effective_date,
-                    end=cwms_effective_date,
-                    method="EAGER",
-                    single_rating_df=True,
+                    cwms_effective_date=cwms_effective_date,
+                    cwms_rating=cwms_rating,
+                    usgs_effective_date=usgs_effective_date,
+                    active=bool(row["auto-activate"]),
+                    description=rating_description,
                 )
-                rating_json = current_rating.json
-                points_json = loads(cwms_rating.to_json(orient="records"))
-                rating_json["simple-rating"]["rating-points"] = {"point": points_json}
-                rating_json["simple-rating"][
-                    "effective-date"
-                ] = usgs_effective_date.isoformat()
-                rating_json["simple-rating"].pop("create-date", None)
-                rating_json["simple-rating"]["active"] = bool(row["auto-activate"])
             else:
-                source_url = usgs_rating.attrs.get("url", "")
-                rating_description = (
-                    f"USGS {rating_type} rating downloaded from {source_url}"
-                )
+
                 rating_json = cwms.rating_simple_df_to_json(
                     data=cwms_rating,
                     rating_id=rating_id,

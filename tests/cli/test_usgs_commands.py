@@ -160,3 +160,35 @@ def test_usgs_ratings_warns_and_runs_without_usgs_api_key(monkeypatch):
         "https://api.waterdata.usgs.gov/signup/" in message
         for message in warning_messages
     )
+
+
+def test_usgs_ratings_requires_python_310(monkeypatch):
+    warning_messages = []
+    monkeypatch.setattr(usgs_cli.sys, "version_info", (3, 9, 18))
+    monkeypatch.setattr(deps.importlib, "import_module", lambda name: object())
+    monkeypatch.setattr(deps.importlib.metadata, "version", lambda name: "999.0.0")
+    monkeypatch.setattr(
+        usgs_cli.logging,
+        "warning",
+        lambda message, *args: warning_messages.append(
+            message % args if args else message
+        ),
+    )
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "usgs",
+            "ratings",
+            "-o",
+            "spl",
+            "-a",
+            "https://example.test/cda/",
+            "-k",
+            "test-api-key",
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "Python 3.10 or newer" in warning_messages[0]
+    assert "Python 3.9 or earlier" in result.output
