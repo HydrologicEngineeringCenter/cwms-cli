@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Run Release Please
         id: release
-        uses: googleapis/release-please-action@v4
+        uses: googleapis/release-please-action@v5
         with:
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
@@ -42,12 +42,12 @@ jobs:
 
     steps:
       - name: Check Out Release Tag
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           ref: ${{ needs.release-please.outputs.tag_name }}
 
       - name: Set Up Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@v7
         with:
           python-version: "3.x"
 
@@ -55,7 +55,7 @@ jobs:
         uses: abatilo/actions-poetry@v4
 
       - name: Cache Virtual Environment
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ./.venv
           key: venv-${{ hashFiles('poetry.lock') }}
@@ -70,7 +70,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
 
       - name: Sign Distribution
-        uses: sigstore/gh-action-sigstore-python@v3.3.0
+        uses: sigstore/gh-action-sigstore-python@v3.5.0
         with:
           inputs: |
             ./dist/*.tar.gz

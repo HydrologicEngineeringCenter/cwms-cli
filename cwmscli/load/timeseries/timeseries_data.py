@@ -5,6 +5,8 @@ from typing import Optional
 
 import click
 
+from cwmscli.load.root import _norm_office
+
 
 def _extract_timeseries_groups(payload) -> list[dict]:
     if payload is None:
@@ -48,6 +50,8 @@ def _load_timeseries_data(
     end: Optional[datetime] = None,
 ):
     import cwms
+
+    source_office = _norm_office(source_office)
 
     def copy_timeseries_for_office(
         current_ts_ids: list[str], current_office: str
@@ -123,7 +127,8 @@ def _load_timeseries_data(
             office_ts_ids = [
                 str(item["timeseries-id"])
                 for item in _assigned_timeseries(group)
-                if item.get("office-id") == source_office and item.get("timeseries-id")
+                if _norm_office(item.get("office-id")) == source_office
+                and item.get("timeseries-id")
             ]
             matched_groups.append((group_name, category_name, office_ts_ids))
             combined_ts_ids.extend(office_ts_ids)
@@ -148,10 +153,13 @@ def _load_timeseries_data(
         try:
             copy_timeseries_for_office(current_ts_ids, current_office)
         except Exception as e:
-            click.echo(
-                f"Error storing timeseries ({', '.join(current_ts_ids)}) data: {e}",
-                err=True,
-            )
+            from cwmscli.utils.friendly_errors import is_fatal_service_error
+
+            if is_fatal_service_error(e):
+                raise
+            raise click.ClickException(
+                f"Error copying timeseries ({', '.join(current_ts_ids)}) data: {e}"
+            ) from e
 
     if verbose:
         click.echo("Timeseries data copy operation completed.")

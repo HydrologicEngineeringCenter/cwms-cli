@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from typing import Optional
 
@@ -7,19 +8,27 @@ import click
 
 from cwmscli.ownership import get_command_maintainers, get_core_maintainer_emails
 from cwmscli.utils import colors
+from cwmscli.utils.links import BUG_REPORT_URL, FEATURE_REQUEST_URL
 from cwmscli.utils.version import get_cwms_cli_version
 
 DOCS_BASE_URL = "https://cwms-cli.readthedocs.io/en/latest"
+SHELL_COMPLETION_DOCS_URL = f"{DOCS_BASE_URL}/cli/shell_completion.html"
 
 
 def _render_version_line(ctx: click.Context) -> str:
-    # Match existing CLI color behavior: disable color for non-TTY, --no-color, or --log-file.
+    # Match existing CLI color behavior: disable color for non-TTY, NO_COLOR,
+    # --no-color, or --log-file.
     argv = sys.argv[1:]
     no_color = "--no-color" in argv
     has_log_file = ("--log-file" in argv) or any(
         arg.startswith("--log-file=") for arg in argv
     )
-    allow_color = sys.stdout.isatty() and (not no_color) and (not has_log_file)
+    allow_color = (
+        sys.stdout.isatty()
+        and ("NO_COLOR" not in os.environ)
+        and (not no_color)
+        and (not has_log_file)
+    )
     colors.set_enabled(allow_color)
     return f"Version: {colors.c(get_cwms_cli_version(), 'cyan', bright=True)}"
 
@@ -42,6 +51,7 @@ def _docs_url_for_context(ctx: click.Context) -> Optional[str]:
     command = (ctx.info_name or getattr(ctx.command, "name", None) or "").strip()
     page_map = {
         "blob": "blob",
+        "login": "login",
         "update": "update",
         "users": "users",
         "version": "version",
@@ -59,6 +69,23 @@ def _render_docs_line(ctx: click.Context) -> Optional[str]:
     if docs_url is None:
         return None
     return f"Docs: {colors.c(docs_url, 'blue', bright=True)}"
+
+
+def _render_shell_completion_line(ctx: click.Context) -> Optional[str]:
+    if ctx.parent is not None:
+        return None
+    return (
+        f"Shell completion: {colors.c(SHELL_COMPLETION_DOCS_URL, 'blue', bright=True)}"
+    )
+
+
+def _render_project_links(ctx: click.Context) -> list[str]:
+    if ctx.parent is not None:
+        return []
+    return [
+        f"Report an issue: {colors.c(BUG_REPORT_URL, 'blue', bright=True)}",
+        f"Request a feature: {colors.c(FEATURE_REQUEST_URL, 'blue', bright=True)}",
+    ]
 
 
 def _command_path(ctx: click.Context) -> str:
@@ -98,21 +125,20 @@ def _inject_help_header(help_text: str, ctx: click.Context) -> str:
 
     version_line = _render_version_line(ctx)
     docs_line = _render_docs_line(ctx)
+    shell_completion_line = _render_shell_completion_line(ctx)
     maintainers_line = _render_maintainers_line(ctx)
+    header_lines = [version_line]
+    if docs_line is not None:
+        header_lines.append(docs_line)
+    header_lines.append(maintainers_line)
+    if shell_completion_line is not None:
+        header_lines.append(shell_completion_line)
+    header_lines.extend(_render_project_links(ctx))
+
     if lines[0].startswith("Usage:"):
-        lines.insert(1, version_line)
-        if docs_line is not None:
-            lines.insert(2, docs_line)
-            lines.insert(3, maintainers_line)
-        else:
-            lines.insert(2, maintainers_line)
+        lines[1:1] = header_lines
     else:
-        lines.insert(0, version_line)
-        if docs_line is not None:
-            lines.insert(1, docs_line)
-            lines.insert(2, maintainers_line)
-        else:
-            lines.insert(1, maintainers_line)
+        lines[0:0] = header_lines
     return "\n".join(lines)
 
 

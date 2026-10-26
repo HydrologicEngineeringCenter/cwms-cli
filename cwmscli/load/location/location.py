@@ -5,6 +5,7 @@ import click
 
 from cwmscli import requirements as reqs
 from cwmscli.load.root import (
+    csv_source_target_options,
     load_group,
     shared_source_target_options,
     validate_cda_targets,
@@ -24,12 +25,14 @@ def location(ctx):
 @location.command(
     "ids-all",
     help=(
-        "Copy locations from a source CDA catalog to a target CDA. "
+        "Copy locations from a source CDA catalog to a target CDA, "
+        "or to/from a CSV file via --source-csv / --target-csv. "
         "The --like and --location-kind-like filters use CDA regex semantics. "
         f"Regex guide: {CDA_REGEXP_GUIDE_URL}"
     ),
 )
 @shared_source_target_options
+@csv_source_target_options(allow_source_csv=True, allow_target_csv=True)
 @click.option(
     "--like",
     default=None,
@@ -57,14 +60,16 @@ def location(ctx):
 @requires(reqs.cwms)
 @validate_cda_targets
 def load_locations(
-    source_cda: str,
-    source_office: str,
-    target_cda: str,
+    source_cda: Optional[str],
+    source_office: Optional[str],
+    target_cda: Optional[str],
     target_api_key: Optional[str],
     verbose: int,
     dry_run: bool,
     like: Optional[str],
     location_kind_like: Optional[Iterable[str]] = None,
+    source_csv: Optional[str] = None,
+    target_csv: Optional[str] = None,
 ):
     from cwmscli.load.location.location_ids import load_locations as _load_locations
 
@@ -77,14 +82,20 @@ def load_locations(
         dry_run=dry_run,
         like=like,
         location_kind_like=location_kind_like,
+        source_csv=source_csv,
+        target_csv=target_csv,
     )
 
 
 @location.command(
     "ids-bygroup",
-    help="Copy locations from a CWMS Location Group (source CDA) to a target CDA.",
+    help=(
+        "Copy locations from a CWMS Location Group (source CDA) to a target CDA, "
+        "or export the resolved members to a CSV file via --target-csv."
+    ),
 )
 @shared_source_target_options
+@csv_source_target_options(allow_source_csv=False, allow_target_csv=True)
 @click.option(
     "--group-id", required=True, help="Location Group ID (e.g., 'Ark Basin')."
 )
@@ -112,7 +123,7 @@ def load_locations(
 def load_locations_from_group(
     source_cda: str,
     source_office: str,
-    target_cda: str,
+    target_cda: Optional[str],
     target_api_key: Optional[str],
     verbose: int,
     group_id: str,
@@ -121,6 +132,7 @@ def load_locations_from_group(
     category_office_id: Optional[str],
     filter_office: bool,
     dry_run: bool,
+    target_csv: Optional[str] = None,
 ):
     from cwmscli.load.location.location_ids_bygroup import copy_from_group
 
@@ -136,4 +148,5 @@ def load_locations_from_group(
         category_office_id=category_office_id,
         filter_office=filter_office,
         dry_run=dry_run,
+        target_csv=target_csv,
     )

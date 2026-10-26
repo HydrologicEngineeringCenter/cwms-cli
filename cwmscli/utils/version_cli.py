@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import sys
 from typing import Optional
 
@@ -17,7 +18,12 @@ def version_output_allows_color(
     no_color: bool,
     log_file: Optional[str],
 ) -> bool:
-    return sys.stdout.isatty() and (not no_color) and (not log_file)
+    return (
+        sys.stdout.isatty()
+        and ("NO_COLOR" not in os.environ)
+        and (not no_color)
+        and (not log_file)
+    )
 
 
 def show_version_and_exit(

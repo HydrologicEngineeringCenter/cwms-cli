@@ -6,6 +6,10 @@ email = "charles.r.graham@usace.army.mil"
 name = "Eric Novotny"
 email = "eric.v.novotny@usace.army.mil"
 
+[people.mitch]
+name = "Mitch Weier"
+email = "mitchell.s.weier@usace.army.mil"
+
 [poetry]
 authors = ["eric", "charles"]
 
@@ -18,7 +22,8 @@ default = ["charles", "eric"]
 "cwms-cli update" = ["charles"]
 "cwms-cli load" = ["charles", "eric"]
 "cwms-cli usgs" = ["eric"]
-"cwms-cli shefcritimport" = ["eric"]
+"cwms-cli shef" = ["eric"]
+"cwms-cli env" = ["mitch", "charles"]
 
 [docs.pages]
 "cli" = "cwms-cli"
@@ -26,16 +31,37 @@ default = ["charles", "eric"]
 "csv2cwms" = "cwms-cli csv2cwms"
 "update" = "cwms-cli update"
 "load_location_ids_all" = "cwms-cli load"
+"env" = "cwms-cli env"
 
 [[codeowners.rule]]
 pattern = "*"
 owners = ["charles", "eric"]
-comment = "Default owners for repository-wide files and shared cwms-cli behavior"
+comment = "Fallback owners for paths without a later, more specific rule; keep this rule first"
 
 [[codeowners.rule]]
 pattern = "/.github/CODEOWNERS"
 owners = ["charles", "eric"]
 comment = "Protect ownership rules themselves"
+
+[[codeowners.rule]]
+pattern = "/maintainers.toml"
+owners = ["charles", "eric"]
+comment = "Primary configuration file for ownership metadata"
+
+[[codeowners.rule]]
+pattern = "/scripts/sync_ownership.py"
+owners = ["charles", "eric"]
+comment = "Ownership metadata generator"
+
+[[codeowners.rule]]
+pattern = "/scripts/preview_docs.py"
+owners = ["charles", "eric", "mitch"]
+comment = "Local docs preview helper"
+
+[[codeowners.rule]]
+pattern = "/AGENTS.md"
+owners = ["charles", "eric"]
+comment = "Repository ownership maintenance guidance"
 
 [[codeowners.rule]]
 pattern = "/cwmscli/commands/csv2cwms/"
@@ -62,6 +88,10 @@ pattern = "/docs/cli/update.rst"
 owners = ["charles"]
 
 [[codeowners.rule]]
+pattern = "/tests/cli/test_update_command.py"
+owners = ["charles"]
+
+[[codeowners.rule]]
 pattern = "/cwmscli/load/"
 owners = ["charles", "eric"]
 
@@ -70,14 +100,51 @@ pattern = "/docs/cli/load_*.rst"
 owners = ["charles", "eric"]
 
 [[codeowners.rule]]
+pattern = "/tests/load/"
+owners = ["charles", "eric"]
+
+[[codeowners.rule]]
+pattern = "/tests/commands/test_load_*.py"
+owners = ["charles", "eric"]
+
+[[codeowners.rule]]
+pattern = "/tests/test_preview_docs.py"
+owners = ["charles", "eric"]
+comment = "Local docs preview helper tests"
+
+[[codeowners.rule]]
 pattern = "/cwmscli/usgs/"
 owners = ["eric"]
 
 [[codeowners.rule]]
-pattern = "/cwmscli/commands/shef_critfile_import.py"
+pattern = "/tests/usgs/"
+owners = ["eric"]
+
+[[codeowners.rule]]
+pattern = "/tests/cli/test_usgs_*.py"
+owners = ["eric"]
+
+[[codeowners.rule]]
+pattern = "/cwmscli/commands/shef/"
+owners = ["eric"]
+
+[[codeowners.rule]]
+pattern = "/tests/commands/test_shef_*.py"
 owners = ["eric"]
 
 [[codeowners.rule]]
 pattern = "/cwmscli/commands/commands_cwms.py"
 owners = ["charles", "eric"]
 comment = "Shared Click wrappers span commands owned by both maintainers"
+
+[[codeowners.rule]]
+pattern = "/cwmscli/commands/env.py"
+owners = ["mitch", "charles"]
+
+[[codeowners.rule]]
+pattern = "/docs/cli/env.rst"
+owners = ["mitch", "charles"]
+
+[[codeowners.rule]]
+pattern = "/tests/commands/test_env.py"
+owners = ["mitch", "charles"]

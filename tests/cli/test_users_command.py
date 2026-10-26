@@ -1,14 +1,28 @@
 import importlib.metadata
 
+import click
 import pytest
 from click.testing import CliRunner
 
 from cwmscli.__main__ import cli
 
+# Shared role catalog used by multiple tests' fake CWMS implementations.
+ROLE_CATALOG = [
+    "All Users",
+    "CWMS Users",
+    "TS ID Creator",
+    "CWMS User Admins",
+    "CWMS PD Users",
+    "Data Acquisition Mgr",
+]
+
 
 @pytest.fixture(autouse=True)
 def mock_cwms_python_version(monkeypatch):
     monkeypatch.setattr(importlib.metadata, "version", lambda pkg: "1.0.7")
+    monkeypatch.setattr(
+        "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: None
+    )
 
 
 class _FakeData:
@@ -17,6 +31,47 @@ class _FakeData:
 
     def get(self, key, default=None):
         return self.json.get(key, default)
+
+
+def test_users_roles_list_all_prefers_saved_token(monkeypatch):
+    calls = []
+
+    monkeypatch.setattr(
+        "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: "saved-token"
+    )
+
+    class _FakeCwms:
+        class api:
+            class ApiError(Exception):
+                pass
+
+        @staticmethod
+        def init_session(api_root, api_key=None, token=None):
+            calls.append((api_root, api_key, token))
+            return None
+
+        @staticmethod
+        def get_roles():
+            return ["Viewer"]
+
+    monkeypatch.setitem(__import__("sys").modules, "cwms", _FakeCwms)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "users",
+            "roles",
+            "list-all",
+            "--api-root",
+            "https://example.test/cda/",
+            "--api-key",
+            "ignored",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert calls == [("https://example.test/cda/", None, "saved-token")]
 
 
 def test_users_roles_lists_available_roles(monkeypatch):
@@ -143,7 +198,7 @@ def test_users_roles_add_shortcut_roles_expand(monkeypatch):
 
         @staticmethod
         def get_roles():
-            return ["All Users", "CWMS Users", "TS ID Creator", "CWMS User Admins"]
+            return ROLE_CATALOG
 
         @staticmethod
         def store_user(user_name, office_id, roles):
@@ -229,7 +284,14 @@ def test_users_roles_add_shortcut_roles_expand(monkeypatch):
     assert calls["store_user"][2] == (
         "q0hectest",
         "SPK",
-        ["All Users", "CWMS Users", "TS ID Creator", "CWMS User Admins"],
+        [
+            "All Users",
+            "CWMS Users",
+            "TS ID Creator",
+            "CWMS User Admins",
+            "CWMS PD Users",
+            "Data Acquisition Mgr",
+        ],
     )
 
     result = runner.invoke(
@@ -283,7 +345,7 @@ def test_users_roles_delete_shortcut_roles_expand(monkeypatch):
 
         @staticmethod
         def get_roles():
-            return ["All Users", "CWMS Users", "TS ID Creator", "CWMS User Admins"]
+            return ROLE_CATALOG
 
         @staticmethod
         def delete_user_roles(user_name, office_id, roles):
@@ -340,7 +402,13 @@ def test_users_roles_delete_shortcut_roles_expand(monkeypatch):
     assert calls["delete_user_roles"][1] == (
         "q0hectest",
         "SPK",
-        ["CWMS Users", "TS ID Creator", "CWMS User Admins"],
+        [
+            "CWMS Users",
+            "TS ID Creator",
+            "CWMS User Admins",
+            "CWMS PD Users",
+            "Data Acquisition Mgr",
+        ],
     )
 
 
@@ -369,7 +437,7 @@ def test_users_roles_delete_all_roles(monkeypatch):
 
         @staticmethod
         def get_roles():
-            return ["All Users", "CWMS Users", "TS ID Creator", "CWMS User Admins"]
+            return ROLE_CATALOG
 
         @staticmethod
         def get_user(user_name):
@@ -435,7 +503,7 @@ def test_users_roles_add_requires_all_add_args_or_none(monkeypatch):
 
         @staticmethod
         def get_roles():
-            return ["All Users", "CWMS Users", "TS ID Creator", "CWMS User Admins"]
+            return ROLE_CATALOG
 
     monkeypatch.setitem(__import__("sys").modules, "cwms", _FakeCwms)
 
@@ -481,7 +549,7 @@ def test_users_roles_delete_requires_all_delete_args_or_none(monkeypatch):
 
         @staticmethod
         def get_roles():
-            return ["All Users", "CWMS Users", "TS ID Creator", "CWMS User Admins"]
+            return ROLE_CATALOG
 
     monkeypatch.setitem(__import__("sys").modules, "cwms", _FakeCwms)
 
@@ -506,3 +574,23 @@ def test_users_roles_delete_requires_all_delete_args_or_none(monkeypatch):
     assert result.exit_code == 1
     assert "Either specify all delete arguments" in result.output
     assert "Traceback" not in result.output
+
+
+@pytest.mark.parametrize("action", ["add", "delete"])
+def test_users_role_changes_do_not_prompt_non_interactively(monkeypatch, action):
+    from cwmscli.commands import users
+
+    monkeypatch.setattr(users, "is_non_interactive", lambda: True)
+    operation = users.add_roles if action == "add" else users.delete_roles
+
+    with pytest.raises(click.ClickException, match="cannot prompt") as error:
+        operation(
+            office="SPK",
+            api_root="https://example.test/cda/",
+            api_key="ignored",
+            api_key_loc=None,
+            user_name=None,
+            roles=None,
+        )
+
+    assert "--user-name and --roles" in str(error.value)

@@ -1,1 +1,5 @@
 CDA_REGEXP_GUIDE_URL = "https://cwms-cli.readthedocs.io/en/latest/cli/cda_regex.html"
+PROJECT_ISSUES_URL = "https://github.com/HydrologicEngineeringCenter/cwms-cli/issues"
+NEW_ISSUE_URL = f"{PROJECT_ISSUES_URL}/new"
+BUG_REPORT_URL = f"{PROJECT_ISSUES_URL}/new?template=bug-report.yml"
+FEATURE_REQUEST_URL = f"{PROJECT_ISSUES_URL}/new?template=feature-request.yml"

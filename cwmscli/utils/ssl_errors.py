@@ -27,19 +27,31 @@ def is_cert_verify_error(exc: BaseException) -> bool:
         urllib3 = None
 
     for e in _walk_exception_chain(exc):
+        error_text = str(e).lower()
+        if (
+            "certificate_verify_failed" in error_text
+            or "certificate verify failed" in error_text
+        ):
+            return True
         if isinstance(e, ssl.SSLCertVerificationError):
             return True
         if isinstance(e, ssl.SSLError) and "CERTIFICATE_VERIFY_FAILED" in str(e):
             return True
         if requests is not None:
-            if isinstance(e, getattr(requests.exceptions, "SSLError", ())):
+            requests_exceptions = getattr(requests, "exceptions", None)
+            if requests_exceptions is not None and isinstance(
+                e, getattr(requests_exceptions, "SSLError", ())
+            ):
                 if (
                     "CERTIFICATE_VERIFY_FAILED" in str(e)
                     or "certificate verify failed" in str(e).lower()
                 ):
                     return True
         if urllib3 is not None:
-            if isinstance(e, getattr(urllib3.exceptions, "SSLError", ())):
+            urllib3_exceptions = getattr(urllib3, "exceptions", None)
+            if urllib3_exceptions is not None and isinstance(
+                e, getattr(urllib3_exceptions, "SSLError", ())
+            ):
                 if (
                     "CERTIFICATE_VERIFY_FAILED" in str(e)
                     or "certificate verify failed" in str(e).lower()

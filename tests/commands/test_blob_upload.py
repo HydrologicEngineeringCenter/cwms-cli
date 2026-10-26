@@ -1,3 +1,4 @@
+import logging
 import sys
 import types
 
@@ -6,13 +7,22 @@ import pytest
 
 from cwmscli.commands.blob import (
     _blob_id_for_path,
+    _default_download_dest,
     _find_blob_id_collisions,
     _list_matching_files,
     _save_blob_content,
+    delete_cmd,
     download_cmd,
     list_cmd,
     upload_cmd,
 )
+
+
+@pytest.fixture(autouse=True)
+def no_saved_login(monkeypatch: pytest.MonkeyPatch):
+    monkeypatch.setattr(
+        "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: None
+    )
 
 
 def test_list_matching_files_filters_by_regex(tmp_path):
@@ -36,7 +46,9 @@ def test_blob_id_for_path_uses_prefix_and_relative_path():
     assert blob_id == "OPS_REPORTS_JAN_FINAL"
 
 
-def test_upload_cmd_continues_on_error_for_directory(tmp_path, monkeypatch):
+def test_upload_cmd_continues_on_error_for_directory(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     file_a = tmp_path / "a.txt"
     file_b = tmp_path / "b.txt"
     file_a.write_text("a")
@@ -85,6 +97,57 @@ def test_upload_cmd_continues_on_error_for_directory(tmp_path, monkeypatch):
     assert calls == ["A", "B"]
 
 
+def test_upload_cmd_uses_supplied_media_type_without_guessing(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    input_file = tmp_path / "hello.unknown"
+    input_file.write_text("hello", encoding="utf-8")
+    stored = []
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key):
+            return None
+
+        @staticmethod
+        def store_blobs(blob, fail_if_exists):
+            stored.append((blob, fail_if_exists))
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+
+    class FakeHTTPError(Exception):
+        pass
+
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=FakeHTTPError)
+    )
+    monkeypatch.setattr(
+        "cwmscli.commands.blob.get_media_type",
+        lambda path: (_ for _ in ()).throw(
+            AssertionError("media type should not be guessed")
+        ),
+    )
+
+    upload_cmd(
+        input_file=str(input_file),
+        input_dir=None,
+        file_regex=".*",
+        recursive=False,
+        blob_id="HELLO.TXT",
+        blob_id_prefix="",
+        description="Test File!",
+        media_type="plain/text",
+        overwrite=False,
+        dry_run=False,
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="x",
+    )
+
+    assert len(stored) == 1
+    assert stored[0][0]["media-type-id"] == "plain/text"
+
+
 def test_find_blob_id_collisions_detects_same_stem_and_path_collisions():
     matches = [
         ("C:/tmp/a.txt", "a.txt"),
@@ -104,7 +167,7 @@ def test_find_blob_id_collisions_detects_same_stem_and_path_collisions():
 
 
 def test_upload_cmd_aborts_before_upload_when_generated_ids_collide(
-    tmp_path, monkeypatch
+    tmp_path, monkeypatch: pytest.MonkeyPatch
 ):
     (tmp_path / "a.txt").write_text("a")
     (tmp_path / "a.json").write_text("{}")
@@ -160,7 +223,14 @@ def test_save_blob_content_writes_raw_text(tmp_path):
     assert dest.read_text(encoding="utf-8") == "plain text payload"
 
 
-def test_download_cmd_uses_media_type_to_write_text(tmp_path, monkeypatch):
+def test_default_download_dest_strips_leading_path_separators():
+    assert _default_download_dest("/REPORTS/REL-BLB") == "REPORTS/REL-BLB"
+    assert _default_download_dest("\\REPORTS\\REL-BLB") == "REPORTS\\REL-BLB"
+
+
+def test_download_cmd_uses_media_type_to_write_text(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     dest = tmp_path / "downloaded"
 
     class FakeBlobListing:
@@ -208,7 +278,63 @@ def test_download_cmd_uses_media_type_to_write_text(tmp_path, monkeypatch):
     assert saved.read_text(encoding="utf-8") == "retrieved text"
 
 
-def test_download_cmd_initializes_session_with_api_key(tmp_path, monkeypatch):
+def test_download_cmd_default_dest_stays_relative_for_leading_slash_id(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    class FakeBlobListing:
+        df = pd.DataFrame(
+            [
+                {
+                    "id": "/REPORTS/REL-BLB",
+                    "media-type-id": "text/plain",
+                    "description": "x",
+                }
+            ]
+        )
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key=None):
+            return None
+
+        @staticmethod
+        def get_blob(office_id, blob_id):
+            assert blob_id == "/REPORTS/REL-BLB"
+            return "retrieved text"
+
+        @staticmethod
+        def get_blobs(office_id, blob_id_like):
+            assert blob_id_like == "/REPORTS/REL-BLB"
+            return FakeBlobListing()
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+
+    class FakeHTTPError(Exception):
+        pass
+
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=FakeHTTPError)
+    )
+
+    monkeypatch.chdir(tmp_path)
+
+    download_cmd(
+        blob_id="/reports/rel-blb",
+        dest=None,
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="x",
+        dry_run=False,
+    )
+
+    saved = tmp_path / "REPORTS" / "REL-BLB.txt"
+    assert saved.exists()
+    assert saved.read_text(encoding="utf-8") == "retrieved text"
+
+
+def test_download_cmd_initializes_session_with_api_key(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     dest = tmp_path / "downloaded"
     calls = []
 
@@ -252,7 +378,62 @@ def test_download_cmd_initializes_session_with_api_key(tmp_path, monkeypatch):
     assert calls == [("init_session", "https://example.test/", "apikey 123")]
 
 
-def test_list_cmd_initializes_session_with_api_key(monkeypatch):
+def test_download_cmd_local_error_skips_scope_hint_and_logs_docs(
+    monkeypatch: pytest.MonkeyPatch, caplog
+):
+    class FakeBlobListing:
+        df = pd.DataFrame(
+            [{"id": "TEST_TXT", "media-type-id": "text/plain", "description": "x"}]
+        )
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key=None):
+            return None
+
+        @staticmethod
+        def get_blob(office_id, blob_id):
+            return "retrieved text"
+
+        @staticmethod
+        def get_blobs(office_id, blob_id_like):
+            return FakeBlobListing()
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+
+    class FakeHTTPError(Exception):
+        pass
+
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=FakeHTTPError)
+    )
+    monkeypatch.setattr(
+        "cwmscli.commands.blob.log_scoped_read_hint",
+        lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("scope hint should not run")
+        ),
+    )
+    monkeypatch.setattr(
+        "cwmscli.commands.blob._save_blob_content",
+        lambda *args, **kwargs: (_ for _ in ()).throw(PermissionError("denied")),
+    )
+
+    with caplog.at_level(logging.ERROR), pytest.raises(SystemExit) as exc:
+        download_cmd(
+            blob_id="test_txt",
+            dest="downloaded",
+            office="SWT",
+            api_root="https://example.test/",
+            api_key="apikey 123",
+            dry_run=False,
+        )
+
+    assert exc.value.code == 1
+    assert "pass --dest explicitly" in caplog.text
+    assert "/cli/blob.html" in caplog.text
+
+
+def test_list_cmd_initializes_session_with_api_key(monkeypatch: pytest.MonkeyPatch):
     calls = []
 
     class FakeCwms:
@@ -289,7 +470,7 @@ def test_list_cmd_initializes_session_with_api_key(monkeypatch):
     ]
 
 
-def test_list_cmd_uses_limit_as_fetch_page_size(monkeypatch):
+def test_list_cmd_uses_limit_as_fetch_page_size(monkeypatch: pytest.MonkeyPatch):
     calls = []
 
     class FakeCwms:
@@ -325,7 +506,7 @@ def test_list_cmd_uses_limit_as_fetch_page_size(monkeypatch):
     assert calls == [("SWT", "TEST_.*", 25)]
 
 
-def test_list_cmd_page_size_overrides_limit_for_fetch(monkeypatch):
+def test_list_cmd_page_size_overrides_limit_for_fetch(monkeypatch: pytest.MonkeyPatch):
     calls = []
 
     class FakeCwms:
@@ -358,7 +539,57 @@ def test_list_cmd_page_size_overrides_limit_for_fetch(monkeypatch):
     assert calls == [("SWT", "TEST_.*", 200)]
 
 
-def test_download_cmd_anonymous_skips_api_key(tmp_path, monkeypatch):
+def test_delete_cmd_uses_query_override_for_special_char_ids(
+    monkeypatch: pytest.MonkeyPatch,
+):
+    calls = []
+
+    class FakeApi:
+        @staticmethod
+        def delete(endpoint, params=None):
+            calls.append(("api.delete", endpoint, params))
+
+    class FakeCwms:
+        api = FakeApi
+
+        @staticmethod
+        def init_session(api_root, api_key):
+            calls.append(("init_session", api_root, api_key))
+            return None
+
+        @staticmethod
+        def delete_blob(office_id, blob_id):
+            calls.append(("delete_blob", office_id, blob_id))
+
+    class FakeHTTPError(Exception):
+        pass
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=FakeHTTPError)
+    )
+
+    delete_cmd(
+        blob_id="path/id",
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="apikey 123",
+        dry_run=False,
+    )
+
+    assert calls == [
+        ("init_session", "https://example.test/", "apikey 123"),
+        (
+            "api.delete",
+            "blobs/ignored",
+            {"office": "SWT", "blob-id": "PATH/ID"},
+        ),
+    ]
+
+
+def test_download_cmd_anonymous_skips_api_key(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
     dest = tmp_path / "downloaded"
     calls = []
 
@@ -403,7 +634,7 @@ def test_download_cmd_anonymous_skips_api_key(tmp_path, monkeypatch):
     assert calls == [("init_session", "https://example.test/", None)]
 
 
-def test_list_cmd_anonymous_skips_api_key(monkeypatch):
+def test_list_cmd_anonymous_skips_api_key(monkeypatch: pytest.MonkeyPatch):
     calls = []
 
     class FakeCwms:
@@ -439,3 +670,49 @@ def test_list_cmd_anonymous_skips_api_key(monkeypatch):
         ("init_session", "https://example.test/", None),
         ("get_blobs", "SWT", "TEST_.*", None),
     ]
+
+
+def test_download_cmd_prefers_saved_token_over_api_key(
+    tmp_path, monkeypatch: pytest.MonkeyPatch
+):
+    dest = tmp_path / "downloaded"
+    calls = []
+
+    monkeypatch.setattr(
+        "cwmscli.utils.get_saved_login_token", lambda *args, **kwargs: "saved-token"
+    )
+
+    class FakeBlobListing:
+        df = pd.DataFrame(
+            [{"id": "TEST_TXT", "media-type-id": "text/plain", "description": "x"}]
+        )
+
+    class FakeCwms:
+        @staticmethod
+        def init_session(api_root, api_key=None, token=None):
+            calls.append(("init_session", api_root, api_key, token))
+            return None
+
+        @staticmethod
+        def get_blob(office_id, blob_id):
+            return "retrieved text"
+
+        @staticmethod
+        def get_blobs(office_id, blob_id_like):
+            return FakeBlobListing()
+
+    monkeypatch.setitem(sys.modules, "cwms", FakeCwms)
+    monkeypatch.setitem(
+        sys.modules, "requests", types.SimpleNamespace(HTTPError=RuntimeError)
+    )
+
+    download_cmd(
+        blob_id="test_txt",
+        dest=str(dest),
+        office="SWT",
+        api_root="https://example.test/",
+        api_key="apikey 123",
+        dry_run=False,
+    )
+
+    assert calls == [("init_session", "https://example.test/", None, "saved-token")]

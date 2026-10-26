@@ -1,0 +1,318 @@
+from __future__ import annotations
+
+import csv
+import fnmatch
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Optional
+
+_DSS_INTERVAL = {
+    "minute": "MIN",
+    "hour": "HOUR",
+    "day": "DAY",
+    "week": "WEEK",
+    "month": "MON",
+    "year": "YEAR",
+}
+_CWMS_INTERVAL = {value: key.title() for key, value in _DSS_INTERVAL.items()}
+
+
+class MappingError(ValueError):
+    """Raised when mapping or identifier data is invalid."""
+
+
+def normalize_pathname(pathname: str) -> str:
+    parts = pathname.strip().split("/")
+    if len(parts) != 8:
+        raise MappingError(f"Invalid DSS pathname: {pathname}")
+    parts[4] = ""
+    return "/".join(parts)
+
+
+def default_pathname(tsid: str) -> str:
+    parts = tsid.strip().split(".")
+    if len(parts) != 6 or any(not part for part in parts):
+        raise MappingError(f"Invalid CWMS time series identifier: {tsid}")
+    location, parameter, parameter_type, interval, duration, version = parts
+    if interval.startswith("~"):
+        dss_interval = interval
+    elif interval == "0":
+        dss_interval = "IR-MONTH"
+    else:
+        index = 0
+        while index < len(interval) and interval[index].isdigit():
+            index += 1
+        if index == 0 or index == len(interval):
+            raise MappingError(f"Invalid CWMS interval in {tsid}")
+        number = int(interval[:index])
+        unit = interval[index:]
+        if unit.endswith("s"):
+            unit = unit[:-1]
+        try:
+            dss_interval = f"{number}{_DSS_INTERVAL[unit.lower()]}"
+        except KeyError as error:
+            raise MappingError(
+                f"Unsupported CWMS interval in {tsid}: {interval}"
+            ) from error
+    pathname_parts = [
+        "",
+        "",
+        location,
+        f"{parameter}--{parameter_type}--{duration}",
+        "",
+        dss_interval,
+        version,
+        "",
+    ]
+    return "/".join(part[:64] for part in pathname_parts)
+
+
+def default_tsid(pathname: str) -> str:
+    parts = normalize_pathname(pathname).split("/")
+    try:
+        parameter, parameter_type, duration = parts[3].split("--")
+    except ValueError as error:
+        raise MappingError(
+            f"DSS pathname does not use the automatic round-trip convention and needs a mapping: {pathname}"
+        ) from error
+    interval = parts[5]
+    if not interval:
+        raise MappingError(f"DSS pathname has no E-part interval: {pathname}")
+    if interval.startswith("~"):
+        cwms_interval = interval
+    elif interval.upper().startswith("IR-"):
+        cwms_interval = "0"
+    else:
+        index = 0
+        while index < len(interval) and interval[index].isdigit():
+            index += 1
+        if index == 0 or index == len(interval):
+            raise MappingError(f"Invalid DSS interval in pathname: {pathname}")
+        number = int(interval[:index])
+        unit = interval[index:].upper()
+        try:
+            cwms_interval = f"{number}{_CWMS_INTERVAL[unit]}"
+        except KeyError as error:
+            raise MappingError(
+                f"Unsupported DSS interval in pathname: {pathname}"
+            ) from error
+        if number > 1:
+            cwms_interval += "s"
+    tsid_parts = [
+        parts[2],
+        parameter,
+        parameter_type,
+        cwms_interval,
+        duration,
+        parts[6],
+    ]
+    return ".".join(tsid_parts)
+
+
+def read_filters(filename: Optional[Path]) -> tuple[str, ...]:
+    if filename is None:
+        return ()
+    filters = []
+    for raw_line in filename.read_text(encoding="utf-8-sig").splitlines():
+        line = raw_line.strip()
+        if line and not line.startswith("#"):
+            filters.append(line.lower())
+    return tuple(filters)
+
+
+def matches_filters(identifier: str, filters: tuple[str, ...]) -> bool:
+    return not filters or any(
+        fnmatch.fnmatchcase(identifier.lower(), pattern) for pattern in filters
+    )
+
+
+@dataclass(frozen=True)
+class ImportRule:
+    pathname: str
+    tsid: str
+    cwms_unit: Optional[str]
+    factor: float
+
+
+@dataclass(frozen=True)
+class ExportRule:
+    tsid: str
+    pathname: str
+    cwms_unit: Optional[str]
+    factor: float
+    dss_unit: Optional[str]
+
+
+def _rows(filename: Path):
+    with filename.open("r", encoding="utf-8-sig", newline="") as stream:
+        for line_number, row in enumerate(csv.reader(stream), start=1):
+            if not row or not any(value.strip() for value in row):
+                continue
+            if row[0].lstrip().startswith("#"):
+                continue
+            yield line_number, [value.strip() for value in row]
+
+
+def read_import_rules(filename: Optional[Path]) -> tuple[ImportRule, ...]:
+    if filename is None:
+        return ()
+    rules = []
+    seen = set()
+    for line_number, row in _rows(filename):
+        if len(row) != 4:
+            raise MappingError(
+                f"{filename}:{line_number}: expected pathname,tsid,CWMS_unit,factor"
+            )
+        pathname, tsid, cwms_unit, factor_text = row
+        normalized = normalize_pathname(pathname)
+        if len(tsid.split(".")) != 6:
+            raise MappingError(f"{filename}:{line_number}: invalid CWMS TSID: {tsid}")
+        pathname_location = normalized.split("/")[2].upper()
+        tsid_location = tsid.split(".")[0].upper()
+        if pathname_location == "$LOC" and tsid_location != "$LOC":
+            raise MappingError(
+                f"{filename}:{line_number}: $LOC DSS B-part requires a $LOC TSID"
+            )
+        if tsid_location == "$LOC" and pathname_location != "$LOC":
+            raise MappingError(
+                f"{filename}:{line_number}: $LOC TSID requires $LOC in the DSS B-part"
+            )
+        try:
+            factor = float(factor_text)
+        except ValueError as error:
+            raise MappingError(
+                f"{filename}:{line_number}: invalid conversion factor: {factor_text}"
+            ) from error
+        key = normalized.upper()
+        if key in seen:
+            raise MappingError(
+                f"{filename}:{line_number}: DSS pathname used more than once: {pathname}"
+            )
+        seen.add(key)
+        rules.append(ImportRule(normalized, tsid, cwms_unit or None, factor))
+    return tuple(rules)
+
+
+def read_export_rules(filename: Optional[Path]) -> tuple[ExportRule, ...]:
+    if filename is None:
+        return ()
+    rules = []
+    seen = set()
+    for line_number, row in _rows(filename):
+        if len(row) != 5:
+            raise MappingError(
+                f"{filename}:{line_number}: expected tsid,pathname,CWMS_unit,factor,DSS_unit"
+            )
+        tsid, pathname, cwms_unit, factor_text, dss_unit = row
+        if len(tsid.split(".")) != 6:
+            raise MappingError(f"{filename}:{line_number}: invalid CWMS TSID: {tsid}")
+        normalized = normalize_pathname(pathname).upper()
+        try:
+            factor = float(factor_text)
+        except ValueError as error:
+            raise MappingError(
+                f"{filename}:{line_number}: invalid conversion factor: {factor_text}"
+            ) from error
+        key = tsid.lower()
+        if key.startswith("$loc."):
+            if normalized.split("/")[2] != "$LOC":
+                raise MappingError(
+                    f"{filename}:{line_number}: $LOC TSID requires $LOC in the DSS B-part"
+                )
+            key = key[5:]
+        elif normalized.split("/")[2] == "$LOC":
+            raise MappingError(
+                f"{filename}:{line_number}: $LOC DSS B-part requires a $LOC TSID"
+            )
+        if key in seen:
+            raise MappingError(
+                f"{filename}:{line_number}: CWMS TSID used more than once: {tsid}"
+            )
+        seen.add(key)
+        rules.append(
+            ExportRule(tsid, normalized, cwms_unit or None, factor, dss_unit or None)
+        )
+    return tuple(rules)
+
+
+class ImportResolver:
+    def __init__(self, rules: tuple[ImportRule, ...], filters: tuple[str, ...]) -> None:
+        self.rules = rules
+        self.filters = filters
+        self._exact = {rule.pathname.upper(): rule for rule in rules}
+        self._locations = {
+            _without_location(rule.pathname).upper(): rule
+            for rule in rules
+            if rule.pathname.split("/")[2].upper() == "$LOC"
+        }
+
+    def catalog_identifiers(self) -> Optional[tuple[str, ...]]:
+        if self.rules and not self._locations:
+            return tuple(rule.pathname for rule in self.rules)
+        return None
+
+    def resolve(self, pathname: str) -> Optional[ImportRule]:
+        normalized = normalize_pathname(pathname)
+        if self.rules:
+            rule = self._exact.get(normalized.upper())
+            if rule is None:
+                rule = self._locations.get(_without_location(normalized).upper())
+                if rule is not None:
+                    location = normalized.split("/")[2]
+                    rule = ImportRule(
+                        rule.pathname.replace("$LOC", location),
+                        rule.tsid.replace("$LOC", location),
+                        rule.cwms_unit,
+                        rule.factor,
+                    )
+            return rule
+        if not matches_filters(normalized, self.filters):
+            return None
+        return ImportRule(normalized, default_tsid(normalized), None, 1.0)
+
+
+class ExportResolver:
+    def __init__(self, rules: tuple[ExportRule, ...], filters: tuple[str, ...]) -> None:
+        self.rules = rules
+        self.filters = filters
+        self._exact = {
+            rule.tsid.lower(): rule
+            for rule in rules
+            if not rule.tsid.lower().startswith("$loc.")
+        }
+        self._locations = {
+            rule.tsid[5:].lower(): rule
+            for rule in rules
+            if rule.tsid.lower().startswith("$loc.")
+        }
+
+    def catalog_identifiers(self) -> Optional[tuple[str, ...]]:
+        if self.rules and not self._locations:
+            return tuple(rule.tsid for rule in self.rules)
+        return None
+
+    def resolve(self, tsid: str) -> Optional[ExportRule]:
+        if self.rules:
+            rule = self._exact.get(tsid.lower())
+            if rule is None:
+                parts = tsid.split(".")
+                if len(parts) == 6:
+                    rule = self._locations.get(".".join(parts[1:]).lower())
+                    if rule is not None:
+                        rule = ExportRule(
+                            tsid,
+                            rule.pathname.replace("$LOC", parts[0]),
+                            rule.cwms_unit,
+                            rule.factor,
+                            rule.dss_unit,
+                        )
+            return rule
+        if not matches_filters(tsid, self.filters):
+            return None
+        return ExportRule(tsid, default_pathname(tsid), None, 1.0, None)
+
+
+def _without_location(pathname: str) -> str:
+    parts = pathname.split("/")
+    parts[2] = ""
+    return "/".join(parts)

@@ -1,0 +1,405 @@
+Environment Manager
+===================
+
+Manage named CDA environments with ``cwms-cli env``. Each environment stores
+its name and CDA API root URL, plus an optional office code and API key, in a
+JSON file under ``~/.config/cwms-cli/envs/`` (or
+``$XDG_CONFIG_HOME/cwms-cli/envs/`` when that variable is set), on all
+platforms. Files use mode ``0600`` on POSIX. On Windows, ``cwms-cli`` attempts
+to restrict the file ACL to the current user.
+
+This keeps saved API keys out of project directories and lets you reference
+environments by name instead of repeatedly putting URLs and credentials on
+command lines.
+
+
+Built-in Environments
+---------------------
+
+``prod`` ships preconfigured with the production CDA URL. It is
+available immediately — no ``env setup`` required — and appears in
+``env show`` as ``(built-in)``.
+
+Because the built-in has no office or API key, you still need to pass
+``--source-office`` when using it as a source:
+
+.. code-block:: bash
+
+   cwms-cli load location ids-all \
+     --source-env prod --source-office SWT \
+     --target-env localhost
+
+To avoid repeating ``--source-office`` every time, run ``env setup`` once
+to attach an office (and optionally an API key):
+
+.. code-block:: bash
+
+   cwms-cli env setup prod --office SWT --api-key YOUR_KEY
+
+
+Quick Start
+-----------
+
+**1. Create environments:**
+
+.. code-block:: bash
+
+   # Production — customize the built-in with your office and key
+   cwms-cli env setup prod --office SWT --api-key YOUR_KEY
+
+   # Development (needs --api-root)
+   cwms-cli env setup dev \
+     --api-root https://cwms-data-dev.example.mil/cwms-data \
+     --office SWT --api-key YOUR_KEY
+
+   # Test (needs --api-root)
+   cwms-cli env setup test \
+     --api-root https://cwms-data-test.example.mil/cwms-data \
+     --office SWT --api-key YOUR_KEY
+
+   # Local development server
+   cwms-cli env setup localhost \
+     --api-root http://localhost:8082/cwms-data --office DEV
+
+**2. Use environments with load commands:**
+
+.. code-block:: bash
+
+   cwms-cli load location ids-all \
+     --source-env prod --target-env localhost
+
+   cwms-cli load timeseries data \
+     --source-env prod --target-env localhost \
+     --ts-id "Black Butte.Flow.Inst.1Hour.0.raw-cda"
+
+**3. View and manage environments:**
+
+.. code-block:: bash
+
+   cwms-cli env show
+   cwms-cli env delete old-env --yes
+
+
+Using Environments with ``load``
+---------------------------------
+
+The ``--source-env`` and ``--target-env`` options resolve a named
+environment into the corresponding source/target options:
+
+- ``--source-env`` sets ``--source-cda`` and ``--source-office``
+- ``--target-env`` sets ``--target-cda`` and ``--target-api-key``
+
+These two invocations are equivalent:
+
+.. code-block:: bash
+
+   # Explicit flags
+   cwms-cli load location ids-all \
+     --source-cda https://cwms-data.usace.army.mil/cwms-data/ \
+     --source-office SWT \
+     --target-cda http://localhost:8082/cwms-data/ \
+     --target-api-key "apikey 0123456789abcdef"
+
+   # Named environments
+   cwms-cli load location ids-all \
+     --source-env prod --target-env localhost
+
+**Rules:**
+
+- ``--source-env`` and ``--source-cda`` are mutually exclusive.
+- ``--target-env`` and ``--target-cda`` are mutually exclusive.
+- Explicit ``--source-office`` or ``--target-api-key`` flags override the
+  values from the environment file.
+
+
+Commands
+--------
+
+cwms-cli env setup <name>
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Create or update an environment configuration.
+
+.. code-block:: bash
+
+   # Setup with all options
+   cwms-cli env setup myenv \
+     --api-root https://cwms-data-dev.example.mil/cwms-data \
+     --api-key YOUR_KEY --office SWT
+
+   # Update just the API key (other fields preserved)
+   cwms-cli env setup myenv --api-key NEW_KEY
+
+   # Update just the office
+   cwms-cli env setup myenv --office LRD
+
+``prod`` is built-in and already has the production URL. Running
+``env setup prod`` creates a user file that overrides the built-in,
+letting you attach an office and API key. All other environment names
+require ``--api-root``.
+
+.. warning::
+
+   Supplying ``--api-key`` can place the key in shell history and make it
+   briefly visible in process arguments during setup. Apply your shell's
+   history controls when entering sensitive values. Once saved, later
+   commands use the environment name instead of placing the key on their
+   command lines.
+
+On-premises server setup and COOP default environments (optional)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Configure named environments for the primary on-premises server and the COOP
+server with their respective CDA API roots, API keys, and offices:
+
+.. code-block:: bash
+
+   cwms-cli env setup onprem \
+     --api-root https://example.usace.army.mil/XXX-data/ \
+     --api-key YOUR_KEY \
+     --office XXX
+
+   cwms-cli env setup coop \
+     --api-root https://example.coop.usace.army.mil/XXX-data/ \
+     --api-key YOUR_KEY \
+     --office XXX
+
+On the primary on-premises server, place the following at the **bottom of
+your** ``~/.bashrc`` **file** to load ``onprem`` by default:
+
+.. code-block:: bash
+
+   # Load on-premises defaults unless `cwms-cli env activate` supplied another environment.
+   if [ -z "${ENVIRONMENT:-}" ]; then
+       eval "$(cwms-cli --quiet env export onprem --format bash)"
+   fi
+
+On the COOP server, use the same guarded block at the **bottom of
+``~/.bashrc``**, but load ``coop`` by default:
+
+.. code-block:: bash
+
+   # Load COOP defaults unless `cwms-cli env activate` supplied another environment.
+   if [ -z "${ENVIRONMENT:-}" ]; then
+       eval "$(cwms-cli --quiet env export coop --format bash)"
+   fi
+
+Each block loads ``CDA_API_ROOT``, ``CDA_API_KEY``, ``OFFICE``, and
+``ENVIRONMENT`` from its corresponding environment. Before adding the block,
+remove any existing lines in ``~/.bashrc`` that
+assign or export ``CDA_API_ROOT``, ``CDA_API_KEY``, ``OFFICE``, or
+``ENVIRONMENT``. Those assignments would override values inherited from
+``cwms-cli env activate <name>``. Keep the new block at the bottom of the file
+and after any setup that adds ``cwms-cli`` to ``PATH``. The ``ENVIRONMENT``
+guard preserves any environment selected with ``env activate``. The
+``--quiet`` option suppresses routine log messages during shell startup while
+still displaying warnings and errors.
+
+
+cwms-cli env show
+~~~~~~~~~~~~~~~~~
+
+List all configured environments with their API root, office, and key status.
+The API key is always redacted — only ``has API key`` or ``no API key`` is shown.
+
+.. code-block:: bash
+
+   cwms-cli env show
+
+**Example output:**
+
+.. code-block:: text
+
+   Current environment: prod
+
+   Available environments:
+   * prod
+       API Root: https://cwms-data.usace.army.mil/cwms-data
+       Office:   SWT
+       Status:   has API key
+     dev
+       API Root: https://cwms-data-dev.example.mil/cwms-data
+       Office:   SWT
+       Status:   no API key
+
+On a fresh install (before any ``env setup``), ``prod`` appears with
+``(built-in)`` and shows ``Office: not set``.
+
+The ``*`` marks the environment selected by the ``ENVIRONMENT`` variable.
+``env show`` also compares that environment's configured ``CDA_API_ROOT``,
+``CDA_API_KEY``, ``OFFICE``, and ``ENVIRONMENT`` values with the current
+shell, whether or not ``--check`` is used. If an assigned value differs or is
+missing, the command displays a warning and identifies the affected variables.
+API key values remain redacted. This can reveal when shell startup
+configuration replaced values supplied by ``env activate``.
+
+**Options:**
+
+- ``--check`` — after the live-shell comparison, test the saved API root and
+  API key for each configured environment (requires network access). Adds
+  ``Connect`` and ``Auth`` lines to the output. If the live shell differs from
+  the saved environment, the mismatch warning remains authoritative for the
+  activated shell.
+
+.. code-block:: bash
+
+   cwms-cli env show --check
+
+.. code-block:: text
+
+   Available environments:
+   * prod
+       API Root: https://cwms-data.usace.army.mil/cwms-data
+       Office:   SWT
+       Status:   has API key
+       Connect:  reachable (284ms)
+       Auth:     authenticated
+     dev
+       API Root: https://cwms-data-dev.example.mil/cwms-data
+       Office:   SWT
+       Status:   no API key
+       Connect:  unreachable — Connection refused
+
+
+cwms-cli env export <name>
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Export an environment's variables to your current shell or a file.
+
+.. code-block:: bash
+
+   # Load into the current bash/zsh shell
+   eval "$(cwms-cli env export prod --format bash)"
+
+   # Load into PowerShell
+   cwms-cli env export prod --format powershell | Out-String | Invoke-Expression
+
+   # Write a .env file for an IDE or docker-compose
+   cwms-cli env export prod --output .env
+
+**Formats:** ``dotenv`` (default), ``bash``, ``powershell``, ``cmd``, ``fish``.
+
+**Safety:** The API key is never printed to a terminal by default. If stdout
+is a TTY and the environment has an API key, ``export`` shows shell-specific
+recipes instead. Use ``--show-key`` to override, or ``--output FILE`` to write
+directly to disk without scrollback exposure. Output files use mode ``0600``
+on POSIX; on Windows, they inherit the destination directory's ACL.
+
+**Options:**
+
+- ``--output FILE`` — write to a file instead of stdout (mode ``0600`` on
+  POSIX).
+- ``--no-key`` — omit ``CDA_API_KEY`` (useful for templates or sharing).
+- ``--show-key`` — allow the API key to be displayed in the terminal.
+
+
+cwms-cli env activate <name>
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Activate an environment in a new shell session.
+
+.. code-block:: bash
+
+   cwms-cli env activate prod
+
+This spawns a child shell with the environment variables set. Type ``exit`` to
+return to your original shell; in Unix-like shells, you can also press
+``Ctrl+D``. Before opening the shell, ``activate`` warns that startup
+configuration may replace the selected values and prints a shell-specific
+command that reapplies them after startup. Once the child shell opens, verify
+the live values, CDA connectivity, and authentication:
+
+.. code-block:: bash
+
+   cwms-cli env show --check
+
+.. warning::
+
+   ``activate`` passes the configured variables to the child shell before that
+   shell initializes. Startup configuration such as ``.bash_profile``,
+   ``.bashrc``, PowerShell profiles, or ``cmd.exe`` AutoRun commands can then
+   replace inherited values. For example, if startup configuration
+   unconditionally sets ``CDA_API_ROOT``, ``CDA_API_KEY``, ``OFFICE``, or
+   ``ENVIRONMENT``, that value takes precedence over the selected cwms-cli
+   environment. This is a common configuration on Solaris systems, but the
+   same limitation applies on any platform.
+
+   ``cwms-cli env show --check`` first reports whether the selected
+   environment's configured values match the child shell. It then checks the
+   saved configurations' connectivity and authentication. If it reports a
+   live-value mismatch, use the shell-specific reapply command printed by
+   ``activate``. For bash or zsh, that command is:
+
+   .. code-block:: bash
+
+      eval "$(cwms-cli env export <name> --format bash)"
+
+   This changes the child shell after its startup files have run. The values
+   remain set until they are changed, unset, or the child shell exits.
+
+.. note::
+
+   The parent shell and any already-open IDE will **not** see these variables.
+   For IDE integration, use ``cwms-cli env export <name> --output .env``
+   instead.
+
+
+cwms-cli env delete <name>
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Delete an environment configuration.
+
+.. code-block:: bash
+
+   # Delete with confirmation prompt
+   cwms-cli env delete myenv
+
+   # Delete without confirmation
+   cwms-cli env delete myenv --yes
+
+
+Storage and Security
+--------------------
+
+**File locations:**
+
+- All platforms: ``~/.config/cwms-cli/envs/<name>.json``
+  (respects ``XDG_CONFIG_HOME`` when set)
+
+**File permissions:** ``0600`` on POSIX (owner-only read/write). On Windows,
+``cwms-cli`` attempts to restrict the ACL to the current user.
+
+**Security model:** The user account is the security boundary, matching
+``aws``, ``gcloud``, ``kubectl``, and ``gh``. This feature defends against:
+
+- Accidental ``git add`` of a key — files live in ``~/.config/``, not the repo
+- Key pasted into an LLM — users share ``env show`` output (always redacted)
+- Repeated key exposure in ``ps`` or shell history — after setup, users
+  reference the environment name rather than the key
+- Key in terminal scrollback — ``export`` refuses TTY output by default
+
+This feature does **not** defend against root access or same-user process
+reads. The initial ``env setup --api-key`` invocation can also be recorded in
+shell history or process arguments. For encrypted-at-rest storage, use a vault
+(1Password CLI, HashiCorp Vault, AWS Secrets Manager) and feed values in via
+environment variables.
+
+
+Headless and CI Usage
+---------------------
+
+For headless or CI environments where ``cwms-cli env`` is not practical,
+set environment variables directly:
+
+.. code-block:: bash
+
+   export CDA_API_ROOT="https://cwms-data.usace.army.mil/cwms-data"
+   export CDA_API_KEY="your_key"
+   export OFFICE="SWT"
+
+   cwms-cli blob list
+
+
+.. click:: cwmscli.commands.env:env_group
+   :prog: cwms-cli env
+   :nested: full

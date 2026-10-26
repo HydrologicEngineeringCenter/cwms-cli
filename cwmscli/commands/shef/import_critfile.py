@@ -5,6 +5,9 @@ from typing import Dict, List
 import cwms
 import pandas as pd
 
+from cwmscli.utils import init_cwms_session
+from cwmscli.utils.friendly_errors import is_fatal_service_error
+
 
 def import_shef_critfile(
     file_path: str,
@@ -44,8 +47,7 @@ def import_shef_critfile(
     """
 
     if not dry_run:
-        api_key = "apikey " + api_key
-        cwms.api.init_session(api_root=api_root, api_key=api_key)
+        init_cwms_session(cwms, api_root=api_root, api_key="apikey " + api_key)
         logging.info(f"CDA connection: {api_root}")
 
     # Parse the file and get the parsed data
@@ -96,6 +98,8 @@ def import_shef_critfile(
                 f'SUCCESS Stored timeseries ID {data["Timeseries ID"]} to {group_id}'
             )
         except Exception as error:
+            if is_fatal_service_error(error):
+                raise
             logging.error(
                 f'FAIL Data could not be stored to CWMS database for -->  {data["Timeseries ID"]},{data["Alias"]} error = {error}'
             )

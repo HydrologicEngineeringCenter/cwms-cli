@@ -9,7 +9,19 @@ import pandas as pd
 import requests
 from cwms import api as cwms_api
 
-from cwmscli.utils import get_api_key, has_invalid_chars, log_scoped_read_hint
+from cwmscli.utils import (
+    format_local_download_error,
+    get_api_key,
+    get_saved_login_token,
+    has_invalid_chars,
+    init_cwms_session,
+    log_scoped_read_hint,
+    validate_default_download_dest,
+)
+from cwmscli.utils.click_help import DOCS_BASE_URL
+from cwmscli.utils.friendly_errors import is_actionable_service_error
+
+CLOB_DOCS_URL = f"{DOCS_BASE_URL}/cli/clob.html"
 
 
 def _join_api_url(api_root: str, path: str) -> str:
@@ -22,6 +34,16 @@ def _resolve_optional_api_key(api_key: Optional[str], anonymous: bool) -> Option
     return get_api_key(api_key, None)
 
 
+def _resolve_credential_kind(api_key: Optional[str], anonymous: bool) -> Optional[str]:
+    if anonymous:
+        return None
+    if get_saved_login_token():
+        return "token"
+    if _resolve_optional_api_key(api_key, anonymous):
+        return "api_key"
+    return None
+
+
 def _write_clob_content(content: str, dest: str) -> str:
     os.makedirs(os.path.dirname(dest) or ".", exist_ok=True)
     with open(dest, "w", encoding="utf-8", newline="") as f:
@@ -29,9 +51,18 @@ def _write_clob_content(content: str, dest: str) -> str:
     return dest
 
 
+def _default_download_dest(clob_id: str) -> str:
+    return validate_default_download_dest(
+        clob_id,
+        resource_name="Clob",
+        docs_url=CLOB_DOCS_URL,
+    )
+
+
 def _clob_endpoint_id(clob_id: str) -> tuple[str, Optional[str]]:
     normalized = clob_id.upper()
     if has_invalid_chars(normalized):
+        # Path-like IDs use the placeholder route and keep the real ID in query params.
         return "ignored", normalized
     return normalized, None
 
@@ -157,11 +188,11 @@ def upload_cmd(
             )
         else:
             logging.info(f"View: {view_url}")
-    except requests.HTTPError as e:
-        detail = getattr(e.response, "text", "") or str(e)
-        logging.error(f"Failed to upload (HTTP): {detail}")
-        sys.exit(1)
+    except requests.HTTPError:
+        raise
     except Exception as e:
+        if is_actionable_service_error(e):
+            raise
         logging.error(f"Failed to upload: {e}")
         sys.exit(1)
 
@@ -180,8 +211,8 @@ def download_cmd(
             f"DRY RUN: would GET {api_root} clob with clob-id={clob_id} office={office}."
         )
         return
-    resolved_api_key = _resolve_optional_api_key(api_key, anonymous)
-    cwms.init_session(api_root=api_root, api_key=resolved_api_key)
+    credential_kind = _resolve_credential_kind(api_key, anonymous)
+    init_cwms_session(cwms, api_root=api_root, api_key=api_key, anonymous=anonymous)
     bid = clob_id.upper()
     logging.debug(f"Office={office} clobID={bid}")
 
@@ -198,29 +229,29 @@ def download_cmd(
                 content = str(payload)
         else:
             content = _get_special_clob_text(office=office, clob_id=query_id)
-        target = dest or bid
+        target = dest or _default_download_dest(bid)
         _write_clob_content(content, target)
         logging.info(f"Downloaded clob to: {target}")
-    except requests.HTTPError as e:
-        detail = getattr(e.response, "text", "") or str(e)
-        logging.error(f"Failed to download (HTTP): {detail}")
+    except requests.HTTPError:
         log_scoped_read_hint(
-            api_key=resolved_api_key,
+            credential_kind=credential_kind,
             anonymous=anonymous,
             office=office,
             action="download",
             resource="clob content",
         )
-        sys.exit(1)
+        raise
     except Exception as e:
-        logging.error(f"Failed to download: {e}")
-        log_scoped_read_hint(
-            api_key=resolved_api_key,
-            anonymous=anonymous,
-            office=office,
-            action="download",
-            resource="clob content",
-        )
+        if is_actionable_service_error(e):
+            log_scoped_read_hint(
+                credential_kind=credential_kind,
+                anonymous=anonymous,
+                office=office,
+                action="download",
+                resource="clob content",
+            )
+            raise
+        logging.error(format_local_download_error(e, CLOB_DOCS_URL))
         sys.exit(1)
 
 
@@ -302,8 +333,8 @@ def list_cmd(
     api_key: str,
     anonymous: bool = False,
 ):
-    resolved_api_key = _resolve_optional_api_key(api_key, anonymous)
-    cwms.init_session(api_root=api_root, api_key=resolved_api_key)
+    credential_kind = _resolve_credential_kind(api_key, anonymous)
+    init_cwms_session(cwms, api_root=api_root, api_key=api_key, anonymous=anonymous)
     try:
         df = list_clobs(
             office=office,
@@ -316,7 +347,7 @@ def list_cmd(
         )
     except Exception:
         log_scoped_read_hint(
-            api_key=resolved_api_key,
+            credential_kind=credential_kind,
             anonymous=anonymous,
             office=office,
             action="list",

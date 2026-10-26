@@ -53,6 +53,7 @@ linkcheck_ignore = [
     r"^https://www\.gnu\.org/software/bash/manual/.*",  # Was ratelimited
     r"^https://cwms-cli\.readthedocs\.io/.*$",
     r"^https://cwms-data\.usace\.army\.mil/cwms-data/regexp/?$",
+    r"https://example\.mil/.*",  # Skip example domains
 ]
 
 # autodoc_mock_imports = ["cwms", "pandas", "requests"]

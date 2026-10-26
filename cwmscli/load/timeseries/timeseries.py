@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timedelta
 from typing import Optional
 
@@ -70,7 +71,7 @@ def load_timeseries_ids_all(
     "ts_id",
     default=None,
     type=str,
-    help="Timeseries ID to copy, or a comma-delimited list of IDs.",
+    help="Timeseries ID to copy, or a comma/newline-delimited list of IDs.",
 )
 @click.option(
     "--ts-group",
@@ -125,7 +126,7 @@ def load_timeseries_data(
 ):
     ts_ids = None
     if ts_id:
-        ts_ids = [item.strip() for item in ts_id.split(",") if item.strip()]
+        ts_ids = [item.strip() for item in re.split(r"[,\r\n]+", ts_id) if item.strip()]
         if not ts_ids:
             raise click.UsageError(
                 "--ts-id must contain at least one non-empty timeseries ID."

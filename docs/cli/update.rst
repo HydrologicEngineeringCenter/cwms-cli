@@ -8,8 +8,48 @@ By default it installs the latest available release, and you can optionally
 target a specific version with ``--target-version``. After updating, use
 :doc:`Version argument <version>` to confirm the installed version.
 
+Before asking for confirmation, the command displays the Python executable,
+environment prefix and type, and installed package metadata location. For an
+editable installation, it also displays the editable project location recorded
+by the installer. The update runs pip through the displayed executable
+(``python -m pip``), so it targets the same Python environment that is running
+``cwms-cli``. This is especially useful when multiple Python installations or
+virtual environments are present.
+
 On Windows, the command launches the pip install in a separate command window so
 the running ``cwms-cli.exe`` does not block its own replacement.
+
+.. note::
+
+   A standalone ``pip install --upgrade cwms-cli`` command uses whichever
+   ``pip`` executable appears first on the shell's path, which may belong to a
+   different Python environment. Prefer ``cwms-cli update``. When updating
+   manually, use the full Python executable displayed by ``cwms-cli update``
+   with ``-m pip install --upgrade cwms-cli``.
+
+Linux externally managed environments
+-------------------------------------
+
+Some Linux distributions mark their system Python installation as externally
+managed under PEP 668. If pip reports ``externally-managed-environment``,
+``cwms-cli update`` explains that the selected Python installation cannot be
+changed safely and recommends installing ``cwms-cli`` in a virtual environment
+or with pipx. The updater does not automatically pass
+``--break-system-packages``, because doing so can conflict with packages managed
+by the operating system.
+
+A correctly created virtual environment is not subject to the system Python's
+externally managed restriction. Confirm that the displayed Python executable
+and environment prefix both point into the intended virtual environment before
+continuing.
+
+Editable installations
+----------------------
+
+Editable installations keep their distribution metadata in the environment's
+``site-packages`` directory while loading source code from a project directory.
+The updater displays both paths when ``direct_url.json`` identifies the current
+installation as editable.
 
 Examples
 --------

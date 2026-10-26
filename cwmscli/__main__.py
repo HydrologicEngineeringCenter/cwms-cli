@@ -7,10 +7,17 @@ import click
 from click.core import ParameterSource
 
 from cwmscli.commands import commands_cwms
+from cwmscli.commands.env import env_group
+from cwmscli.dss import dss_group
 from cwmscli.load import __main__ as load
 from cwmscli.usgs import usgs_group
 from cwmscli.utils.click_help import add_version_to_help_tree
-from cwmscli.utils.friendly_errors import to_user_facing_error
+from cwmscli.utils.friendly_errors import (
+    cda_stack_trace,
+    format_cda_stack_trace,
+    to_user_facing_error,
+)
+from cwmscli.utils.links import BUG_REPORT_URL
 from cwmscli.utils.logging import (
     LoggingConfig,
     apply_logging_policies,
@@ -57,6 +64,15 @@ from cwmscli.utils.version_cli import show_version_and_exit
     default=False,
     help="Suppress routine output; warnings and errors still print.",
 )
+@click.option(
+    "--non-interactive/--interactive",
+    default=None,
+    envvar="CWMS_CLI_NON_INTERACTIVE",
+    help=(
+        "Disable prompts. Automatically enabled when standard input is not a "
+        "terminal or a CI environment is detected."
+    ),
+)
 @click.pass_context
 def cli(
     ctx: click.Context,
@@ -64,6 +80,7 @@ def cli(
     no_color: bool,
     log_level: str,
     quiet: bool,
+    non_interactive: Optional[bool],
 ) -> None:
     level = getattr(logging, log_level.upper(), logging.INFO)
     level = apply_logging_policies(
@@ -76,18 +93,21 @@ def cli(
 
     # Disable colors if stdout isn't a TTY (piped/redirected)
     tty = sys.stdout.isatty()
-    color = (not no_color) and tty
+    color = (not no_color) and ("NO_COLOR" not in os.environ) and tty
     setup_logging(LoggingConfig(level=level, log_file=log_file, color=color))
 
 
 cli.add_command(usgs_group, name="usgs")
 cli.add_command(commands_cwms.shef_group)
 cli.add_command(commands_cwms.csv2cwms_cmd)
+cli.add_command(commands_cwms.login_cmd)
 cli.add_command(commands_cwms.update_cli_cmd)
 cli.add_command(commands_cwms.blob_group)
 cli.add_command(commands_cwms.clob_group)
 cli.add_command(commands_cwms.users_group)
+cli.add_command(env_group)
 cli.add_command(load.load_group)
+cli.add_command(dss_group)
 add_version_to_help_tree(cli)
 
 
@@ -110,25 +130,47 @@ def main() -> None:
     except SystemExit:
         raise
     except click.ClickException as e:
+        debug = debug or logging.getLogger().isEnabledFor(logging.DEBUG)
+        if debug:
+            server_stack_trace = cda_stack_trace(e)
+            if server_stack_trace is not None:
+                click.echo(format_cda_stack_trace(server_stack_trace), err=True)
+                raise SystemExit(e.exit_code)
+        else:
+            if is_cert_verify_error(e):
+                click.echo(ssl_help_text(), err=True)
+                raise SystemExit(2)
+            friendly_error = to_user_facing_error(e)
+            if friendly_error is not None:
+                logging.debug("Suppressed traceback for CLI exception", exc_info=e)
+                friendly_error.show()
+                raise SystemExit(friendly_error.exit_code)
         e.show()
         raise SystemExit(e.exit_code)
     except Exception as e:
+        # The environment switch supports failures before Click configures logging.
+        # Once CLI setup has run, --log-level DEBUG enables the same behavior.
+        debug = debug or logging.getLogger().isEnabledFor(logging.DEBUG)
+
         if is_cert_verify_error(e) and not debug:
-            # Keep this short, no stack trace.
-            logging.error(
-                "SSL certificate verification failed while connecting to the server."
-            )
             click.echo(ssl_help_text(), err=True)
             raise SystemExit(2)
 
-        if not debug:
+        if debug:
+            server_stack_trace = cda_stack_trace(e)
+            if server_stack_trace is not None:
+                click.echo(format_cda_stack_trace(server_stack_trace), err=True)
+                raise SystemExit(1)
+        else:
             friendly_error = to_user_facing_error(e)
             if friendly_error is not None:
                 logging.debug("Suppressed traceback for CLI exception", exc_info=e)
                 friendly_error.show()
                 raise SystemExit(friendly_error.exit_code)
 
-        # If debug is enabled (or it's not a cert verify error), keep the normal failure behavior.
+        click.echo(f"Unexpected error. Report it at {BUG_REPORT_URL}", err=True)
+        # Preserve raw exception behavior when CDA did not provide a server stack
+        # trace so an issue report includes useful diagnostic details.
         raise
 
 

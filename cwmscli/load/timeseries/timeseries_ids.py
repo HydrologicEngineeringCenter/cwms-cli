@@ -1,8 +1,12 @@
 # cwmscli/load/timeseries_ids.py
+import logging
 from typing import Optional
 
 import click
 import pandas as pd
+
+from cwmscli.utils import init_cwms_session
+from cwmscli.utils.friendly_errors import is_fatal_service_error
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +28,7 @@ def load_timeseries_ids(
             f"to target CDA '{target_cda}'."
         )
 
-    cwms.init_session(api_root=source_cda, api_key=None)
+    init_cwms_session(cwms, api_root=source_cda)
     ts_ids = cwms.get_timeseries_identifiers(
         office_id=source_office, timeseries_id_regex=timeseries_id_regex
     ).df
@@ -39,7 +43,7 @@ def load_timeseries_ids(
     if verbose:
         logger.info("Found %s timeseries IDs to copy.", len(ts_lo_ids))
 
-    cwms.init_session(api_root=target_cda, api_key=target_api_key)
+    init_cwms_session(cwms, api_root=target_cda, api_key=target_api_key)
     errors = 0
     for i, row in ts_lo_ids.iterrows():
         ts_id = row["time-series-id"]
@@ -62,6 +66,8 @@ def load_timeseries_ids(
             if verbose:
                 logger.info("%s", result)
         except Exception as e:
+            if is_fatal_service_error(e):
+                raise
             errors += 1
             click.echo(f"Error storing location {ts_id}: \n\t{e}", err=True)
 

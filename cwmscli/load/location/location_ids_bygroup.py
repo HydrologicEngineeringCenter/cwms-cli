@@ -5,6 +5,10 @@ from typing import Optional
 
 import click
 import cwms
+import pandas as pd
+
+from cwmscli.utils import init_cwms_session
+from cwmscli.utils.friendly_errors import is_fatal_service_error
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +24,7 @@ def exact_or_regex(ids: list[str]) -> str:
 def copy_from_group(
     source_cda: str,
     source_office: str,
-    target_cda: str,
+    target_cda: Optional[str],
     target_api_key: Optional[str],
     verbose: int,
     group_id: str,
@@ -29,6 +33,7 @@ def copy_from_group(
     category_office_id: Optional[str],
     filter_office: bool,
     dry_run: bool,
+    target_csv: Optional[str] = None,
 ):
     group_office_id = group_office_id or source_office
     category_office_id = category_office_id or source_office
@@ -43,7 +48,7 @@ def copy_from_group(
             f"filter_office={filter_office}  dry_run={dry_run}"
         )
 
-    cwms.init_session(api_root=source_cda, api_key=None)
+    init_cwms_session(cwms, api_root=source_cda)
 
     try:
         grp = cwms.get_location_group(
@@ -101,12 +106,18 @@ def copy_from_group(
     if dry_run:
         for loc in locations:
             logger.info(
-                f"[dry-run] would store Location(name={loc['name']}) to {target_cda} ({source_office})"
+                f"[dry-run] would store Location(name={loc['name']}) to "
+                f"{target_csv or target_cda} ({source_office})"
             )
         return
 
+    if target_csv:
+        pd.DataFrame(locations).to_csv(target_csv, index=False)
+        click.echo(f"Wrote {len(locations)} locations to {target_csv}")
+        return
+
     try:
-        cwms.init_session(api_root=target_cda, api_key=target_api_key)
+        init_cwms_session(cwms, api_root=target_cda, api_key=target_api_key)
     except Exception as e:
         raise click.ClickException(f"Failed to init target session: {e}")
 
@@ -119,6 +130,8 @@ def copy_from_group(
             if verbose:
                 logger.info("\tStored successfully.")
         except Exception as e:
+            if is_fatal_service_error(e):
+                raise
             errors += 1
             click.echo(f"Error storing location {loc}: \n\t{e}", err=True)
 
