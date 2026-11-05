@@ -815,9 +815,7 @@ def test_utc_document_times_are_unshifted(monkeypatch, tmp_path):
     ]
 
 
-def test_numeric_equivalent_missing_value_uses_cwms_missing_value(
-    monkeypatch, tmp_path
-):
+def test_numeric_equivalent_missing_value_uses_null(monkeypatch, tmp_path):
     xml = PIXML.replace("<missVal>-999</missVal>", "<missVal>-9.99E2</missVal>")
     calls = _run(monkeypatch, tmp_path, BASE_NAME, dry_run=False, xml=xml)
 
@@ -825,7 +823,7 @@ def test_numeric_equivalent_missing_value_uses_cwms_missing_value(
     df = frames["Wabasha.Flow-Local.Inst.6Hours.0.Fcst-NCRFC-CHIPS"]
     missing_row = df.iloc[1]
 
-    assert missing_row["value"] == mod.CWMS_MISSING_VALUE
+    assert pd.isna(missing_row["value"])
     assert missing_row["quality-code"] == mod.CWMS_MISSING_QUALITY
 
 

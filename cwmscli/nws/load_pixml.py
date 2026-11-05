@@ -37,8 +37,7 @@ from cwmscli.utils.intervals import FIXED_INTERVALS_BY_SECONDS
 
 logger = logging.getLogger(__name__)
 
-# CWMS sentinel for a missing value and its quality code.
-CWMS_MISSING_VALUE = -340282346638528859811704183484516925440
+# CWMS quality codes for missing and good values.
 CWMS_MISSING_QUALITY = 5
 CWMS_GOOD_QUALITY = 0
 
@@ -750,7 +749,7 @@ def _series_dataframe(record: dict, doc_tz: timezone) -> pd.DataFrame:
     rows = []
     for dt_str, value in record["events"]:
         if _is_missing_value(value, miss):
-            rows.append((dt_str, CWMS_MISSING_VALUE, CWMS_MISSING_QUALITY))
+            rows.append((dt_str, None, CWMS_MISSING_QUALITY))
         else:
             rows.append((dt_str, float(value), CWMS_GOOD_QUALITY))
     df = pd.DataFrame(rows, columns=["date-time", "value", "quality-code"])

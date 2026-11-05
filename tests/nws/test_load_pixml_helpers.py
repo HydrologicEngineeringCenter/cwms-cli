@@ -289,7 +289,7 @@ def test_is_missing_value(value, missing_value, expected):
     assert mod._is_missing_value(value, missing_value) is expected
 
 
-def test_series_dataframe_converts_times_and_missing_values_to_cwms():
+def test_series_dataframe_serializes_missing_values_as_null():
     record = {
         "missVal": "-999",
         "events": [
@@ -304,8 +304,17 @@ def test_series_dataframe_converts_times_and_missing_values_to_cwms():
         "2024-09-16 12:00:00+0000",
         "2024-09-16 18:00:00+0000",
     ]
-    assert frame["value"].tolist() == [1.5, mod.CWMS_MISSING_VALUE]
+    assert frame["value"].iloc[0] == 1.5
+    assert frame["value"].isna().tolist() == [False, True]
     assert frame["quality-code"].tolist() == [
         mod.CWMS_GOOD_QUALITY,
         mod.CWMS_MISSING_QUALITY,
     ]
+
+    payload = mod.cwms.timeseries_df_to_json(
+        data=frame,
+        ts_id="Test.Flow.Inst.6Hours.0.Forecast",
+        units="cfs",
+        office_id="MVM",
+    )
+    assert payload["values"][1][1:] == [None, mod.CWMS_MISSING_QUALITY]
