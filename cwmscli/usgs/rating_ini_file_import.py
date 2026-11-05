@@ -9,6 +9,7 @@ rating_types = {
     "store_corr": {"db_type": "db_corr", "db_disc": "USGS-CORR"},
     "store_base": {"db_type": "db_base", "db_disc": "USGS-BASE"},
     "store_exsa": {"db_type": "db_exsa", "db_disc": "USGS-EXSA"},
+    "replace_exsa": {"db_type": "db_exsa", "db_disc": "USGS-EXSA"},
 }
 
 
@@ -45,17 +46,15 @@ def rating_ini_file_import(api_root, api_key, ini_filename, dry_run=False):
         else:
             fields = parse_ini_line(line)
             if fields[0] in rating_types.keys():
-                # Find the database reference in the fields (e.g., $($db_tail), $($db_exsa), etc.)
-                db_key = None
-                for field in fields[1:]:
-                    if field.startswith("$(") and field.endswith(")"):
-                        # Extract the key name from $(...), e.g., "db_exsa" from "$($db_exsa)"
-                        potential_key = field[2:-1].lstrip("$")
-                        if potential_key in params:
-                            db_key = potential_key
-                            break
-
-                if db_key:
+                db_key = rating_types[fields[0]]["db_type"]
+                if db_key not in params:
+                    for field in fields[1:]:
+                        if field.startswith("$(") and field.endswith(")"):
+                            potential_key = field[2:-1].lstrip("$")
+                            if potential_key in params:
+                                db_key = potential_key
+                                break
+                if db_key in params:
                     rating_spec = params[db_key]
                     # Substitute any custom parameters found in rating_spec
                     for param_key, param_value in params.items():

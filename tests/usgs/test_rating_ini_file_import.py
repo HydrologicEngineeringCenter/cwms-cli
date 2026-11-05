@@ -84,6 +84,7 @@ class TestRatingTypesConfig:
         assert "store_corr" in rating_types
         assert "store_base" in rating_types
         assert "store_exsa" in rating_types
+        assert "replace_exsa" in rating_types
 
     def test_store_corr_config(self):
         """Test store_corr configuration."""
@@ -102,6 +103,10 @@ class TestRatingTypesConfig:
         config = rating_types["store_exsa"]
         assert config["db_type"] == "db_exsa"
         assert config["db_disc"] == "USGS-EXSA"
+
+    def test_replace_exsa_uses_exsa_config(self):
+        """Test the legacy replace_exsa command configuration."""
+        assert rating_types["replace_exsa"] == rating_types["store_exsa"]
 
 
 class TestUpdateRatingSpec:
@@ -259,15 +264,13 @@ class TestRatingIniFileImport:
     def test_import_with_simple_ini_file(self):
         """Test import with a simple temporary INI file."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
-            f.write(
-                """
+            f.write("""
 # Test config
 cwms_office=MVP
 db_corr=$localid.Stage;Flow.USGS-CORR.USGS-NWIS
 localid=TESTLOC
 store_corr $($db_corr)
-"""
-            )
+""")
             temp_file = f.name
 
         try:
@@ -283,19 +286,48 @@ store_corr $($db_corr)
         finally:
             os.unlink(temp_file)
 
+    def test_import_with_legacy_replace_exsa_line(self):
+        """Test importing a legacy replace_exsa command."""
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
+            f.write(r"""
+cwms_office=LRN
+cwmsid=CDZK2-LittleR-CadizKY
+textfile1=$rdb_rating_dir1/\$cwmsid.rdb
+dss1_exsa=$dssfilename;//\$cwmsid/stage-flow//@type/$rating_id/
+db_exsa=\$cwmsid.Stage;Flow.EXSA.PRODUCTION
+replace_exsa $($textfile1) $($dss1_exsa) $($db_exsa)
+""")
+            temp_file = f.name
+
+        try:
+            with patch("cwmscli.usgs.rating_ini_file_import.init_cwms_session"):
+                with patch(
+                    "cwmscli.usgs.rating_ini_file_import.update_rating_spec"
+                ) as mock_update:
+                    rating_ini_file_import(
+                        "http://localhost:8080", "test_key", temp_file
+                    )
+
+                    mock_update.assert_called_once_with(
+                        "CDZK2-LittleR-CadizKY.Stage;Flow.EXSA.PRODUCTION",
+                        "LRN",
+                        "USGS-EXSA",
+                        dry_run=False,
+                    )
+        finally:
+            os.unlink(temp_file)
+
     def test_import_parameter_parsing(self):
         """Test that import correctly parses configuration parameters."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
-            f.write(
-                r"""
+            f.write(r"""
 cwms_office=MVP
 db_base=BASE_\$localid.SPEC
 db_exsa=EXSA_\$localid.SPEC
 db_corr=CORR_\$localid.SPEC
 localid=TESTLOC
 store_corr $($db_corr)
-"""
-            )
+""")
             temp_file = f.name
 
         try:
@@ -319,16 +351,14 @@ store_corr $($db_corr)
     def test_import_skips_comments(self):
         """Test that import correctly skips commented lines."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
-            f.write(
-                """
+            f.write("""
 cwms_office=MVP
 db_corr=$localid.Stage;Flow.USGS-CORR.USGS-NWIS
 db_exsa=$localid.Stage;Flow.USGS-EXSA.USGS-NWIS
 localid=LOC1
 #store_corr $($db_corr)
 store_exsa $($db_exsa)
-"""
-            )
+""")
             temp_file = f.name
 
         try:
@@ -347,14 +377,12 @@ store_exsa $($db_exsa)
     def test_import_handles_inline_comments(self):
         """Test that import correctly handles inline comments."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
-            f.write(
-                """
+            f.write("""
 cwms_office=MVP  # This is the office
 db_corr=$localid.Stage;Flow.USGS-CORR.USGS-NWIS
 localid=TESTLOC # Location identifier
 store_corr $($db_corr)
-"""
-            )
+""")
             temp_file = f.name
 
         try:
@@ -374,14 +402,12 @@ store_corr $($db_corr)
     def test_import_office_id_uppercase(self):
         """Test that office_id is converted to uppercase."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
-            f.write(
-                """
+            f.write("""
 cwms_office=mvp
 db_corr=$localid.Stage;Flow.USGS-CORR.USGS-NWIS
 localid=TESTLOC
 store_corr $($db_corr)
-"""
-            )
+""")
             temp_file = f.name
 
         try:
@@ -401,16 +427,14 @@ store_corr $($db_corr)
     def test_import_handles_multiple_locations(self):
         """Test that import correctly processes multiple location blocks."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
-            f.write(
-                """
+            f.write("""
 cwms_office=MVP
 db_corr=$localid.Stage;Flow.USGS-CORR.USGS-NWIS
 localid=LOC1
 store_corr $($db_corr)
 localid=LOC2
 store_corr $($db_corr)
-"""
-            )
+""")
             temp_file = f.name
 
         try:
@@ -429,14 +453,12 @@ store_corr $($db_corr)
     def test_import_localid_substitution(self):
         """Test that $localid is correctly substituted in specifications."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
-            f.write(
-                r"""
+            f.write(r"""
 cwms_office=MVP
 db_corr=\$localid.Stage;Flow.USGS-CORR.USGS-NWIS
 localid=MYLOC
 store_corr $($db_corr)
-"""
-            )
+""")
             temp_file = f.name
 
         try:
@@ -458,8 +480,7 @@ store_corr $($db_corr)
     def test_import_cwmsid_substitution_with_nae_format(self):
         """Test NAE format with cwmsid and flexible db references (db_tail, db_river)."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
-            f.write(
-                r"""
+            f.write(r"""
 CWMS_OFFICE=NAE
 CWMS_DATABASE=local
 db_tail=\$cwmsid.Stage-TAILWATER;Flow.USGS-EXSA.USGS-NWIS
@@ -474,8 +495,7 @@ cwmsid=NHD
 usgsid=01151500
 replace_exsa $(textfile)
 store_exsa   $($db_river)
-"""
-            )
+""")
             temp_file = f.name
 
         try:
@@ -507,14 +527,12 @@ store_exsa   $($db_river)
     def test_dry_run_mode_calls_update_with_flag(self):
         """Test that dry_run mode calls update_rating_spec with dry_run=True."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
-            f.write(
-                r"""
+            f.write(r"""
 cwms_office=MVP
 db_corr=\$localid.Stage;Flow.USGS-CORR.USGS-NWIS
 localid=TESTLOC
 store_corr $($db_corr)
-"""
-            )
+""")
             temp_file = f.name
 
         try:
@@ -536,8 +554,7 @@ store_corr $($db_corr)
     def test_dry_run_mode_with_multiple_entries(self):
         """Test that dry_run processes all entries with dry_run flag."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
-            f.write(
-                r"""
+            f.write(r"""
 CWMS_OFFICE=NAE
 CWMS_DATABASE=local
 db_tail=\$cwmsid.Stage-TAILWATER;Flow.USGS-EXSA.USGS-NWIS
@@ -554,8 +571,7 @@ store_exsa   $($db_river)
 cwmsid=NSD
 usgsid=01153000
 store_exsa   $($db_tail)
-"""
-            )
+""")
             temp_file = f.name
 
         try:
@@ -578,15 +594,13 @@ store_exsa   $($db_tail)
     def test_import_custom_tag_substitution(self):
         """Test that custom tags (not just localid/cwmsid) are substituted."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
-            f.write(
-                r"""
+            f.write(r"""
 cwms_office=MVP
 db_corr=\$location.\$parameter.USGS-CORR.USGS-NWIS
 location=TESTLOC
 parameter=Stage;Flow
 store_corr $($db_corr)
-"""
-            )
+""")
             temp_file = f.name
 
         try:
@@ -611,14 +625,12 @@ store_corr $($db_corr)
     def test_normal_mode_calls_updates(self):
         """Test that normal mode (not dry_run) calls update_rating_spec with dry_run=False."""
         with tempfile.NamedTemporaryFile(mode="w", suffix=".ini", delete=False) as f:
-            f.write(
-                r"""
+            f.write(r"""
 cwms_office=MVP
 db_corr=\$localid.Stage;Flow.USGS-CORR.USGS-NWIS
 localid=TESTLOC
 store_corr $($db_corr)
-"""
-            )
+""")
             temp_file = f.name
 
         try:

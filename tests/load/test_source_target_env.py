@@ -43,12 +43,13 @@ def _invoke(args):
 # ---------- resolution ----------
 
 
-def test_source_env_resolves_cda_and_office(isolated_envs, capture_load):
+@pytest.mark.parametrize("office", ["SWT", "swt", "SwT", " swt "])
+def test_source_env_resolves_cda_and_office(isolated_envs, capture_load, office):
     save_env(
         "prod",
         {
             "CDA_API_ROOT": "https://prod.mil/cwms-data",
-            "OFFICE": "SWT",
+            "OFFICE": office,
         },
     )
     result = _invoke(

@@ -68,22 +68,40 @@ Maintainer note:
 
 - Repository Settings > Actions > General should allow GitHub Actions to create pull requests, otherwise `release-please` will not be able to open the release PR.
 
-### Conventional Commit Guidance
+### PR titles and version bumps
 
-`release-please` decides the next release version from merged commit messages.
+Use a Conventional Commit title for changes that should be released:
 
-- `fix: ...` creates a patch release.
-- `feat: ...` creates a minor release.
-- `feat!: ...` creates a major release.
-- `BREAKING CHANGE: ...` in the commit body or footer also creates a major release.
+| Version bump | Required commit format | When to use it | Example from `1.2.3` |
+| --- | --- | --- | --- |
+| **Major** | `!` after the type or scope, such as `feat!: ...` or `fix(parser)!: ...`, or a `BREAKING CHANGE: description` footer in the merged commit | Breaking changes that require callers to change their code | `2.0.0` |
+| **Minor** | `feat: description` or `feat(scope): description`, without a breaking-change marker | New functionality that preserves compatibility | `1.3.0` |
+| **Patch** | `fix: description` or `fix(scope): description`, without a breaking-change marker | Compatible bug fixes | `1.2.4` |
 
-Examples:
+**A breaking change must be explicitly marked; `feat:` alone produces a minor
+bump, not a major bump.** Describe the incompatibility and migration steps in the
+PR, and preserve the `!` or `BREAKING CHANGE:` footer in the final merged commit.
 
-- `fix: handle duplicate release asset upload`
-- `feat: add location ids-bygroup loader`
-- `feat!: rename blob upload flags`
+`perf:`, `revert:`, `deps:`, and `docs:` also trigger patch releases with this
+repository's Python release strategy when no breaking-change marker is present.
+Ordinary `test:`, `ci:`, `build:`, `chore:`, `refactor:`, and `style:` commits do
+not trigger a release on their own. Accepting a title prefix does not make it a
+release trigger.
 
-If you use squash merge, the PR title usually becomes the final commit subject on `main`, so PR titles should follow this format for user-visible Python changes.
+Release Please considers the commits since the last release. The highest required
+bump wins: **major over minor over patch**, rather than one bump per PR.
+
+The PR-title workflow adds an advisory comment when a title lacks the
+`<type>: description` format, regardless of which files change. Any type is
+accepted, including `test:`, `ci:`, and `chore:`, as are optional scopes and
+breaking-change markers. Titles must include a space after the colon and a
+nonempty description. It updates the same comment and removes it when the title
+is corrected. This format check does not determine whether a release is needed.
+
+Squash merging uses the PR title as the commit subject by default. Check the final
+subject before merging; Release Please reads commits on `main`, not PR titles
+directly. With other merge methods, preserve Conventional Commit messages in the
+merged commits.
 
 ## Helpful Tips
 

@@ -7,6 +7,7 @@ from typing import Dict, Optional
 
 import click
 
+from cwmscli.utils import colors
 from cwmscli.utils.env_store import (
     ENV_DEFAULTS,
     EnvStoreError,
@@ -21,6 +22,7 @@ from cwmscli.utils.interaction import is_non_interactive
 from cwmscli.utils.ssl_errors import is_cert_verify_error, ssl_help_text
 
 SENSITIVE_KEYS = {"CDA_API_KEY"}
+MANAGED_ENV_KEYS = ("CDA_API_ROOT", "CDA_API_KEY", "OFFICE", "ENVIRONMENT")
 
 
 def _stdout_is_tty() -> bool:
@@ -115,6 +117,30 @@ def _check_env(env_config: Dict[str, str]) -> Dict:
     return {"reachable": True, "latency_ms": latency_ms, "auth": "ok", "error": None}
 
 
+def _active_env_mismatches(
+    env_name: str, env_config: Dict[str, str]
+) -> Dict[str, tuple]:
+    """Return configured values that differ from the current process environment."""
+    expected = {key: env_config[key] for key in MANAGED_ENV_KEYS if key in env_config}
+    expected.setdefault("ENVIRONMENT", env_name)
+    return {
+        key: (value, os.environ.get(key))
+        for key, value in expected.items()
+        if value != os.environ.get(key)
+    }
+
+
+def _format_env_mismatch(key: str, expected: str, actual: Optional[str]) -> str:
+    """Describe an environment mismatch without exposing sensitive values."""
+    if key in SENSITIVE_KEYS:
+        if actual is None:
+            return f"  {key}: configured, but not set in the current shell"
+        return f"  {key}: current value does not match the configured value"
+    if actual is None:
+        return f"  {key}: expected {expected!r}, but it is not set"
+    return f"  {key}: expected {expected!r}, found {actual!r}"
+
+
 @click.group("env", help="Manage CDA environments and API keys")
 def env_group():
     """Environment management commands for cwms-cli."""
@@ -195,9 +221,36 @@ def show_cmd(check: bool):
     current_env = os.environ.get("ENVIRONMENT")
 
     if current_env:
-        click.echo(
-            f"Current environment: {click.style(current_env, fg='green', bold=True)}\n"
-        )
+        active_config = load_env(current_env)
+        if active_config is None:
+            click.echo(f"Current environment: {colors.warn(current_env)}")
+            click.echo(
+                colors.warn(
+                    f"Warning: ENVIRONMENT references '{current_env}', but that "
+                    "environment is not configured."
+                )
+            )
+        else:
+            mismatches = _active_env_mismatches(current_env, active_config)
+            if mismatches:
+                click.echo(
+                    f"Current environment: "
+                    f"{colors.warn(f'{current_env} (values differ)')}"
+                )
+                click.echo(
+                    colors.warn(
+                        f"Warning: current shell values do not match environment "
+                        f"'{current_env}':"
+                    )
+                )
+                for key, (expected, actual) in mismatches.items():
+                    click.echo(_format_env_mismatch(key, expected, actual))
+                click.echo(
+                    "Shell startup configuration may have overridden these values."
+                )
+            else:
+                click.echo(f"Current environment: {colors.ok(current_env)}")
+        click.echo()
     else:
         click.echo("No environment currently active\n")
 
@@ -310,9 +363,9 @@ def _detect_shell_kind() -> str:
     return "bash"
 
 
-def _export_help_lines(env_name: str) -> str:
-    """Per-shell instructions for loading an env into the current shell."""
-    recipes = {
+def _export_recipes(env_name: str) -> Dict[str, str]:
+    """Return per-shell commands for loading an env into the current shell."""
+    return {
         "bash": f'eval "$(cwms-cli env export {env_name} --format bash)"',
         "zsh": f'eval "$(cwms-cli env export {env_name} --format bash)"',
         "powershell": (
@@ -325,6 +378,11 @@ def _export_help_lines(env_name: str) -> str:
         ),
         "fish": f"cwms-cli env export {env_name} --format fish | source",
     }
+
+
+def _export_help_lines(env_name: str) -> str:
+    """Per-shell instructions for loading an env into the current shell."""
+    recipes = _export_recipes(env_name)
     detected = _detect_shell_kind()
     primary = recipes.get(detected, recipes["bash"])
 
@@ -349,19 +407,50 @@ def _export_help_lines(env_name: str) -> str:
     return "\n".join(lines)
 
 
+def _startup_warning_lines(env_name: str, shell_kind: str) -> str:
+    """Explain how shell startup configuration can replace activated values."""
+    startup_config = {
+        "bash": "startup files such as .bashrc",
+        "zsh": "startup files such as .zshrc",
+        "fish": "startup files such as config.fish",
+        "powershell": "PowerShell profiles",
+        "cmd": "cmd.exe AutoRun commands",
+    }.get(shell_kind, "shell startup configuration")
+    recipes = _export_recipes(env_name)
+    recipe = recipes.get(shell_kind, recipes["bash"])
+
+    return "\n".join(
+        [
+            colors.warn(
+                f"Warning: {startup_config} may override CDA_API_ROOT, "
+                "CDA_API_KEY, OFFICE, or ENVIRONMENT."
+            ),
+            "After the shell opens, verify the environment and CDA connection with:",
+            "  cwms-cli env show --check",
+            f"If those values do not match '{env_name}' after startup, reapply with:",
+            f"  {recipe}",
+        ]
+    )
+
+
 def spawn_shell_with_env(env_vars: Dict[str, str], env_name: str):
     """Spawn a new shell with environment variables set."""
     user_shell = _detect_shell()
+    shell_kind = _detect_shell_kind()
     new_env = os.environ.copy()
     new_env.update(env_vars)
 
     click.echo(
-        f"Activating environment: {click.style(env_name, fg='green', bold=True)}",
+        f"Activating environment: {colors.ok(env_name)}",
         err=True,
     )
     click.echo(f"Shell: {user_shell}", err=True)
+    click.echo(_startup_warning_lines(env_name, shell_kind), err=True)
+    exit_hint = "Type 'exit' to return to your original environment"
+    if shell_kind in {"bash", "zsh", "fish"}:
+        exit_hint += " (or press Ctrl+D)"
     click.echo(
-        "Type 'exit' or press Ctrl+D to return to your original environment\n",
+        f"\n{exit_hint}\n",
         err=True,
     )
 
@@ -373,7 +462,7 @@ def spawn_shell_with_env(env_vars: Dict[str, str], env_name: str):
         sys.exit(1)
 
 
-@env_group.command("activate", help="Activate an environment in a new shell")
+@env_group.command("activate", short_help="Activate an environment in a new shell")
 @click.argument("env_name")
 def activate_cmd(env_name: str):
     """
@@ -382,10 +471,22 @@ def activate_cmd(env_name: str):
     The environment variables will be set in the new shell and persist
     until you exit the shell. Type 'exit' to return to your original environment.
 
-    Note: This spawns a child shell. Your parent shell, and any IDE
-    already open, will not see these variables. To populate the current
-    shell, use:  eval "$(cwms-cli env export <name> --format bash)"
+    Note: This spawns a child shell. Your parent shell and any IDE
+    already open will not see these variables. Shell startup files can
+    also replace inherited values such as CDA_API_ROOT. This is common
+    in Solaris profiles.
 
+    To set the values after shell initialization, use:
+
+    \b
+        eval "$(cwms-cli env export <name> --format bash)"
+
+    Verify the activated values, connectivity, and authentication with:
+
+    \b
+        cwms-cli env show --check
+
+    \b
     Examples:
         cwms-cli env activate prod
         cwms-cli env activate localhost
@@ -461,7 +562,7 @@ def _format_env(env_vars: Dict[str, str], fmt: str) -> str:
     "-o",
     type=click.Path(dir_okay=False, writable=True, resolve_path=True),
     default=None,
-    help="Write to FILE (mode 0600) instead of standard output.",
+    help="Write to FILE instead of standard output (mode 0600 on POSIX).",
 )
 @click.option(
     "--no-key",
@@ -535,7 +636,8 @@ def export_cmd(
         except OSError as e:
             click.echo(f"Error writing {path}: {e}", err=True)
             sys.exit(1)
-        click.echo(f"Wrote {path} (0600)", err=True)
+        permission_note = " (0600)" if sys.platform != "win32" else ""
+        click.echo(f"Wrote {path}{permission_note}", err=True)
         if path.endswith(".env") or os.path.basename(path).startswith(".env"):
             click.echo("Reminder: add this file to .gitignore.", err=True)
         return
