@@ -1,14 +1,7 @@
 {
-  "office": "MVM",
-  "pi_namespace": "http://www.wldelft.nl/fews/PI",
-  "build_missing_timeseries": false,
-  "parameter_map": {},
-  "default_type": "Inst",
-  "default_duration": "0",
   "runs": [
     {
       "match": {"default": true},
-      "version_part": "",
       "versioned": true,
       "version_source": "creation_date",
       "version_snap_time": "12:00:00"

@@ -1,6 +1,4 @@
 {
-  "office": "MVP",
-  "pi_namespace": "http://www.wldelft.nl/fews/PI",
   "build_missing_timeseries": true,
   "parameter_rules": [
     {"parameter_id": "SQIN", "location_id_suffix": "LOC", "cwms_parameter": "Flow-Local"},
@@ -29,19 +27,15 @@
   "param_type_rules": [
     {"param_contains": "Precip", "type": "Total", "duration": "6Hours"}
   ],
-  "default_type": "Inst",
-  "default_duration": "0",
   "runs": [
     {
       "match": {"filename_contains": "auto"},
       "version_part": "Fcst-NCRFC-CHIPS-Auto",
-      "versioned": false,
       "issued_slot": "auto"
     },
     {
       "match": {"filename_contains": "CRF"},
       "version_part": "Fcst-NCRFC-CHIPS-CRF",
-      "versioned": false,
       "issued_slot": "crf"
     },
     {
@@ -55,7 +49,6 @@
     }
   ],
   "issued_time": {
-    "store": "blob",
     "blob_id": "MVP-NCRFC-FORECAST-STATUS",
     "media_type": "application/json",
     "watershed_from_filename": "MSR_(?:main_(?:auto_)?|CRF_)([^.]+)"

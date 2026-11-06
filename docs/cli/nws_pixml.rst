@@ -98,6 +98,12 @@ The config is a JSON object. See the rendered
 :ref:`MVP example config <nws-pixml-mvp-config>` and
 :ref:`MVM example config <nws-pixml-mvm-config>`.
 
+The bundled examples intentionally omit keys whose values match loader
+defaults. In particular, they rely on the standard CWMS-owned groups, the
+default PI namespace, ``build_missing_timeseries=false``, ``Inst`` type, ``0``
+duration, an empty version part, and unversioned runs unless ``versioned`` is
+set to ``true``.
+
 These keys configure the cwms-cli loader; they are not part of PI-XML. The MVP
 and MVM RFC products tested with this loader use the Delft-FEWS PI namespace
 and time-series structure. See the Deltares `Delft-FEWS PI time-series schema
@@ -304,6 +310,10 @@ repository, so the displayed configuration changes with the source file.
 MVP configuration
 ~~~~~~~~~~~~~~~~~
 
+This example contains only MVP-specific mappings, run selection, and
+issued-time tracking. Default group, namespace, type, duration, and unversioned
+run settings are omitted.
+
 :download:`Download the MVP config <../nws/mvp.example.json>`.
 
 .. literalinclude:: ../nws/mvp.example.json
@@ -314,6 +324,10 @@ MVP configuration
 
 MVM configuration
 ~~~~~~~~~~~~~~~~~
+
+This minimal example retains only MVM's version-date policy: use PI-XML
+``creationDate`` and snap the daily version to noon. All group and TSID
+resolution settings use loader defaults.
 
 :download:`Download the MVM config <../nws/mvm.example.json>`.
 
