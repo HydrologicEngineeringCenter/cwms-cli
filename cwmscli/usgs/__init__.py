@@ -44,8 +44,17 @@ days_back_option = click.option(
     type=str,
     help='Backfill timeseries ids, use list of timeseries ids (e.g. "ts_id1, ts_id2") to attempt to backfill a subset of timeseries with USGS data',
 )
+@click.option(
+    "-bv",
+    "--backfill-version",
+    default=None,
+    type=str,
+    help='Backfill version, save data to a different version of the timeseries (e.g. "Rev-USGS" instead of "Raw-USGS")',
+)
 @requires(reqs.cwms, reqs.requests)
-def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc, backfill):
+def getusgs_timeseries(
+    office, days_back, api_root, api_key, api_key_loc, backfill, backfill_version
+):
     from cwmscli.usgs.getusgs_cda import getusgs_cda
 
     if backfill is not None:
@@ -60,6 +69,52 @@ def getusgs_timeseries(office, days_back, api_root, api_key, api_key_loc, backfi
         days_back=days_back,
         api_key=api_key,
         backfill_tsids=backfill_list,
+        backfill_version=backfill_version,
+    )
+
+
+@usgs_group.command(
+    "timeseries-v2",
+    help="Get USGS timeseries values using the new OGC API and store into CWMS database",
+)
+@office_option
+@days_back_option
+@api_root_option
+@api_key_option
+@api_key_loc_option
+@click.option(
+    "-b",
+    "--backfill",
+    default=None,
+    type=str,
+    help='Backfill timeseries ids, use list of timeseries ids (e.g. "ts_id1, ts_id2") to attempt to backfill a subset of timeseries with USGS data',
+)
+@click.option(
+    "-bv",
+    "--backfill-version",
+    default=None,
+    type=str,
+    help='Backfill version, save data to a different version of the timeseries (e.g. "Rev-USGS" instead of "Raw-USGS")',
+)
+@requires(reqs.cwms, reqs.requests)
+def getusgs_timeseries_v2(
+    office, days_back, api_root, api_key, api_key_loc, backfill, backfill_version
+):
+    from cwmscli.usgs.getusgs_cda import getusgs_cda_ogc
+
+    if backfill is not None:
+        backfill_list = [item.strip() for item in backfill.split(",") if item.strip()]
+    else:
+        backfill_list = None
+
+    api_key = get_api_key(api_key, api_key_loc)
+    getusgs_cda_ogc(
+        api_root=api_root,
+        office_id=office,
+        days_back=days_back,
+        api_key=api_key,
+        backfill_tsids=backfill_list,
+        backfill_version=backfill_version,
     )
 
 
@@ -223,3 +278,156 @@ def getusgs_measurements(
         backfill_list=backfill_list,
         backfill_group=backfill_group,
     )
+
+
+@usgs_group.command(
+    "migrate-timeseries-ids",
+    help=(
+        "Migrate legacy numeric USGS method IDs in USGS TS Data Acquisition "
+        "group alias-id fields to new USGS time_series_id values"
+    ),
+)
+@office_option
+@api_root_option
+@api_key_option
+@api_key_loc_option
+@click.option(
+    "--output-dir",
+    required=True,
+    type=click.Path(
+        exists=False,
+        file_okay=False,
+        dir_okay=True,
+        writable=True,
+    ),
+    help="Directory where migration reports and proposed CWMS updates are written.",
+)
+@click.option(
+    "-m",
+    "--legacy-methods-csv",
+    default=None,
+    type=click.Path(
+        exists=True,
+        file_okay=True,
+        dir_okay=False,
+        readable=True,
+    ),
+    help=(
+        "Optional legacy method crosswalk CSV. Required columns: "
+        "USGS_St_Num, USGS_PARAMETER, methodID, methodDescription. "
+        "If omitted, legacy WaterServices is queried."
+    ),
+)
+@click.option(
+    "-t",
+    "--timeseries-ids",
+    default=None,
+    type=str,
+    help=(
+        "Optional comma-separated CWMS TSIDs to migrate. "
+        "Use for initial testing before processing the entire office."
+    ),
+)
+@click.option(
+    "--apply/--dry-run",
+    default=False,
+    help=(
+        "Apply eligible alias-id updates to CWMS. Default is --dry-run, "
+        "which writes reports but changes nothing in CWMS."
+    ),
+)
+@click.option(
+    "--legacy-chunk-size",
+    default=100,
+    type=click.IntRange(min=1),
+    show_default=True,
+    help="Maximum USGS stations included per legacy WaterServices request.",
+)
+@click.option(
+    "--compare-timeseries/--no-compare-timeseries",
+    default=False,
+    help=(
+        "Compare candidate USGS time_series_id values against existing CWMS "
+        "data before allowing an alias-id update."
+    ),
+)
+@click.option(
+    "--compare-days",
+    default=3,
+    type=click.IntRange(min=1),
+    show_default=True,
+    help="Number of recent days used for CWMS-to-USGS value comparison.",
+)
+@click.option(
+    "--comparison-tolerance",
+    default=0.001,
+    type=click.FloatRange(min=0.0),
+    show_default=True,
+    help=(
+        "Maximum absolute value difference considered an agreement after "
+        "unit normalization."
+    ),
+)
+@click.option(
+    "--comparison-min-records",
+    default=20,
+    type=click.IntRange(min=1),
+    show_default=True,
+    help="Minimum overlapping CWMS/USGS observations required for validation.",
+)
+@click.option(
+    "--comparison-min-agreement",
+    default=95.0,
+    type=click.FloatRange(min=0.0, max=100.0),
+    show_default=True,
+    help="Minimum percentage of overlapping values within tolerance.",
+)
+@requires(reqs.cwms, reqs.requests, reqs.dataretrieval)
+def migrate_usgs_timeseries_ids_command(
+    office,
+    api_root,
+    api_key,
+    api_key_loc,
+    output_dir,
+    legacy_methods_csv,
+    timeseries_ids,
+    apply,
+    legacy_chunk_size,
+    compare_timeseries,
+    compare_days,
+    comparison_tolerance,
+    comparison_min_records,
+    comparison_min_agreement,
+):
+    """Migrate legacy USGS method IDs to new USGS time-series IDs."""
+
+    from cwmscli.usgs.migrate_usgs_tsid import migrate_usgs_timeseries_ids
+
+    if timeseries_ids:
+        tsid_list = [item.strip() for item in timeseries_ids.split(",") if item.strip()]
+    else:
+        tsid_list = None
+
+    api_key = get_api_key(api_key, api_key_loc)
+
+    try:
+        migrate_usgs_timeseries_ids(
+            api_root=api_root,
+            office_id=office,
+            api_key=api_key,
+            output_dir=output_dir,
+            legacy_methods_csv=legacy_methods_csv,
+            apply=apply,
+            timeseries_ids=tsid_list,
+            legacy_chunk_size=legacy_chunk_size,
+            compare_timeseries=compare_timeseries,
+            compare_days=compare_days,
+            comparison_tolerance=comparison_tolerance,
+            comparison_min_records=comparison_min_records,
+            comparison_min_agreement=comparison_min_agreement,
+        )
+
+    except Exception as error:
+        raise click.ClickException(
+            f"USGS time-series-ID migration failed: {error}"
+        ) from error
