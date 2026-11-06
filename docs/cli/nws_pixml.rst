@@ -56,6 +56,12 @@ The loader resolves its JSON config from the first source that matches:
 
 ``--config`` and ``--config-blob-id`` are mutually exclusive.
 
+The config remains responsible for run selection, version-date behavior, and
+other office-specific policy. Group selection is defaulted separately: omit
+``location_alias_groups`` and ``timeseries_group`` to use the standard
+CWMS-owned groups. Existing config blobs that explicitly name older groups must
+remove or update those keys before they will use the standard defaults.
+
 Uploading a config blob
 ~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -120,14 +126,18 @@ Array types below are JSON lists. The key names do not include ``[]``.
        ``http://www.wldelft.nl/fews/PI``.
    * - ``location_alias_groups``
      - array of objects
-     - Conditional
-     - Location groups used to resolve NWS IDs to CWMS locations. Later groups
-       override earlier groups. Needed for built TSIDs and derived group aliases.
+     - No
+     - Location groups used to resolve NWS IDs to CWMS locations. Defaults to
+       the CWMS-owned ``Agency Aliases/NWS Handbook 5 ID`` and
+       ``Data Acquisition/PIXML RFC CHPS Aliases`` groups. Later groups
+       override earlier groups. When present, this array replaces the defaults.
    * - ``timeseries_group``
      - object
      - No
-     - Time-series group used for alias-based TSID overrides. When omitted,
-       resolution proceeds directly to the optional built fallback.
+     - Time-series group used for alias-based TSID overrides. Defaults to the
+       CWMS-owned ``Data Acquisition/PIXML RFC CHPS Acquisition`` group.
+       An explicit object replaces the default; set this key to ``null`` to
+       disable group lookup and proceed directly to the optional built fallback.
    * - ``build_missing_timeseries``
      - boolean
      - No
@@ -219,8 +229,10 @@ TSID resolution
 For each series in the PI-XML:
 
 1. **Alias override** — build a key from ``alias_key_template`` (e.g.
-   ``{locationId}.{parameterId}``), look it up in the configured timeseries
-   group.  If the run defines a ``version_part``, swap it into the 6th TSID
+   ``{locationId}.{parameterId}``), look it up in the configured or standard
+   default timeseries group. Location-only group aliases are combined with
+   the assigned TSID parameter so separate Flow and Stage assignments remain
+   distinct. If the run defines a ``version_part``, swap it into the 6th TSID
    segment so one alias serves base/auto/CRF.
 2. **Built fallback (optional)** — if ``build_missing_timeseries`` is true,
    construct

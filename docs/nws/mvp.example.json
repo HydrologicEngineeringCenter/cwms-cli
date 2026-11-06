@@ -1,29 +1,6 @@
 {
   "office": "MVP",
   "pi_namespace": "http://www.wldelft.nl/fews/PI",
-  "location_alias_groups": [
-    {
-      "group_id": "NWS Handbook 5 ID",
-      "category_id": "Agency Aliases",
-      "group_office_id": "CWMS",
-      "category_office_id": "CWMS"
-    },
-    {
-      "group_id": "Locations",
-      "category_id": "RFC CHPS Aliases",
-      "group_office_id": "MVP",
-      "category_office_id": "MVP",
-      "alias_strip_suffix": "_CHPS"
-    }
-  ],
-  "timeseries_group": {
-    "group_id": "NCRFC PIXML Forecast Acquisition",
-    "category_id": "Data Acquisition",
-    "category_office_id": "CWMS",
-    "group_office_id": "MVP",
-    "alias_key_template": "{locationId}.{parameterId}",
-    "derived": false
-  },
   "build_missing_timeseries": true,
   "parameter_rules": [
     {"parameter_id": "SQIN", "location_id_suffix": "LOC", "cwms_parameter": "Flow-Local"},

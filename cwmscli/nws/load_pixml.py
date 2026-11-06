@@ -43,6 +43,29 @@ CWMS_GOOD_QUALITY = 0
 
 DEFAULT_PI_NAMESPACE = "http://www.wldelft.nl/fews/PI"
 ISSUED_TIME_PARSE_FAILURE = "Date could not be parsed from filename"
+DEFAULT_LOCATION_ALIAS_GROUPS = (
+    {
+        "group_id": "NWS Handbook 5 ID",
+        "category_id": "Agency Aliases",
+        "group_office_id": "CWMS",
+        "category_office_id": "CWMS",
+    },
+    {
+        "group_id": "PIXML RFC CHPS Aliases",
+        "category_id": "Data Acquisition",
+        "group_office_id": "CWMS",
+        "category_office_id": "CWMS",
+        "alias_strip_suffix": "_CHPS",
+    },
+)
+DEFAULT_TIMESERIES_GROUP = {
+    "group_id": "PIXML RFC CHPS Acquisition",
+    "category_id": "Data Acquisition",
+    "group_office_id": "CWMS",
+    "category_office_id": "CWMS",
+    "alias_key_template": "{locationId}.{parameterId}",
+    "derived": True,
+}
 
 
 # --------------------------------------------------------------------------- #
@@ -185,6 +208,14 @@ def _forecast_datetime(header, ns) -> Optional[str]:
 # --------------------------------------------------------------------------- #
 # Alias table (NWS station id <-> CWMS location)
 # --------------------------------------------------------------------------- #
+def _location_alias_groups(config: dict):
+    return config.get("location_alias_groups", DEFAULT_LOCATION_ALIAS_GROUPS) or ()
+
+
+def _timeseries_group(config: dict) -> Optional[dict]:
+    return config.get("timeseries_group", DEFAULT_TIMESERIES_GROUP)
+
+
 def build_alias_table(config: dict, office: str) -> tuple:
     """Merge the configured location alias groups.
 
@@ -193,7 +224,7 @@ def build_alias_table(config: dict, office: str) -> tuple:
     """
     nws_to_loc: dict = {}
     loc_to_nws: dict = {}
-    for group in config.get("location_alias_groups", []):
+    for group in _location_alias_groups(config):
         data = cwms.get_location_group(
             loc_group_id=group["group_id"],
             category_id=group["category_id"],
@@ -233,14 +264,15 @@ def _lookup_location(location_id: str, nws_to_loc: dict) -> Optional[str]:
 def build_tsgroup_map(config: dict, office: str, loc_to_nws: dict) -> dict:
     """Build a ``record_key -> timeseries-id`` override map from a TS group.
 
-    Two kinds of key are registered, both matched against the record key
+    Three kinds of key are registered, all matched against the record key
     ``alias_key_template.format(locationId, parameterId)``:
 
-    * explicit ``alias-id`` values (MVP after the one-off migration), and
+    * explicit ``alias-id`` values,
+    * ``"{alias-id}.{PARAM}"`` keys derived from the assigned TSID, and
     * derived ``"{nws_alias}.{PARAM}"`` keys computed from each assigned TSID's
-      location + parameter segment (reproduces MVM's Default-group matching).
+      location + parameter segment.
     """
-    tg = config.get("timeseries_group")
+    tg = _timeseries_group(config)
     if not tg:
         return {}
 
@@ -261,16 +293,18 @@ def build_tsgroup_map(config: dict, office: str, loc_to_nws: dict) -> dict:
         tsid = row.get("timeseries-id")
         if not tsid:
             continue
+        parts = str(tsid).split(".")
         alias = row.get("alias-id")
         if alias is not None and pd.notna(alias):
-            mapping[str(alias)] = tsid
-        if derived:
-            parts = str(tsid).split(".")
+            alias = str(alias)
+            mapping[alias] = tsid
             if len(parts) >= 2:
-                loc, param = parts[0], parts[1]
-                nws = loc_to_nws.get(loc) or loc_to_nws.get(loc.split("-")[0])
-                if nws:
-                    mapping[f"{nws}.{param.upper()}"] = tsid
+                mapping[f"{alias}.{parts[1].upper()}"] = tsid
+        if derived and len(parts) >= 2:
+            loc, param = parts[0], parts[1]
+            nws = loc_to_nws.get(loc) or loc_to_nws.get(loc.split("-")[0])
+            if nws:
+                mapping[f"{nws}.{param.upper()}"] = tsid
     return mapping
 
 
@@ -418,7 +452,7 @@ def resolve_tsid(
     # (1) Timeseries-group override (handles odd/aliased cases). When the run
     # defines a version part, swap it into the resolved id so one alias entry
     # serves every run (base/auto/CRF); otherwise (e.g. MVM) use it verbatim.
-    tg = config.get("timeseries_group")
+    tg = _timeseries_group(config)
     if tg:
         template = tg.get("alias_key_template", "{locationId}.{parameterId}")
         key = template.format(locationId=location_id, parameterId=parameter_id)

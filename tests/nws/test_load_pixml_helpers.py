@@ -6,6 +6,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from xml.etree import ElementTree as ET
 
+import pandas as pd
 import pytest
 
 import cwmscli.nws.load_pixml as mod
@@ -89,6 +90,107 @@ def test_forecast_datetime_handles_present_and_missing_elements():
 )
 def test_lookup_location_uses_exact_then_handbook_prefix(location_id, expected):
     assert mod._lookup_location(location_id, {"WABM5": "Wabasha"}) == expected
+
+
+def test_standard_groups_are_defaults_and_can_be_disabled(monkeypatch):
+    custom_locations = [{"group_id": "Custom Locations"}]
+    custom_timeseries = {"group_id": "Custom Timeseries"}
+
+    assert mod._location_alias_groups({}) == mod.DEFAULT_LOCATION_ALIAS_GROUPS
+    assert (
+        mod._location_alias_groups({"location_alias_groups": custom_locations})
+        is custom_locations
+    )
+    assert mod._location_alias_groups({"location_alias_groups": []}) == ()
+    assert mod._timeseries_group({}) == mod.DEFAULT_TIMESERIES_GROUP
+    assert (
+        mod._timeseries_group({"timeseries_group": custom_timeseries})
+        is custom_timeseries
+    )
+    assert mod._timeseries_group({"timeseries_group": None}) is None
+
+    location_queries = []
+    fake_cwms = SimpleNamespace(
+        get_location_group=lambda **kwargs: (
+            location_queries.append(kwargs)
+            or SimpleNamespace(df=pd.DataFrame(columns=["location-id", "alias-id"]))
+        )
+    )
+    monkeypatch.setattr(mod, "cwms", fake_cwms)
+
+    mod.build_alias_table({}, "MVM")
+
+    assert location_queries == [
+        {
+            "loc_group_id": "NWS Handbook 5 ID",
+            "category_id": "Agency Aliases",
+            "office_id": "MVM",
+            "group_office_id": "CWMS",
+            "category_office_id": "CWMS",
+        },
+        {
+            "loc_group_id": "PIXML RFC CHPS Aliases",
+            "category_id": "Data Acquisition",
+            "office_id": "MVM",
+            "group_office_id": "CWMS",
+            "category_office_id": "CWMS",
+        },
+    ]
+
+
+def test_standard_timeseries_aliases_are_parameter_aware(monkeypatch):
+    rows = [
+        {
+            "timeseries-id": "LR118.Flow.Inst.6Hours.0.LMRFC-NAEFS-FCST",
+            "alias-id": "RIGA4",
+        },
+        {
+            "timeseries-id": "LR118.Stage.Inst.6Hours.0.LMRFC-NAEFS-FCST",
+            "alias-id": "RIGA4",
+        },
+        {
+            "timeseries-id": "Baton Rouge-LCL.Flow.Inst.6Hours.0.LMRFC-NAEFS-FCST",
+            "alias-id": "BTRL1LCL",
+        },
+    ]
+    timeseries_queries = []
+    fake_cwms = SimpleNamespace(
+        get_timeseries_group=lambda **kwargs: (
+            timeseries_queries.append(kwargs) or SimpleNamespace(df=pd.DataFrame(rows))
+        )
+    )
+    monkeypatch.setattr(mod, "cwms", fake_cwms)
+
+    mapping = mod.build_tsgroup_map({}, "MVM", {})
+
+    assert timeseries_queries == [
+        {
+            "group_id": "PIXML RFC CHPS Acquisition",
+            "category_id": "Data Acquisition",
+            "office_id": "MVM",
+            "category_office_id": "CWMS",
+            "group_office_id": "CWMS",
+        }
+    ]
+    assert mapping["RIGA4.FLOW"] == rows[0]["timeseries-id"]
+    assert mapping["RIGA4.STAGE"] == rows[1]["timeseries-id"]
+    assert mapping["BTRL1LCL.FLOW"] == rows[2]["timeseries-id"]
+
+    record = {
+        "locationId": "RIGA4",
+        "parameterId": "FLOW",
+        "timeStep_unit": "second",
+        "timeStep_multiplier": "21600",
+    }
+    assert mod.resolve_tsid(record, {}, {}, mapping, "") == (
+        rows[0]["timeseries-id"],
+        None,
+    )
+    record["parameterId"] = "STAGE"
+    assert mod.resolve_tsid(record, {}, {}, mapping, "") == (
+        rows[1]["timeseries-id"],
+        None,
+    )
 
 
 def test_series_detail_and_formatting_helpers():
