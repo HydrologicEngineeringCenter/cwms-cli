@@ -45,7 +45,8 @@ def test_usgs_timeseries_backfill_preserves_internal_spaces(monkeypatch):
         "Prado DS-SAR.Flow.Inst.0.0.usgs-raw",
         "Other Location.Stage.Inst.0.0.usgs-raw",
     ]
-    
+
+
 def test_usgs_timeseries_backfill_version_passed_through(monkeypatch):
     captured = {}
     fake_module = types.ModuleType("cwmscli.usgs.getusgs_cda")
@@ -80,6 +81,7 @@ def test_usgs_timeseries_backfill_version_passed_through(monkeypatch):
     assert result.exit_code == 0, result.output
     assert captured["backfill_version"] == "Rev-USGS"
 
+
 def test_usgs_timeseries_v2_backfill_version_passed_through(monkeypatch):
     captured = {}
     fake_module = types.ModuleType("cwmscli.usgs.getusgs_cda")
@@ -113,7 +115,8 @@ def test_usgs_timeseries_v2_backfill_version_passed_through(monkeypatch):
 
     assert result.exit_code == 0, result.output
     assert captured["backfill_version"] == "Rev-USGS"
-    
+
+
 def test_usgs_ratings_dry_run_is_forwarded(monkeypatch):
     captured = {}
     fake_module = types.ModuleType("cwmscli.usgs.getUSGS_ratings_cda")
