@@ -1,0 +1,10 @@
+{
+  "runs": [
+    {
+      "match": {"default": true},
+      "versioned": true,
+      "version_source": "creation_date",
+      "version_snap_time": "12:00:00"
+    }
+  ]
+}
