@@ -68,7 +68,7 @@ def getusgs_timeseries(
     api_key,
     api_key_loc,
     backfill,
-    backfill_version
+    backfill_version,
 ):
     from cwmscli.usgs.getusgs_cda import getusgs_cda
 

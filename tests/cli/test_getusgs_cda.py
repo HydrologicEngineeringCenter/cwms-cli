@@ -166,9 +166,7 @@ class TestLogErrorAndExit:
     def test_logs_error(self, caplog):
         with pytest.raises(SystemExit):
             with caplog.at_level(logging.ERROR):
-                getusgs_cda_module._log_error_and_exit(
-                    "Test error message"
-                )
+                getusgs_cda_module._log_error_and_exit("Test error message")
 
         assert "Test error message" in caplog.text
 
@@ -303,9 +301,7 @@ class TestGetCMWSTSLocData:
         ts_response.df = pd.DataFrame(
             {
                 "office-id": ["MVP"],
-                "timeseries-id": [
-                    "LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"
-                ],
+                "timeseries-id": ["LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"],
                 "alias-id": ["   "],
                 "attribute": [0],
             }
@@ -414,9 +410,7 @@ class TestGetCMWSTSLocData:
         ts_response.df = pd.DataFrame(
             {
                 "office-id": ["MVP"],
-                "timeseries-id": [
-                    "LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"
-                ],
+                "timeseries-id": ["LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"],
                 "alias-id": [pd.NA],
                 "attribute": [0],
             }
@@ -450,16 +444,10 @@ class TestGetCMWSTSLocData:
 
 class TestNormalizeUSGSUnit:
     def test_normalizes_cubic_feet_per_second(self):
-        assert (
-            getusgs_cda_module._normalize_usgs_unit("ft^3/s")
-            == "ft3/s"
-        )
+        assert getusgs_cda_module._normalize_usgs_unit("ft^3/s") == "ft3/s"
 
     def test_normalizes_superscript_cubic_feet_per_second(self):
-        assert (
-            getusgs_cda_module._normalize_usgs_unit("ft³/s")
-            == "ft3/s"
-        )
+        assert getusgs_cda_module._normalize_usgs_unit("ft³/s") == "ft3/s"
 
     def test_preserves_stage_unit(self):
         assert getusgs_cda_module._normalize_usgs_unit("ft") == "ft"
@@ -474,12 +462,8 @@ class TestGetContinuousData:
 
         api_data = pd.DataFrame(
             {
-                "time_series_id": [
-                    "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
-                ],
-                "monitoring_location_id": [
-                    "USGS-04213152"
-                ],
+                "time_series_id": ["aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"],
+                "monitoring_location_id": ["USGS-04213152"],
                 "parameter_code": ["00060"],
                 "statistic_id": ["00011"],
                 "time": ["2026-11-01T00:00:00Z"],
@@ -514,15 +498,11 @@ class TestGetContinuousData:
         assert len(result) == 1
         assert result.iloc[0]["value"] == 100.0
 
-        assert captured["monitoring_location_id"] == [
-            "USGS-04213152"
-        ]
+        assert captured["monitoring_location_id"] == ["USGS-04213152"]
         assert captured["parameter_code"] == "00060"
         assert captured["last_modified"] == "P2D"
 
-        assert captured["properties"] == (
-            getusgs_cda_module.USGS_CONTINUOUS_PROPERTIES
-        )
+        assert captured["properties"] == (getusgs_cda_module.USGS_CONTINUOUS_PROPERTIES)
 
     def test_returns_empty_dataframe_for_empty_api_response(self, monkeypatch):
         monkeypatch.setattr(
@@ -583,9 +563,7 @@ class TestGetUSGSTimeseries:
             captured_calls.append(kwargs)
 
             return new_api_usgs_data_df.loc[
-                new_api_usgs_data_df["monitoring_location_id"].eq(
-                    "USGS-04213152"
-                )
+                new_api_usgs_data_df["monitoring_location_id"].eq("USGS-04213152")
             ].copy()
 
         monkeypatch.setattr(
@@ -608,23 +586,17 @@ class TestGetUSGSTimeseries:
 
         assert len(captured_calls) == 1
 
-        assert captured_calls[0]["monitoring_location_id"] == [
-            "USGS-04213152"
-        ]
+        assert captured_calls[0]["monitoring_location_id"] == ["USGS-04213152"]
 
         assert captured_calls[0]["parameter_code"] == "00060"
 
         assert captured_calls[0]["last_modified"] == (
-            "2026-10-30T00:00:00/"
-            "2026-11-01T00:00:00"
+            "2026-10-30T00:00:00/" "2026-11-01T00:00:00"
         )
 
         assert len(result) == 2
 
-        assert (
-            result["monitoring_location_id"]
-            == "USGS-04213152"
-        ).all()
+        assert (result["monitoring_location_id"] == "USGS-04213152").all()
 
     def test_requests_uuid_alias_by_timeseries_id(
         self,
@@ -671,10 +643,7 @@ class TestGetUSGSTimeseries:
 
         assert len(result) == 2
 
-        assert (
-            result["time_series_id"]
-            == "f38a57ccac5a426e8388b8507fa9bbce"
-        ).all()
+        assert (result["time_series_id"] == "f38a57ccac5a426e8388b8507fa9bbce").all()
 
     def test_passes_last_modified_window_to_all_requests(
         self,
@@ -704,10 +673,7 @@ class TestGetUSGSTimeseries:
 
         assert len(captured_calls) == 2
 
-        expected_last_modified = (
-            "2026-10-30T00:00:00/"
-            "2026-11-01T00:00:00"
-        )
+        expected_last_modified = "2026-10-30T00:00:00/" "2026-11-01T00:00:00"
 
         for call in captured_calls:
             assert call["last_modified"] == expected_last_modified
@@ -743,9 +709,7 @@ class TestReplaceTSVersion:
             "Rev-USGS",
         )
 
-        assert result == (
-            "DWGN8.Stage.Inst.~15Minutes.0.Rev-USGS"
-        )
+        assert result == ("DWGN8.Stage.Inst.~15Minutes.0.Rev-USGS")
 
     def test_returns_original_when_no_period_present(self):
         result = getusgs_cda_module._replace_ts_version(
@@ -760,11 +724,7 @@ class TestValidateBackfillVersionTimeseries:
     def test_removes_missing_backfill_timeseries(self, monkeypatch, caplog):
         mock_response = Mock()
         mock_response.df = pd.DataFrame(
-            {
-                "timeseries-id": [
-                    "LOC1.Flow.Inst.~15Minutes.0.Rev-USGS"
-                ]
-            }
+            {"timeseries-id": ["LOC1.Flow.Inst.~15Minutes.0.Rev-USGS"]}
         )
 
         monkeypatch.setattr(
@@ -784,12 +744,10 @@ class TestValidateBackfillVersionTimeseries:
         )
 
         with caplog.at_level(logging.WARNING):
-            result = (
-                getusgs_cda_module._validate_backfill_version_timeseries(
-                    usgs_ts,
-                    "Rev-USGS",
-                    "MVP",
-                )
+            result = getusgs_cda_module._validate_backfill_version_timeseries(
+                usgs_ts,
+                "Rev-USGS",
+                "MVP",
             )
 
         assert "do not exist in CWMS" in caplog.text
@@ -813,9 +771,7 @@ class TestValidateBackfillVersionTimeseries:
 
         usgs_ts = pd.DataFrame(
             {
-                "timeseries-id": [
-                    "LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"
-                ],
+                "timeseries-id": ["LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"],
                 "office-id": ["MVP"],
             }
         )
@@ -871,9 +827,7 @@ class TestCWMSWriteData:
                 days_back=30,
             )
 
-        assert captured["ts_id"] == (
-            "LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"
-        )
+        assert captured["ts_id"] == ("LOC1.Flow.Inst.~15Minutes.0.Raw-USGS")
 
         assert captured["units"] == "ft3/s"
         assert captured["office_id"] == "MVP"
@@ -918,9 +872,7 @@ class TestCWMSWriteData:
             days_back=30,
         )
 
-        assert captured["ts_id"] == (
-            "LOC2.Stage.Inst.~15Minutes.0.Raw-USGS"
-        )
+        assert captured["ts_id"] == ("LOC2.Stage.Inst.~15Minutes.0.Raw-USGS")
 
         assert captured["units"] == "ft"
 
@@ -950,9 +902,7 @@ class TestCWMSWriteData:
 
         usgs_ts = pd.DataFrame(
             {
-                "timeseries-id": [
-                    "LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"
-                ],
+                "timeseries-id": ["LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"],
                 "office-id": ["MVP"],
                 "USGS_St_Num": ["04213152"],
                 "USGS_PARAMETER": ["00060"],
@@ -1035,9 +985,7 @@ class TestCWMSWriteData:
             backfill_version="Rev-USGS",
         )
 
-        assert captured["ts_id"] == (
-            "LOC2.Stage.Inst.~15Minutes.0.Rev-USGS"
-        )
+        assert captured["ts_id"] == ("LOC2.Stage.Inst.~15Minutes.0.Rev-USGS")
 
 
 class TestGetUSGSCDA:
@@ -1069,9 +1017,7 @@ class TestGetUSGSCDA:
         def fake_get_usgs_ts(**kwargs):
             captured["get_usgs_ts"] = kwargs
 
-            return pd.DataFrame(
-                columns=getusgs_cda_module.USGS_CONTINUOUS_PROPERTIES
-            )
+            return pd.DataFrame(columns=getusgs_cda_module.USGS_CONTINUOUS_PROPERTIES)
 
         monkeypatch.setattr(
             getusgs_cda_module,
@@ -1100,23 +1046,19 @@ class TestGetUSGSCDA:
 
         get_usgs_args = captured["get_usgs_ts"]
 
-        assert set(
-            get_usgs_args["usgs_ts"]["timeseries-id"]
-        ) == {
+        assert set(get_usgs_args["usgs_ts"]["timeseries-id"]) == {
             "LOC1.Flow.Inst.~15Minutes.0.Raw-USGS",
             "LOC2.Stage.Inst.~15Minutes.0.Raw-USGS",
         }
 
         modified_delta = (
-            get_usgs_args["modified_end_dt"]
-            - get_usgs_args["modified_start_dt"]
+            get_usgs_args["modified_end_dt"] - get_usgs_args["modified_start_dt"]
         )
 
         assert modified_delta == timedelta(days=2)
 
         observation_delta = (
-            get_usgs_args["observation_end_dt"]
-            - get_usgs_args["observation_start_dt"]
+            get_usgs_args["observation_end_dt"] - get_usgs_args["observation_start_dt"]
         )
 
         # When revision_observation_lookback_days is omitted, it defaults
@@ -1156,9 +1098,7 @@ class TestGetUSGSCDA:
         def fake_get_usgs_ts(**kwargs):
             captured.update(kwargs)
 
-            return pd.DataFrame(
-                columns=getusgs_cda_module.USGS_CONTINUOUS_PROPERTIES
-            )
+            return pd.DataFrame(columns=getusgs_cda_module.USGS_CONTINUOUS_PROPERTIES)
 
         monkeypatch.setattr(
             getusgs_cda_module,
@@ -1180,14 +1120,10 @@ class TestGetUSGSCDA:
             api_key="test-api-key",
         )
 
-        modified_delta = (
-            captured["modified_end_dt"]
-            - captured["modified_start_dt"]
-        )
+        modified_delta = captured["modified_end_dt"] - captured["modified_start_dt"]
 
         observation_delta = (
-            captured["observation_end_dt"]
-            - captured["observation_start_dt"]
+            captured["observation_end_dt"] - captured["observation_start_dt"]
         )
 
         assert modified_delta == timedelta(days=2)
@@ -1206,9 +1142,7 @@ class TestGetUSGSCDA:
         legacy_config = new_api_usgs_ts_df.copy()
 
         legacy_config.loc[
-            legacy_config["timeseries-id"].eq(
-                "LOC2.Stage.Inst.~15Minutes.0.Raw-USGS"
-            ),
+            legacy_config["timeseries-id"].eq("LOC2.Stage.Inst.~15Minutes.0.Raw-USGS"),
             "USGS_Time_Series_ID",
         ] = "220645"
 
@@ -1256,13 +1190,9 @@ class TestGetUSGSCDA:
 
         assert "numeric legacy USGS method IDs" in caplog.text
 
-        remaining_tsids = set(
-            captured["usgs_ts"]["timeseries-id"].tolist()
-        )
+        remaining_tsids = set(captured["usgs_ts"]["timeseries-id"].tolist())
 
-        assert remaining_tsids == {
-            "LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"
-        }
+        assert remaining_tsids == {"LOC1.Flow.Inst.~15Minutes.0.Raw-USGS"}
 
 
 class TestResampleToTSIDInterval:

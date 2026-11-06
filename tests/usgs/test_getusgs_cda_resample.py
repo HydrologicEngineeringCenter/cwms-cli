@@ -51,10 +51,7 @@ def _build_new_api_usgs_data(
     return pd.DataFrame(
         {
             "time_series_id": [time_series_id] * len(datetimes),
-            "monitoring_location_id": [
-                f"USGS-{station_number}"
-            ]
-            * len(datetimes),
+            "monitoring_location_id": [f"USGS-{station_number}"] * len(datetimes),
             "parameter_code": [parameter_code] * len(datetimes),
             "statistic_id": ["00011"] * len(datetimes),
             "time": pd.to_datetime(datetimes, utc=True),
@@ -176,10 +173,7 @@ def test_cwms_write_data_resample_behavior(
 
         assert passed_times == expected_times
 
-        step = int(
-            pd.to_timedelta("15min")
-            / pd.to_timedelta(incoming_freq)
-        )
+        step = int(pd.to_timedelta("15min") / pd.to_timedelta(incoming_freq))
 
         assert passed_values == values[::step]
 
@@ -195,9 +189,7 @@ def test_cwms_write_data_selects_explicit_timeseries_id(
     station_number = "00000001"
     parameter_code = "00060"
 
-    requested_time_series_id = (
-        "f38a57ccac5a426e8388b8507fa9bbce"
-    )
+    requested_time_series_id = "f38a57ccac5a426e8388b8507fa9bbce"
 
     ts_id = "LOC.PRM.X.15Minutes.0.0"
 
@@ -419,9 +411,7 @@ def test_cwms_write_data_applies_backfill_version(
         backfill_version="Rev-USGS",
     )
 
-    assert captured["ts_id"] == (
-        "LOC.PRM.X.15Minutes.0.Rev-USGS"
-    )
+    assert captured["ts_id"] == ("LOC.PRM.X.15Minutes.0.Rev-USGS")
 
 
 def test_resample_helper_direct():
@@ -500,9 +490,7 @@ def test_resample_helper_irregular_interval_does_not_resample(
 
     assert len(result) == len(values_df)
 
-    assert pd.to_datetime(result["date-time"]).tolist() == (
-        list(datetimes)
-    )
+    assert pd.to_datetime(result["date-time"]).tolist() == (list(datetimes))
 
     assert result["value"].tolist() == [
         1,
@@ -618,9 +606,7 @@ def test_fifteen_minute_input_and_target_is_unchanged():
 
     assert len(result) == len(values_df)
 
-    assert pd.to_datetime(result["date-time"]).tolist() == (
-        list(datetimes)
-    )
+    assert pd.to_datetime(result["date-time"]).tolist() == (list(datetimes))
 
     assert result["value"].tolist() == [
         5,

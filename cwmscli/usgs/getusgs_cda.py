@@ -1,6 +1,6 @@
 import logging
 import re
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import cwms
@@ -10,6 +10,7 @@ from dataretrieval import waterdata
 
 from cwmscli.utils import colors, init_cwms_session
 from cwmscli.utils.friendly_errors import is_fatal_service_error
+
 
 def _log_error_and_exit(
     message: str, hint: Optional[str] = None, *, exit_code: int = 1
@@ -39,6 +40,7 @@ def _require_group_dataframe(response, *, resource_name: str, office: str):
         )
 
     return df
+
 
 def getusgs_cda(
     api_root: str,
@@ -87,16 +89,12 @@ def getusgs_cda(
         revision_lookback_days = days_back
 
     if revision_lookback_days < 0:
-        raise ValueError(
-            "revision_lookback_days cannot be negative."
-        )
+        raise ValueError("revision_lookback_days cannot be negative.")
 
     usgs_ts = get_CMWS_TS_Loc_Data(office_id)
 
     if backfill_tsids:
-        usgs_ts = usgs_ts.loc[
-            usgs_ts["timeseries-id"].isin(backfill_tsids)
-        ].copy()
+        usgs_ts = usgs_ts.loc[usgs_ts["timeseries-id"].isin(backfill_tsids)].copy()
 
     usgs_ts = _validate_backfill_version_timeseries(
         usgs_ts,
@@ -120,12 +118,9 @@ def getusgs_cda(
         )
 
     # Do not silently interpret old numeric method IDs as new UUIDs.
-    legacy_alias_mask = (
-        usgs_ts["USGS_Time_Series_ID"].notna()
-        & usgs_ts["USGS_Time_Series_ID"]
-        .astype("string")
-        .str.fullmatch(r"\d+")
-    )
+    legacy_alias_mask = usgs_ts["USGS_Time_Series_ID"].notna() & usgs_ts[
+        "USGS_Time_Series_ID"
+    ].astype("string").str.fullmatch(r"\d+")
 
     if legacy_alias_mask.any():
         legacy_tsids = usgs_ts.loc[
@@ -160,15 +155,11 @@ def getusgs_cda(
         revision_lookback_days = days_back
 
     if revision_lookback_days < 0:
-        raise ValueError(
-            "revision_lookback_days cannot be negative."
-        )
+        raise ValueError("revision_lookback_days cannot be negative.")
 
     # Observations can be older than the last-modified window. This allows
     # USGS revisions to older values to be detected and stored in CWMS.
-    observation_start_dt = execution_date - timedelta(
-        days=revision_lookback_days
-    )
+    observation_start_dt = execution_date - timedelta(days=revision_lookback_days)
 
     # Preserve the existing two-hour future buffer.
     observation_end_dt = execution_date + timedelta(hours=2)
@@ -291,12 +282,7 @@ def get_CMWS_TS_Loc_Data(office):
     #   UUID alias-id  -> retrieve by USGS time_series_id
     #
     # Normalize blank aliases to null before renaming.
-    df["alias-id"] = (
-        df["alias-id"]
-        .astype("string")
-        .str.strip()
-        .replace("", pd.NA)
-    )
+    df["alias-id"] = df["alias-id"].astype("string").str.strip().replace("", pd.NA)
 
     df = df.rename(
         columns={
@@ -366,6 +352,7 @@ def get_CMWS_TS_Loc_Data(office):
     logging.info("CWMS TS Groups and Location Data Obtained")
     return USGS_ts
 
+
 USGS_CONTINUOUS_PROPERTIES = [
     "time_series_id",
     "monitoring_location_id",
@@ -399,10 +386,7 @@ def _normalize_usgs_unit(unit: str | None) -> str | None:
 
     unit = str(unit).strip()
 
-    return (
-        unit.replace("ft^3/s", "ft3/s")
-        .replace("ft³/s", "ft3/s")
-    )
+    return unit.replace("ft^3/s", "ft3/s").replace("ft³/s", "ft3/s")
 
 
 def _get_continuous_data(**kwargs) -> pd.DataFrame:
@@ -500,23 +484,16 @@ def getUSGS_ts(
     # ------------------------------------------------------------------
     # Records without alias-id: station number + parameter code query.
     # ------------------------------------------------------------------
-    unaliased_ts = usgs_ts.loc[
-        usgs_ts["USGS_Time_Series_ID"].isna()
-    ].copy()
+    unaliased_ts = usgs_ts.loc[usgs_ts["USGS_Time_Series_ID"].isna()].copy()
 
     if not unaliased_ts.empty:
-        unaliased_ts["monitoring_location_id"] = (
-            "USGS-" + unaliased_ts["USGS_St_Num"].astype(str)
-        )
+        unaliased_ts["monitoring_location_id"] = "USGS-" + unaliased_ts[
+            "USGS_St_Num"
+        ].astype(str)
 
-        for parameter_code, parameter_group in unaliased_ts.groupby(
-            "USGS_PARAMETER"
-        ):
+        for parameter_code, parameter_group in unaliased_ts.groupby("USGS_PARAMETER"):
             monitoring_locations = sorted(
-                parameter_group["monitoring_location_id"]
-                .dropna()
-                .unique()
-                .tolist()
+                parameter_group["monitoring_location_id"].dropna().unique().tolist()
             )
 
             for location_chunk in _chunks(monitoring_locations, 100):
@@ -553,17 +530,11 @@ def getUSGS_ts(
     # ------------------------------------------------------------------
     # Records with UUID alias-id: explicit time_series_id query.
     # ------------------------------------------------------------------
-    aliased_ts = usgs_ts.loc[
-        usgs_ts["USGS_Time_Series_ID"].notna()
-    ].copy()
+    aliased_ts = usgs_ts.loc[usgs_ts["USGS_Time_Series_ID"].notna()].copy()
 
     if not aliased_ts.empty:
         time_series_ids = sorted(
-            aliased_ts["USGS_Time_Series_ID"]
-            .dropna()
-            .astype(str)
-            .unique()
-            .tolist()
+            aliased_ts["USGS_Time_Series_ID"].dropna().astype(str).unique().tolist()
         )
 
         for tsid_chunk in _chunks(time_series_ids, 100):
@@ -671,6 +642,7 @@ def _validate_backfill_version_timeseries(
 
     return usgs_ts
 
+
 def CWMS_writeData(
     usgs_ts: pd.DataFrame,
     usgs_data: pd.DataFrame,
@@ -729,9 +701,7 @@ def CWMS_writeData(
         # --------------------------------------------------------------
         if pd.notna(configured_usgs_tsid):
             values = usgs_data.loc[
-                usgs_data["time_series_id"].astype(str).eq(
-                    str(configured_usgs_tsid)
-                )
+                usgs_data["time_series_id"].astype(str).eq(str(configured_usgs_tsid))
             ].copy()
 
         # --------------------------------------------------------------
@@ -739,20 +709,12 @@ def CWMS_writeData(
         # --------------------------------------------------------------
         else:
             values = usgs_data.loc[
-                usgs_data["monitoring_location_id"].eq(
-                    monitoring_location_id
-                )
-                & usgs_data["parameter_code"].astype(str).eq(
-                    parameter_code
-                )
+                usgs_data["monitoring_location_id"].eq(monitoring_location_id)
+                & usgs_data["parameter_code"].astype(str).eq(parameter_code)
             ].copy()
 
             returned_ids = sorted(
-                values["time_series_id"]
-                .dropna()
-                .astype(str)
-                .unique()
-                .tolist()
+                values["time_series_id"].dropna().astype(str).unique().tolist()
             )
 
             if len(returned_ids) > 1:
@@ -810,13 +772,7 @@ def CWMS_writeData(
             )
             continue
 
-        units = (
-            values["unit_of_measure"]
-            .dropna()
-            .astype(str)
-            .unique()
-            .tolist()
-        )
+        units = values["unit_of_measure"].dropna().astype(str).unique().tolist()
 
         if len(units) != 1:
             storage_errors.append(
@@ -824,10 +780,7 @@ def CWMS_writeData(
                     ts_id,
                     monitoring_location_id,
                     parameter_code,
-                    (
-                        "Expected one USGS unit_of_measure; received "
-                        f"{units}"
-                    ),
+                    ("Expected one USGS unit_of_measure; received " f"{units}"),
                 ]
             )
 
@@ -874,18 +827,12 @@ def CWMS_writeData(
             continue
 
         try:
-            values["quality-code"] = (
-                values["quality-code"]
-                .fillna(0)
-                .astype(int)
-            )
+            values["quality-code"] = values["quality-code"].fillna(0).astype(int)
         except Exception:
             values["quality-code"] = values["quality-code"].fillna(0)
 
         store_ts_id = (
-            _replace_ts_version(ts_id, backfill_version)
-            if backfill_version
-            else ts_id
+            _replace_ts_version(ts_id, backfill_version) if backfill_version else ts_id
         )
 
         try:
@@ -957,6 +904,7 @@ def CWMS_writeData(
         "CWMS storage-error records: %s",
         storage_errors,
     )
+
 
 def resample_to_tsid_interval(values: pd.DataFrame, ts_id: str) -> pd.DataFrame:
     """Resample the incoming values DataFrame to the interval encoded in ``ts_id``.
