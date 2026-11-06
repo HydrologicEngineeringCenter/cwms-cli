@@ -64,5 +64,6 @@ Poetry itself is kept in a separate `/opt/poetry` environment. The workspace
 root is also added to `PYTHONPATH`, so the checked-out source and local test
 modules are available throughout a Codespace without copying them into the
 image. Use the container for changes involving time zones, paths, native
-libraries, or other operating-system-dependent behavior. Standard Python 3.9
-and Python 3.12 installations remain covered by the existing CI matrix.
+libraries, or other operating-system-dependent behavior. The CI matrix tests
+Python 3.10 and 3.13; the dedicated dev-container job continues to test Python
+3.12.
