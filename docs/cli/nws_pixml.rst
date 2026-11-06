@@ -72,7 +72,7 @@ syntax; this example supplies the PI-XML-specific ID and JSON media type:
 .. code-block:: bash
 
    cwms-cli blob upload \
-     --input-file configs/mvp.json \
+     --input-file docs/nws/mvp.example.json \
      --blob-id CONFIG_PIXML \
      --media-type application/json \
      -o MVP
@@ -82,7 +82,7 @@ On subsequent updates, add ``--overwrite``:
 .. code-block:: bash
 
    cwms-cli blob upload \
-     --input-file configs/mvp.json \
+     --input-file docs/nws/mvp.example.json \
      --blob-id CONFIG_PIXML \
      --media-type application/json \
      --overwrite \
@@ -98,11 +98,11 @@ The config is a JSON object. See the rendered
 :ref:`MVP example config <nws-pixml-mvp-config>` and
 :ref:`MVM example config <nws-pixml-mvm-config>`.
 
-The bundled examples intentionally omit keys whose values match loader
-defaults. In particular, they rely on the standard CWMS-owned groups, the
-default PI namespace, ``build_missing_timeseries=false``, ``Inst`` type, ``0``
-duration, an empty version part, and unversioned runs unless ``versioned`` is
-set to ``true``.
+The bundled examples intentionally omit keys when the loader default is
+desired. Both rely on the standard CWMS-owned groups, default PI namespace,
+``Inst`` type, and ``0`` duration. The MVM example also relies on
+``build_missing_timeseries=false``; the MVP example explicitly enables the
+built fallback. Runs are unversioned unless ``versioned`` is set to ``true``.
 
 These keys configure the cwms-cli loader; they are not part of PI-XML. The MVP
 and MVM RFC products tested with this loader use the Delft-FEWS PI namespace
@@ -343,20 +343,26 @@ resolution settings use loader defaults.
 Example: MVP (St. Paul District) setup
 --------------------------------------
 
+The product filename below follows the MVP convention, including the trailing
+timestamp used to version the base run.
+
 .. code-block:: bash
 
    # One-time: upload the config blob
    cwms-cli blob upload \
-     --input-file configs/mvp.json \
+     --input-file docs/nws/mvp.example.json \
      --blob-id CONFIG_PIXML \
      --media-type application/json \
      -o MVP
 
    # Dry run (CDA_API_ROOT, CDA_API_KEY, and OFFICE are already in the environment)
-   cwms-cli nws pixml -i MSR_main_m10_mississippi_river.xml --dry-run
+   cwms-cli nws pixml \
+     -i MSR_2024091612_MSR_main_m10_mississippi_river.20240916142934 \
+     --dry-run
 
    # Live run
-   cwms-cli nws pixml -i MSR_main_m10_mississippi_river.xml
+   cwms-cli nws pixml \
+     -i MSR_2024091612_MSR_main_m10_mississippi_river.20240916142934
 
 CLI Reference
 -------------
