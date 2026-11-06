@@ -302,9 +302,10 @@ def test_parameter_and_duplicate_rule_helpers():
 
 
 def test_date_helpers_cover_supported_and_invalid_values():
-    assert mod._filename_timestamp("forecast.20240916142934") == datetime(
-        2024, 9, 16, 14, 29, 34
-    )
+    expected = datetime(2024, 9, 16, 14, 29, 34)
+    assert mod._filename_timestamp("forecast.20240916142934") == expected
+    assert mod._filename_timestamp("forecast.20240916142934.gz") == expected
+    assert mod._filename_timestamp("forecast.20240916142934.ZIP") == expected
     assert mod._filename_timestamp("forecast.xml") is None
     assert mod._parse_dt("2024-09-16 14:29:34") == datetime(2024, 9, 16, 14, 29, 34)
     assert mod._parse_dt("2024-09-16 14:29") == datetime(2024, 9, 16, 14, 29)

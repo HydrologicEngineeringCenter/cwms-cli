@@ -251,6 +251,10 @@ For each series in the PI-XML:
    under ``--dry-run``, the skip is included in ``skipped_by_reason`` as
    ``not_in_timeseries_group``.
 
+If no series resolve, a normal run exits with an error without writing data or
+issued-time status. A dry run still succeeds and reports
+``resolved_count: 0`` so group and alias configuration can be diagnosed.
+
 If two series in one product resolve to the same TSID, only the first is
 stored; the later one is dropped and reported as an error in the run summary
 (and in the ``duplicates`` list under ``--dry-run``).  This usually means a
@@ -275,9 +279,10 @@ falls back to UTC and emits a warning.
 
 Version dates taken from the document (``creation_date``, ``forecast_date``)
 are converted the same way.  A ``filename_timestamp`` is a naming convention
-outside the document and is read as UTC.  ``version_snap_time`` is applied in
-the source's own time zone — so it keeps naming the same calendar day — and
-the result is stored as UTC.
+outside the document and is read as UTC; a terminal ``.gz`` or ``.zip`` archive
+suffix is ignored when parsing it. ``version_snap_time`` is applied in the
+source's own time zone — so it keeps naming the same calendar day — and the
+result is stored as UTC.
 
 Version-date selection is configured per run rather than hard-coded by
 district. The loader combines two district workflows: the bundled MVP config

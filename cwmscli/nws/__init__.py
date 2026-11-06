@@ -77,7 +77,7 @@ def nws_group():
     "--dry-run",
     is_flag=True,
     default=False,
-    help="Parse and resolve everything, print what would be written, but make no API calls.",
+    help="Parse and resolve everything, print what would be written, but make no API writes.",
 )
 @requires(reqs.cwms, reqs.requests)
 def nws_pixml(

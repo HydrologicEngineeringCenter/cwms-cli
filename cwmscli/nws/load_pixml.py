@@ -531,7 +531,9 @@ def select_run(config: dict, filename: str) -> dict:
 
 
 def _filename_timestamp(filename: str) -> Optional[datetime]:
-    """Parse the trailing .YYYYMMDDHHMMSS timestamp from a product filename."""
+    """Parse the trailing timestamp, ignoring a terminal archive suffix."""
+    if filename.lower().endswith((".gz", ".zip")):
+        filename = os.path.splitext(filename)[0]
     stamp = filename.split(".")[-1]
     try:
         return datetime.strptime(stamp, "%Y%m%d%H%M%S")
@@ -928,6 +930,11 @@ def load_pixml(
             )
         )
         return
+
+    if not planned:
+        raise click.ClickException(
+            "No time series resolved from the PI-XML product; no data was stored."
+        )
 
     for item in planned:
         try:

@@ -747,6 +747,31 @@ def test_group_only_skips_when_timeseries_group_is_empty(monkeypatch, tmp_path, 
     }
 
 
+def test_group_only_empty_fails_normal_run(monkeypatch, tmp_path):
+    config = json.loads(CONFIG.read_text())
+    config.pop("build_missing_timeseries", None)
+    config_path = tmp_path / "group-only-empty.json"
+    config_path.write_text(json.dumps(config))
+    calls = []
+
+    with pytest.raises(click.ClickException, match="No time series resolved"):
+        _run(
+            monkeypatch,
+            tmp_path,
+            BASE_NAME,
+            dry_run=False,
+            config_file=config_path,
+            tsgroup_rows=[],
+            calls=calls,
+        )
+
+    assert not [
+        call
+        for call in calls
+        if call[0] in ("store_timeseries", "store_blobs", "update_blob")
+    ]
+
+
 def test_group_only_warns_when_series_is_not_in_timeseries_group(
     monkeypatch, tmp_path, caplog
 ):
@@ -895,6 +920,18 @@ def test_cli_smoke_dry_run(monkeypatch, tmp_path):
     )
     assert result.exit_code == 0, result.output
     assert "Wabasha.Flow-Local.Inst.6Hours.0.Fcst-NCRFC-CHIPS" in result.output
+
+
+def test_cli_dry_run_help_describes_read_only_api_behavior():
+    from click.testing import CliRunner
+
+    from cwmscli.__main__ import cli
+
+    result = CliRunner().invoke(cli, ["nws", "pixml", "--help"])
+
+    assert result.exit_code == 0, result.output
+    assert "make no API writes" in result.output
+    assert "make no API calls" not in result.output
 
 
 def test_cli_pixml_rejects_positional_input(tmp_path):
