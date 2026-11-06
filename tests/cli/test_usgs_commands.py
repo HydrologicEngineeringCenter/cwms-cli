@@ -120,7 +120,6 @@ def test_usgs_timeseries_v2_backfill_version_passed_through(monkeypatch):
 def test_usgs_ratings_dry_run_is_forwarded(monkeypatch):
     captured = {}
     fake_module = types.ModuleType("cwmscli.usgs.getUSGS_ratings_cda")
-    monkeypatch.setattr(usgs_cli.sys, "version_info", (3, 10, 0))
 
     def fake_getusgs_rating_cda(**kwargs):
         captured.update(kwargs)
@@ -157,7 +156,6 @@ def test_usgs_ratings_dry_run_is_forwarded(monkeypatch):
 def test_usgs_ratings_reads_usgs_api_key_from_environment(monkeypatch):
     captured = {}
     fake_module = types.ModuleType("cwmscli.usgs.getUSGS_ratings_cda")
-    monkeypatch.setattr(usgs_cli.sys, "version_info", (3, 10, 0))
 
     def fake_getusgs_rating_cda(**kwargs):
         captured.update(kwargs)
@@ -192,7 +190,6 @@ def test_usgs_ratings_warns_and_runs_without_usgs_api_key(monkeypatch):
     captured = {}
     warning_messages = []
     fake_module = types.ModuleType("cwmscli.usgs.getUSGS_ratings_cda")
-    monkeypatch.setattr(usgs_cli.sys, "version_info", (3, 10, 0))
 
     def fake_getusgs_rating_cda(**kwargs):
         captured.update(kwargs)
@@ -233,35 +230,3 @@ def test_usgs_ratings_warns_and_runs_without_usgs_api_key(monkeypatch):
         "https://api.waterdata.usgs.gov/signup/" in message
         for message in warning_messages
     )
-
-
-def test_usgs_ratings_requires_python_310(monkeypatch):
-    warning_messages = []
-    monkeypatch.setattr(usgs_cli.sys, "version_info", (3, 9, 18))
-    monkeypatch.setattr(deps.importlib, "import_module", lambda name: object())
-    monkeypatch.setattr(deps.importlib.metadata, "version", lambda name: "999.0.0")
-    monkeypatch.setattr(
-        usgs_cli.logging,
-        "warning",
-        lambda message, *args: warning_messages.append(
-            message % args if args else message
-        ),
-    )
-
-    result = CliRunner().invoke(
-        cli,
-        [
-            "usgs",
-            "ratings",
-            "-o",
-            "spl",
-            "-a",
-            "https://example.test/cda/",
-            "-k",
-            "test-api-key",
-        ],
-    )
-
-    assert result.exit_code != 0
-    assert "Python 3.10 or newer" in warning_messages[0]
-    assert "Python 3.9 or earlier" in result.output

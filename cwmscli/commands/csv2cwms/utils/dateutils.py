@@ -4,15 +4,9 @@ import re
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Sequence, Union
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from cwmscli.utils.intervals import ALL_INTERVAL_PARAMETERS
-
-try:
-    from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
-except ImportError:
-    # Python < 3.9 does not support zoneinfo
-    ZoneInfo = None
-    ZoneInfoNotFoundError = Exception
 
 logger = logging.getLogger(__name__)
 
@@ -54,9 +48,6 @@ def safe_zoneinfo(key: str):
     """
     Attempts to return ZoneInfo(key); falls back to UTC if unavailable.
     """
-    if ZoneInfo is None:
-        return timezone.utc  # fallback for very old Python
-
     try:
         return ZoneInfo(key)
     except ZoneInfoNotFoundError:
