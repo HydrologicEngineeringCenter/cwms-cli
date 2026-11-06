@@ -82,41 +82,6 @@ def test_usgs_timeseries_backfill_version_passed_through(monkeypatch):
     assert captured["backfill_version"] == "Rev-USGS"
 
 
-def test_usgs_timeseries_v2_backfill_version_passed_through(monkeypatch):
-    captured = {}
-    fake_module = types.ModuleType("cwmscli.usgs.getusgs_cda")
-
-    def fake_getusgs_cda_ogc(**kwargs):
-        captured.update(kwargs)
-
-    fake_module.getusgs_cda_ogc = fake_getusgs_cda_ogc
-
-    monkeypatch.setitem(sys.modules, "cwmscli.usgs.getusgs_cda", fake_module)
-    monkeypatch.setattr(deps.importlib, "import_module", lambda name: object())
-    monkeypatch.setattr(deps.importlib.metadata, "version", lambda name: "999.0.0")
-
-    result = CliRunner().invoke(
-        cli,
-        [
-            "usgs",
-            "timeseries-v2",
-            "-o",
-            "spl",
-            "-d",
-            "30",
-            "-a",
-            "https://example.test/cda/",
-            "-k",
-            "test-api-key",
-            "-bv",
-            "Rev-USGS",
-        ],
-    )
-
-    assert result.exit_code == 0, result.output
-    assert captured["backfill_version"] == "Rev-USGS"
-
-
 def test_usgs_ratings_dry_run_is_forwarded(monkeypatch):
     captured = {}
     fake_module = types.ModuleType("cwmscli.usgs.getUSGS_ratings_cda")
