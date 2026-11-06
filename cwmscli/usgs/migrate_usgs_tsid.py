@@ -33,7 +33,6 @@ from dataretrieval import waterdata
 from cwmscli.usgs.getusgs_cda import get_CMWS_TS_Loc_Data
 from cwmscli.utils import colors, init_cwms_session
 
-
 USGS_LEGACY_IV_URL = "https://waterservices.usgs.gov/nwis/iv/"
 
 GROUP_ID = "USGS TS Data Acquisition"
@@ -286,9 +285,7 @@ def get_current_group_assignments(office_id: str) -> pd.DataFrame:
             f"{sorted(missing_columns)}"
         )
 
-    group_df = group_df.loc[
-        group_df["office-id"].astype("string").eq(office_id)
-    ].copy()
+    group_df = group_df.loc[group_df["office-id"].astype("string").eq(office_id)].copy()
 
     if group_df.empty:
         raise RuntimeError(
@@ -316,18 +313,14 @@ def parse_legacy_station_and_parameter(
 
     try:
         station = (
-            time_series.get("sourceInfo", {})
-            .get("siteCode", [{}])[0]
-            .get("value")
+            time_series.get("sourceInfo", {}).get("siteCode", [{}])[0].get("value")
         )
     except (AttributeError, IndexError, TypeError):
         station = None
 
     try:
         parameter = (
-            time_series.get("variable", {})
-            .get("variableCode", [{}])[0]
-            .get("value")
+            time_series.get("variable", {}).get("variableCode", [{}])[0].get("value")
         )
     except (AttributeError, IndexError, TypeError):
         parameter = None
@@ -361,20 +354,16 @@ def fetch_legacy_method_descriptions(
     Uses access=3, consistent with the existing getUSGS method-ID workflow.
     """
 
-    request_df = requested_pairs[
-        ["USGS_St_Num", "USGS_PARAMETER"]
-    ].drop_duplicates().copy()
-
-    request_df["USGS_St_Num"] = request_df["USGS_St_Num"].map(
-        normalize_station_number
+    request_df = (
+        requested_pairs[["USGS_St_Num", "USGS_PARAMETER"]].drop_duplicates().copy()
     )
+
+    request_df["USGS_St_Num"] = request_df["USGS_St_Num"].map(normalize_station_number)
     request_df["USGS_PARAMETER"] = request_df["USGS_PARAMETER"].map(
         normalize_parameter_code
     )
 
-    request_df = request_df.dropna(
-        subset=["USGS_St_Num", "USGS_PARAMETER"]
-    )
+    request_df = request_df.dropna(subset=["USGS_St_Num", "USGS_PARAMETER"])
 
     output_rows: list[dict[str, Any]] = []
 
@@ -448,17 +437,14 @@ def fetch_legacy_method_descriptions(
 
     legacy_df = pd.DataFrame(output_rows)
 
-    return (
-        legacy_df.drop_duplicates(
-            subset=[
-                "USGS_St_Num",
-                "USGS_PARAMETER",
-                "methodID",
-                "methodDescription",
-            ]
-        )
-        .reset_index(drop=True)
-    )
+    return legacy_df.drop_duplicates(
+        subset=[
+            "USGS_St_Num",
+            "USGS_PARAMETER",
+            "methodID",
+            "methodDescription",
+        ]
+    ).reset_index(drop=True)
 
 
 def load_legacy_methods_csv(csv_file: Path) -> pd.DataFrame:
@@ -484,9 +470,7 @@ def load_legacy_methods_csv(csv_file: Path) -> pd.DataFrame:
 
     legacy_df = legacy_df[LEGACY_METHOD_COLUMNS].copy()
 
-    legacy_df["USGS_St_Num"] = legacy_df["USGS_St_Num"].map(
-        normalize_station_number
-    )
+    legacy_df["USGS_St_Num"] = legacy_df["USGS_St_Num"].map(normalize_station_number)
     legacy_df["USGS_PARAMETER"] = legacy_df["USGS_PARAMETER"].map(
         normalize_parameter_code
     )
@@ -529,24 +513,18 @@ def get_new_usgs_timeseries_metadata(
         * time_series_id from time-series-metadata is the desired value.
     """
 
-    request_df = requested_pairs[
-        ["USGS_St_Num", "USGS_PARAMETER"]
-    ].drop_duplicates().copy()
-
-    request_df["USGS_St_Num"] = request_df["USGS_St_Num"].map(
-        normalize_station_number
+    request_df = (
+        requested_pairs[["USGS_St_Num", "USGS_PARAMETER"]].drop_duplicates().copy()
     )
+
+    request_df["USGS_St_Num"] = request_df["USGS_St_Num"].map(normalize_station_number)
     request_df["USGS_PARAMETER"] = request_df["USGS_PARAMETER"].map(
         normalize_parameter_code
     )
 
-    request_df = request_df.dropna(
-        subset=["USGS_St_Num", "USGS_PARAMETER"]
-    )
+    request_df = request_df.dropna(subset=["USGS_St_Num", "USGS_PARAMETER"])
 
-    request_df["monitoring_location_id"] = (
-        "USGS-" + request_df["USGS_St_Num"]
-    )
+    request_df["monitoring_location_id"] = "USGS-" + request_df["USGS_St_Num"]
 
     # -----------------------------------------------------------------------
     # Step 1: Discover valid continuous statistic IDs.
@@ -622,13 +600,13 @@ def get_new_usgs_timeseries_metadata(
         }
     )
 
-    continuous_available["USGS_PARAMETER"] = continuous_available[
-        "USGS_PARAMETER"
-    ].map(normalize_parameter_code)
+    continuous_available["USGS_PARAMETER"] = continuous_available["USGS_PARAMETER"].map(
+        normalize_parameter_code
+    )
 
-    continuous_available["statistic_id"] = continuous_available[
-        "statistic_id"
-    ].map(normalize_optional_string)
+    continuous_available["statistic_id"] = continuous_available["statistic_id"].map(
+        normalize_optional_string
+    )
 
     continuous_available = continuous_available.dropna(
         subset=[
@@ -729,9 +707,7 @@ def get_new_usgs_timeseries_metadata(
         "time_series_id",
     }
 
-    missing_metadata_columns = required_metadata_columns.difference(
-        metadata.columns
-    )
+    missing_metadata_columns = required_metadata_columns.difference(metadata.columns)
 
     if missing_metadata_columns:
         raise RuntimeError(
@@ -750,9 +726,7 @@ def get_new_usgs_timeseries_metadata(
         normalize_parameter_code
     )
 
-    metadata["statistic_id"] = metadata["statistic_id"].map(
-        normalize_optional_string
-    )
+    metadata["statistic_id"] = metadata["statistic_id"].map(normalize_optional_string)
 
     # This confirms every returned UUID corresponds to an available
     # continuous series. It also removes any accidental station/parameter/
@@ -817,18 +791,14 @@ def build_crosswalk(
 
     configured = configured_ts.copy()
 
-    configured["USGS_St_Num"] = configured["USGS_St_Num"].map(
-        normalize_station_number
-    )
+    configured["USGS_St_Num"] = configured["USGS_St_Num"].map(normalize_station_number)
     configured["USGS_PARAMETER"] = configured["USGS_PARAMETER"].map(
         normalize_parameter_code
     )
     configured["legacy_method_id"] = configured["USGS_Method_TS"].map(
         normalize_method_id
     )
-    configured["monitoring_location_id"] = (
-        "USGS-" + configured["USGS_St_Num"]
-    )
+    configured["monitoring_location_id"] = "USGS-" + configured["USGS_St_Num"]
 
     configured = configured.drop_duplicates(
         subset=[
@@ -842,16 +812,12 @@ def build_crosswalk(
 
     legacy = legacy_methods.copy()
 
-    legacy["USGS_St_Num"] = legacy["USGS_St_Num"].map(
-        normalize_station_number
-    )
-    legacy["USGS_PARAMETER"] = legacy["USGS_PARAMETER"].map(
-        normalize_parameter_code
-    )
+    legacy["USGS_St_Num"] = legacy["USGS_St_Num"].map(normalize_station_number)
+    legacy["USGS_PARAMETER"] = legacy["USGS_PARAMETER"].map(normalize_parameter_code)
     legacy["legacy_method_id"] = legacy["methodID"].map(normalize_method_id)
-    legacy["legacy_method_description_normalized"] = legacy[
-        "methodDescription"
-    ].map(normalize_for_match)
+    legacy["legacy_method_description_normalized"] = legacy["methodDescription"].map(
+        normalize_for_match
+    )
 
     configured = configured.merge(
         legacy[
@@ -921,8 +887,7 @@ def build_crosswalk(
     ] = "no_numeric_legacy_method_id"
 
     crosswalk.loc[
-        crosswalk["legacy_method_id"].notna()
-        & crosswalk["methodDescription"].isna(),
+        crosswalk["legacy_method_id"].notna() & crosswalk["methodDescription"].isna(),
         "mapping_status",
     ] = "legacy_method_description_not_found"
 
@@ -944,6 +909,7 @@ def build_crosswalk(
     ] = "ambiguous_multiple_new_time_series_ids"
 
     return crosswalk
+
 
 def resolve_ambiguous_mappings_by_comparison(
     crosswalk: pd.DataFrame,
@@ -994,13 +960,10 @@ def resolve_ambiguous_mappings_by_comparison(
         "no_new_metadata_description_match_candidate_found",
     ]
 
-    ambiguous_mask = resolved["mapping_status"].isin(
-        resolvable_statuses
-    )
+    ambiguous_mask = resolved["mapping_status"].isin(resolvable_statuses)
 
     ambiguous_rows = resolved.loc[
-        ambiguous_mask
-        & resolved["time_series_id"].notna()
+        ambiguous_mask & resolved["time_series_id"].notna()
     ].copy()
 
     if ambiguous_rows.empty:
@@ -1029,15 +992,13 @@ def resolve_ambiguous_mappings_by_comparison(
 
         group_index = candidate_group.index
 
-        selected_mask = (
-            resolved.index.isin(group_index)
-            & resolved["time_series_id"].eq(selected_time_series_id)
-        )
+        selected_mask = resolved.index.isin(group_index) & resolved[
+            "time_series_id"
+        ].eq(selected_time_series_id)
 
-        rejected_mask = (
-            resolved.index.isin(group_index)
-            & ~resolved["time_series_id"].eq(selected_time_series_id)
-        )
+        rejected_mask = resolved.index.isin(group_index) & ~resolved[
+            "time_series_id"
+        ].eq(selected_time_series_id)
 
         resolved.loc[
             selected_mask,
@@ -1057,6 +1018,7 @@ def resolve_ambiguous_mappings_by_comparison(
         )
 
     return resolved
+
 
 def resolve_unaliased_mappings_by_comparison(
     crosswalk: pd.DataFrame,
@@ -1085,9 +1047,7 @@ def resolve_unaliased_mappings_by_comparison(
         on=merge_columns,
     )
 
-    clear_alias_mask = result[
-        "unaliased_comparison_status"
-    ].eq(
+    clear_alias_mask = result["unaliased_comparison_status"].eq(
         "unaliased_values_agree"
     )
 
@@ -1113,6 +1073,7 @@ def resolve_unaliased_mappings_by_comparison(
     )
 
     return result
+
 
 def add_station_parameter_fallback_candidates(
     crosswalk: pd.DataFrame,
@@ -1229,9 +1190,7 @@ def add_station_parameter_fallback_candidates(
     ]
 
     available_count_columns = [
-        column
-        for column in count_columns
-        if column in fallback_candidates.columns
+        column for column in count_columns if column in fallback_candidates.columns
     ]
 
     if available_count_columns:
@@ -1241,9 +1200,7 @@ def add_station_parameter_fallback_candidates(
                 dropna=False,
             )["time_series_id"]
             .nunique()
-            .reset_index(
-                name="new_time_series_id_count"
-            )
+            .reset_index(name="new_time_series_id_count")
         )
 
         fallback_candidates = fallback_candidates.drop(
@@ -1270,6 +1227,7 @@ def add_station_parameter_fallback_candidates(
 
     return result
 
+
 def create_update_plan(
     crosswalk: pd.DataFrame,
     require_comparison: bool = False,
@@ -1292,24 +1250,16 @@ def create_update_plan(
     ].copy()
 
     if require_comparison:
-        uuid_alias_match_mask = (
-            update_plan["mapping_status"].isin(
-                [
-                    "matched",
-                    "matched_by_value_comparison",
-                ]
-            )
-            & update_plan["comparison_status"].eq("values_agree")
-        )
+        uuid_alias_match_mask = update_plan["mapping_status"].isin(
+            [
+                "matched",
+                "matched_by_value_comparison",
+            ]
+        ) & update_plan["comparison_status"].eq("values_agree")
 
-        blank_alias_match_mask = (
-            update_plan["mapping_status"].eq(
-                "matched_without_alias_by_value_comparison"
-            )
-            & update_plan["unaliased_comparison_status"].eq(
-                "unaliased_values_agree"
-            )
-        )
+        blank_alias_match_mask = update_plan["mapping_status"].eq(
+            "matched_without_alias_by_value_comparison"
+        ) & update_plan["unaliased_comparison_status"].eq("unaliased_values_agree")
 
         update_plan = update_plan.loc[
             uuid_alias_match_mask | blank_alias_match_mask
@@ -1331,9 +1281,7 @@ def create_update_plan(
     update_plan["_update_priority"] = 1
 
     update_plan.loc[
-        update_plan["mapping_status"].eq(
-            "matched_without_alias_by_value_comparison"
-        ),
+        update_plan["mapping_status"].eq("matched_without_alias_by_value_comparison"),
         "_update_priority",
     ] = 0
 
@@ -1359,9 +1307,7 @@ def create_update_plan(
     # A direct station/parameter query returned exactly one USGS series and
     # agreed with CWMS. The future ingestion process does not need alias-id.
     update_plan.loc[
-        update_plan["mapping_status"].eq(
-            "matched_without_alias_by_value_comparison"
-        ),
+        update_plan["mapping_status"].eq("matched_without_alias_by_value_comparison"),
         "new_alias_id",
     ] = None
 
@@ -1427,6 +1373,8 @@ def build_patch_dataframe(
         .sort_values(by=["office-id", "timeseries-id"])
         .reset_index(drop=True)
     )
+
+
 def normalize_comparison_unit(unit: Any) -> str | None:
     """
     Normalize common CWMS and USGS unit labels for comparison.
@@ -1441,12 +1389,7 @@ def normalize_comparison_unit(unit: Any) -> str | None:
     if unit is None:
         return None
 
-    normalized = (
-        unit.casefold()
-        .replace(" ", "")
-        .replace("^", "")
-        .replace("³", "3")
-    )
+    normalized = unit.casefold().replace(" ", "").replace("^", "").replace("³", "3")
 
     aliases = {
         "cfs": "ft3/s",
@@ -1519,8 +1462,7 @@ def convert_usgs_to_cwms_unit(
         return (usgs_values - 32.0) * 5.0 / 9.0, True
 
     raise ValueError(
-        "Unsupported unit comparison: "
-        f"CWMS={cwms_unit!r}, USGS={usgs_unit!r}"
+        "Unsupported unit comparison: " f"CWMS={cwms_unit!r}, USGS={usgs_unit!r}"
     )
 
 
@@ -1633,13 +1575,7 @@ def get_usgs_comparison_values(
     usgs_unit = None
 
     if "unit_of_measure" in usgs_df.columns:
-        units = (
-            usgs_df["unit_of_measure"]
-            .dropna()
-            .astype(str)
-            .unique()
-            .tolist()
-        )
+        units = usgs_df["unit_of_measure"].dropna().astype(str).unique().tolist()
 
         if len(units) == 1:
             usgs_unit = units[0]
@@ -1685,6 +1621,7 @@ def get_usgs_comparison_values(
     )
 
     return usgs_df, usgs_unit
+
 
 def get_legacy_usgs_method_values(
     usgs_station_number: str,
@@ -1740,9 +1677,7 @@ def get_legacy_usgs_method_values(
     for time_series in payload.get("value", {}).get("timeSeries", []):
         try:
             old_usgs_unit = (
-                time_series.get("variable", {})
-                .get("unit", {})
-                .get("unitCode")
+                time_series.get("variable", {}).get("unit", {}).get("unitCode")
             )
         except AttributeError:
             old_usgs_unit = None
@@ -1795,6 +1730,7 @@ def get_legacy_usgs_method_values(
     )
 
     return old_df
+
 
 def get_usgs_unaliased_comparison_values(
     monitoring_location_id: str,
@@ -1863,28 +1799,17 @@ def get_usgs_unaliased_comparison_values(
 
     if missing_columns:
         raise RuntimeError(
-            "Unaliased USGS response is missing columns: "
-            f"{sorted(missing_columns)}"
+            "Unaliased USGS response is missing columns: " f"{sorted(missing_columns)}"
         )
 
     returned_time_series_ids = sorted(
-        usgs_df["time_series_id"]
-        .dropna()
-        .astype(str)
-        .unique()
-        .tolist()
+        usgs_df["time_series_id"].dropna().astype(str).unique().tolist()
     )
 
     usgs_unit = None
 
     if "unit_of_measure" in usgs_df.columns:
-        units = (
-            usgs_df["unit_of_measure"]
-            .dropna()
-            .astype(str)
-            .unique()
-            .tolist()
-        )
+        units = usgs_df["unit_of_measure"].dropna().astype(str).unique().tolist()
 
         if len(units) == 1:
             usgs_unit = units[0]
@@ -1954,9 +1879,7 @@ def compare_usgs_candidate_to_cwms(
         rows to failed candidate series before writing the mismatch report.
     """
 
-    empty_detail_df = pd.DataFrame(
-        columns=COMPARISON_BASE_DETAIL_COLUMNS
-    )
+    empty_detail_df = pd.DataFrame(columns=COMPARISON_BASE_DETAIL_COLUMNS)
 
     result = {
         "time_series_id": usgs_time_series_id,
@@ -2026,14 +1949,10 @@ def compare_usgs_candidate_to_cwms(
             comparison_df["absolute_difference"] <= value_tolerance
         )
 
-        result["agreement_record_count"] = int(
-            comparison_df["within_tolerance"].sum()
-        )
+        result["agreement_record_count"] = int(comparison_df["within_tolerance"].sum())
 
         result["agreement_percent"] = round(
-            100.0
-            * result["agreement_record_count"]
-            / result["matched_record_count"],
+            100.0 * result["agreement_record_count"] / result["matched_record_count"],
             2,
         )
 
@@ -2069,9 +1988,7 @@ def compare_usgs_candidate_to_cwms(
         detail_df["unit_conversion_applied"] = conversion_applied
         detail_df["comparison_status"] = result["comparison_status"]
 
-        detail_df["comparison_result"] = detail_df[
-            "within_tolerance"
-        ].map(
+        detail_df["comparison_result"] = detail_df["within_tolerance"].map(
             {
                 True: "within_tolerance",
                 False: "outside_tolerance",
@@ -2089,9 +2006,7 @@ def compare_usgs_candidate_to_cwms(
         # These are only CWMS/new-USGS fields. Station, parameter, method ID,
         # and old-USGS values are added later by
         # add_legacy_usgs_values_to_mismatches().
-        detail_df = detail_df.reindex(
-            columns=COMPARISON_BASE_DETAIL_COLUMNS
-        )
+        detail_df = detail_df.reindex(columns=COMPARISON_BASE_DETAIL_COLUMNS)
 
         return result, detail_df
 
@@ -2100,6 +2015,7 @@ def compare_usgs_candidate_to_cwms(
         result["comparison_error"] = str(error)
 
         return result, empty_detail_df
+
 
 def compare_unaliased_usgs_query_to_cwms(
     cwms_df: pd.DataFrame,
@@ -2152,21 +2068,17 @@ def compare_unaliased_usgs_query_to_cwms(
             metadata_time_series_ids
         )
 
-        result["unaliased_metadata_time_series_count"] = len(
-            metadata_time_series_ids
-        )
+        result["unaliased_metadata_time_series_count"] = len(metadata_time_series_ids)
 
         if cwms_df.empty:
             result["unaliased_comparison_status"] = "no_cwms_values"
             return result
 
-        usgs_df, usgs_unit, returned_ids = (
-            get_usgs_unaliased_comparison_values(
-                monitoring_location_id=monitoring_location_id,
-                usgs_parameter=usgs_parameter,
-                begin=begin,
-                end=end,
-            )
+        usgs_df, usgs_unit, returned_ids = get_usgs_unaliased_comparison_values(
+            monitoring_location_id=monitoring_location_id,
+            usgs_parameter=usgs_parameter,
+            begin=begin,
+            end=end,
         )
 
         result["unaliased_usgs_unit"] = usgs_unit
@@ -2184,9 +2096,7 @@ def compare_unaliased_usgs_query_to_cwms(
         # multiple candidate source series, even if their current values happen
         # to match during this comparison window.
         if len(metadata_time_series_ids) == 0:
-            result["unaliased_comparison_status"] = (
-                "unaliased_metadata_no_time_series"
-            )
+            result["unaliased_comparison_status"] = "unaliased_metadata_no_time_series"
             return result
 
         if len(metadata_time_series_ids) > 1:
@@ -2235,9 +2145,7 @@ def compare_unaliased_usgs_query_to_cwms(
             tolerance=pd.Timedelta("2min"),
         )
 
-        comparison_df = comparison_df.dropna(
-            subset=["usgs_value"]
-        ).copy()
+        comparison_df = comparison_df.dropna(subset=["usgs_value"]).copy()
 
         result["unaliased_matched_record_count"] = len(comparison_df)
 
@@ -2249,9 +2157,7 @@ def compare_unaliased_usgs_query_to_cwms(
             comparison_df["cwms_value"] - comparison_df["usgs_value"]
         ).abs()
 
-        within_tolerance = (
-            comparison_df["absolute_difference"] <= value_tolerance
-        )
+        within_tolerance = comparison_df["absolute_difference"] <= value_tolerance
 
         agreement_percent = round(
             100.0 * float(within_tolerance.sum()) / len(comparison_df),
@@ -2271,9 +2177,7 @@ def compare_unaliased_usgs_query_to_cwms(
         )
 
         if agreement_percent >= min_agreement_percent:
-            result["unaliased_comparison_status"] = (
-                "unaliased_values_agree"
-            )
+            result["unaliased_comparison_status"] = "unaliased_values_agree"
         else:
             result["unaliased_comparison_status"] = (
                 "unaliased_query_values_do_not_agree"
@@ -2286,6 +2190,7 @@ def compare_unaliased_usgs_query_to_cwms(
         result["unaliased_error"] = str(error)
 
         return result
+
 
 def compare_unaliased_crosswalk_to_cwms(
     crosswalk: pd.DataFrame,
@@ -2378,7 +2283,7 @@ def compare_unaliased_crosswalk_to_cwms(
             "metadata is missing columns: "
             f"{sorted(missing_metadata_columns)}"
         )
-    
+
     for _, request_row in request_df.iterrows():
         office_id = request_row["office-id"]
         cwms_tsid = request_row["timeseries-id"]
@@ -2386,14 +2291,8 @@ def compare_unaliased_crosswalk_to_cwms(
         usgs_parameter = request_row["USGS_PARAMETER"]
         metadata_time_series_ids = (
             new_metadata.loc[
-                (
-                    new_metadata["monitoring_location_id"]
-                    == monitoring_location_id
-                )
-                & (
-                    new_metadata["USGS_PARAMETER"]
-                    == usgs_parameter
-                ),
+                (new_metadata["monitoring_location_id"] == monitoring_location_id)
+                & (new_metadata["USGS_PARAMETER"] == usgs_parameter),
                 "time_series_id",
             ]
             .dropna()
@@ -2461,6 +2360,7 @@ def compare_unaliased_crosswalk_to_cwms(
 
     return unaliased_df.reindex(columns=output_columns)
 
+
 def compare_crosswalk_to_cwms(
     crosswalk: pd.DataFrame,
     begin: datetime,
@@ -2482,9 +2382,7 @@ def compare_crosswalk_to_cwms(
         within-tolerance and outside-tolerance rows.
     """
 
-    candidates = crosswalk.loc[
-        crosswalk["time_series_id"].notna()
-    ].copy()
+    candidates = crosswalk.loc[crosswalk["time_series_id"].notna()].copy()
 
     empty_comparison_df = pd.DataFrame(
         columns=[
@@ -2541,9 +2439,7 @@ def compare_crosswalk_to_cwms(
         except Exception as error:
             cwms_read_error = str(error)
 
-            for usgs_time_series_id in candidate_group[
-                "time_series_id"
-            ].unique():
+            for usgs_time_series_id in candidate_group["time_series_id"].unique():
                 comparison_rows.append(
                     {
                         "office-id": office_id,
@@ -2566,9 +2462,7 @@ def compare_crosswalk_to_cwms(
 
             continue
 
-        for usgs_time_series_id in candidate_group[
-            "time_series_id"
-        ].unique():
+        for usgs_time_series_id in candidate_group["time_series_id"].unique():
             comparison, detail_df = compare_usgs_candidate_to_cwms(
                 cwms_df=cwms_df,
                 cwms_unit=cwms_unit,
@@ -2617,6 +2511,7 @@ def compare_crosswalk_to_cwms(
 
     return comparison_df, detail_df
 
+
 def add_legacy_usgs_values_to_mismatches(
     mismatch_df: pd.DataFrame,
     crosswalk: pd.DataFrame,
@@ -2647,14 +2542,10 @@ def add_legacy_usgs_values_to_mismatches(
     ]
 
     available_mapping_columns = [
-        column
-        for column in mapping_columns
-        if column in crosswalk.columns
+        column for column in mapping_columns if column in crosswalk.columns
     ]
 
-    mapping_df = crosswalk[
-        available_mapping_columns
-    ].drop_duplicates()
+    mapping_df = crosswalk[available_mapping_columns].drop_duplicates()
 
     output_df = mismatch_df.merge(
         mapping_df,
@@ -2783,9 +2674,7 @@ def add_legacy_usgs_values_to_mismatches(
     # reindex creates missing columns as null instead of raising KeyError.
     # For example, old-USGS fields may be null when the old endpoint has no
     # data or no timestamp within the two-minute matching tolerance.
-    result_df = result_df.reindex(
-        columns=COMPARISON_DETAIL_COLUMNS
-    )
+    result_df = result_df.reindex(columns=COMPARISON_DETAIL_COLUMNS)
 
     return result_df.sort_values(
         [
@@ -2795,6 +2684,7 @@ def add_legacy_usgs_values_to_mismatches(
             "cwms_time",
         ]
     ).reset_index(drop=True)
+
 
 def apply_cwms_alias_updates(
     patch_df: pd.DataFrame,
@@ -2929,9 +2819,7 @@ def run_migration(args: SimpleNamespace) -> None:
     current_group = get_current_group_assignments(args.office)
 
     if args.legacy_methods_csv:
-        legacy_methods = load_legacy_methods_csv(
-            Path(args.legacy_methods_csv)
-        )
+        legacy_methods = load_legacy_methods_csv(Path(args.legacy_methods_csv))
 
         logging.info(
             "Loaded %s legacy method record(s) from %s.",
@@ -2996,9 +2884,7 @@ def run_migration(args: SimpleNamespace) -> None:
 
     if args.compare_timeseries:
         comparison_end = datetime.now(timezone.utc)
-        comparison_begin = comparison_end - timedelta(
-            days=args.compare_days
-        )
+        comparison_begin = comparison_end - timedelta(days=args.compare_days)
 
         logging.info(
             "Comparing CWMS and USGS values from %s through %s.",
@@ -3026,8 +2912,7 @@ def run_migration(args: SimpleNamespace) -> None:
         # Existing summary report.
         write_csv(
             comparison_df,
-            output_dir
-            / f"cwms_usgs_value_comparison_{args.office}_{timestamp}.csv",
+            output_dir / f"cwms_usgs_value_comparison_{args.office}_{timestamp}.csv",
         )
 
         # New observation-level mismatch report.
@@ -3052,8 +2937,7 @@ def run_migration(args: SimpleNamespace) -> None:
 
         write_csv(
             mismatch_df,
-            output_dir
-            / f"cwms_usgs_value_mismatches_{args.office}_{timestamp}.csv",
+            output_dir / f"cwms_usgs_value_mismatches_{args.office}_{timestamp}.csv",
         )
 
         logging.info(
@@ -3076,9 +2960,7 @@ def run_migration(args: SimpleNamespace) -> None:
 
         # First resolve cases where metadata returned multiple USGS candidate
         # IDs but exactly one candidate's values agrees with CWMS.
-        crosswalk = resolve_ambiguous_mappings_by_comparison(
-            crosswalk
-        )
+        crosswalk = resolve_ambiguous_mappings_by_comparison(crosswalk)
 
         # Then test whether the future USGS retrieval process can obtain the
         # correct data with only station number and parameter code, without
@@ -3225,10 +3107,8 @@ def migrate_usgs_timeseries_ids(
         raise ValueError("comparison_min_records must be at least 1.")
 
     if not 0 <= comparison_min_agreement <= 100:
-        raise ValueError(
-            "comparison_min_agreement must be between 0 and 100."
-        )
-    
+        raise ValueError("comparison_min_agreement must be between 0 and 100.")
+
     options = SimpleNamespace(
         api_root=api_root,
         office=office_id,
@@ -3246,4 +3126,3 @@ def migrate_usgs_timeseries_ids(
     )
 
     run_migration(options)
-  

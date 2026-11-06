@@ -362,11 +362,7 @@ def migrate_usgs_timeseries_ids_command(
     from cwmscli.usgs.migrate_usgs_tsid import migrate_usgs_timeseries_ids
 
     if timeseries_ids:
-        tsid_list = [
-            item.strip()
-            for item in timeseries_ids.split(",")
-            if item.strip()
-        ]
+        tsid_list = [item.strip() for item in timeseries_ids.split(",") if item.strip()]
     else:
         tsid_list = None
 

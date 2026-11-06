@@ -229,25 +229,19 @@ def test_create_update_plan_includes_only_unambiguous_matches():
         [
             {
                 "office-id": "LRL",
-                "timeseries-id": (
-                    "MammothCave.Stage.Inst.15Minutes.0.USGS-raw"
-                ),
+                "timeseries-id": ("MammothCave.Stage.Inst.15Minutes.0.USGS-raw"),
                 "time_series_id": "f38a57ccac5a426e8388b8507fa9bbce",
                 "mapping_status": "matched",
             },
             {
                 "office-id": "LRL",
-                "timeseries-id": (
-                    "Olmsted-TW.Stage.Inst.15Minutes.0.USGS-raw"
-                ),
+                "timeseries-id": ("Olmsted-TW.Stage.Inst.15Minutes.0.USGS-raw"),
                 "time_series_id": "c26ccd8dfe3c4b91918bb37662711683",
                 "mapping_status": "ambiguous_multiple_new_time_series_ids",
             },
             {
                 "office-id": "LRL",
-                "timeseries-id": (
-                    "SmithlandDam-TW.Stage.Inst.15Minutes.0.USGS-raw"
-                ),
+                "timeseries-id": ("SmithlandDam-TW.Stage.Inst.15Minutes.0.USGS-raw"),
                 "time_series_id": None,
                 "mapping_status": "no_new_metadata_description_match",
             },
@@ -262,9 +256,7 @@ def test_create_update_plan_includes_only_unambiguous_matches():
         "MammothCave.Stage.Inst.15Minutes.0.USGS-raw"
     )
 
-    assert update_plan.iloc[0]["new_alias_id"] == (
-        "f38a57ccac5a426e8388b8507fa9bbce"
-    )
+    assert update_plan.iloc[0]["new_alias_id"] == ("f38a57ccac5a426e8388b8507fa9bbce")
 
 
 def test_build_patch_dataframe_preserves_existing_attribute():
@@ -277,18 +269,14 @@ def test_build_patch_dataframe_preserves_existing_attribute():
         [
             {
                 "office-id": "LRL",
-                "timeseries-id": (
-                    "MammothCave.Stage.Inst.15Minutes.0.USGS-raw"
-                ),
+                "timeseries-id": ("MammothCave.Stage.Inst.15Minutes.0.USGS-raw"),
                 "alias-id": "220645",
                 "attribute": "00065",
                 "ts-code": 12345,
             },
             {
                 "office-id": "LRL",
-                "timeseries-id": (
-                    "MammothCave.Flow.Inst.15Minutes.0.USGS-raw"
-                ),
+                "timeseries-id": ("MammothCave.Flow.Inst.15Minutes.0.USGS-raw"),
                 "alias-id": "244087",
                 "attribute": "00060",
                 "ts-code": 12346,
@@ -300,9 +288,7 @@ def test_build_patch_dataframe_preserves_existing_attribute():
         [
             {
                 "office-id": "LRL",
-                "timeseries-id": (
-                    "MammothCave.Stage.Inst.15Minutes.0.USGS-raw"
-                ),
+                "timeseries-id": ("MammothCave.Stage.Inst.15Minutes.0.USGS-raw"),
                 "new_alias_id": "f38a57ccac5a426e8388b8507fa9bbce",
             }
         ]
@@ -322,9 +308,7 @@ def test_build_patch_dataframe_preserves_existing_attribute():
     )
 
     # New USGS API identifier replaces legacy methodID.
-    assert patch_df.iloc[0]["alias-id"] == (
-        "f38a57ccac5a426e8388b8507fa9bbce"
-    )
+    assert patch_df.iloc[0]["alias-id"] == ("f38a57ccac5a426e8388b8507fa9bbce")
 
     # Existing CWMS parameter override is retained.
     assert patch_df.iloc[0]["attribute"] == "00065"
@@ -343,9 +327,7 @@ def test_build_crosswalk_matches_legacy_description_to_new_timeseries_id():
         [
             {
                 "office-id": "LRL",
-                "timeseries-id": (
-                    "MammothCave.Stage.Inst.15Minutes.0.USGS-raw"
-                ),
+                "timeseries-id": ("MammothCave.Stage.Inst.15Minutes.0.USGS-raw"),
                 "USGS_St_Num": "03309000",
                 "USGS_PARAMETER": "00065",
                 "USGS_Method_TS": "220645",
@@ -388,8 +370,6 @@ def test_build_crosswalk_matches_legacy_description_to_new_timeseries_id():
 
     assert crosswalk.iloc[0]["mapping_status"] == "matched"
 
-    assert crosswalk.iloc[0]["time_series_id"] == (
-        "f38a57ccac5a426e8388b8507fa9bbce"
-    )
+    assert crosswalk.iloc[0]["time_series_id"] == ("f38a57ccac5a426e8388b8507fa9bbce")
 
     assert crosswalk.iloc[0]["new_time_series_id_count"] == 1
