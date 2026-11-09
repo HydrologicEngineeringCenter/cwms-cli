@@ -13,8 +13,8 @@ Guidance for coding agents working in `HydrologicEngineeringCenter/cwms-cli`.
   dependent behavior.
 - Run the full dev-container test suite with
   `devcontainer exec --workspace-folder . poetry run pytest -q` when the dev
-  container is available. The standard CI matrix separately covers Python 3.9
-  and Python 3.12 package compatibility.
+  container is available. The standard CI matrix separately covers Python 3.10
+  and Python 3.13 package compatibility.
 
 ## Terminal colors
 

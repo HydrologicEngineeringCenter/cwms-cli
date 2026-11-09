@@ -13,20 +13,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          # Test the supported Python range on Linux and exercise the primary
-          # Python version on each supported desktop operating system.
+          # Test both ends of the supported Python range on Linux and exercise
+          # the latest supported version on each desktop operating system.
           - name: Linux
             os: ubuntu-latest
-            python-version: "3.9"
+            python-version: "3.10"
           - name: Linux
             os: ubuntu-latest
-            python-version: "3.12"
+            python-version: "3.13"
           - name: Windows
             os: windows-latest
-            python-version: "3.12"
+            python-version: "3.13"
           - name: macOS
             os: macos-latest
-            python-version: "3.12"
+            python-version: "3.13"
 
     steps:
       - name: Checkout repository
@@ -46,8 +46,8 @@ jobs:
       - name: Install dependencies (including dev/test) and project
         run: poetry install --with dev --no-interaction
 
-      - name: Smoke-test CLI on Python 3.9
-        if: matrix.python-version == '3.9'
+      - name: Smoke-test CLI on Python 3.10
+        if: matrix.python-version == '3.10'
         run: poetry run python scripts/smoke_test_cli.py
 
       - name: Run full test suite
