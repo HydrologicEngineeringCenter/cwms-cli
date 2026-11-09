@@ -34,6 +34,8 @@ def test_usgs_timeseries_backfill_preserves_internal_spaces(monkeypatch):
             "https://example.test/cda/",
             "-k",
             "test-api-key",
+            "--usgs-api-key",
+            "test-usgs-api-key",
             "-b",
             " Prado DS-SAR.Flow.Inst.0.0.usgs-raw, Other Location.Stage.Inst.0.0.usgs-raw ",
         ],
@@ -41,6 +43,7 @@ def test_usgs_timeseries_backfill_preserves_internal_spaces(monkeypatch):
 
     assert result.exit_code == 0, result.output
     assert captured["office_id"] == "SPL"
+    assert captured["usgs_api_key"] == "test-usgs-api-key"
     assert captured["backfill_tsids"] == [
         "Prado DS-SAR.Flow.Inst.0.0.usgs-raw",
         "Other Location.Stage.Inst.0.0.usgs-raw",
@@ -80,6 +83,38 @@ def test_usgs_timeseries_backfill_version_passed_through(monkeypatch):
 
     assert result.exit_code == 0, result.output
     assert captured["backfill_version"] == "Rev-USGS"
+
+
+def test_usgs_timeseries_reads_usgs_api_key_from_environment(monkeypatch):
+    captured = {}
+    fake_module = types.ModuleType("cwmscli.usgs.getusgs_cda")
+
+    def fake_getusgs_cda(**kwargs):
+        captured.update(kwargs)
+
+    fake_module.getusgs_cda = fake_getusgs_cda
+
+    monkeypatch.setitem(sys.modules, "cwmscli.usgs.getusgs_cda", fake_module)
+    monkeypatch.setattr(deps.importlib, "import_module", lambda name: object())
+    monkeypatch.setattr(deps.importlib.metadata, "version", lambda name: "999.0.0")
+    monkeypatch.setenv("API_USGS_PAT", "environment-usgs-key")
+
+    result = CliRunner().invoke(
+        cli,
+        [
+            "usgs",
+            "timeseries",
+            "-o",
+            "spl",
+            "-a",
+            "https://example.test/cda/",
+            "-k",
+            "test-api-key",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    assert captured["usgs_api_key"] == "environment-usgs-key"
 
 
 def test_usgs_ratings_dry_run_is_forwarded(monkeypatch):

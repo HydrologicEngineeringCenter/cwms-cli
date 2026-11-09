@@ -121,10 +121,6 @@ pattern = "/tests/usgs/"
 owners = ["eric"]
 
 [[codeowners.rule]]
-pattern = "/tests/cli/test_usgs_*.py"
-owners = ["eric"]
-
-[[codeowners.rule]]
 pattern = "/cwmscli/commands/shef/"
 owners = ["eric"]
 

@@ -1,4 +1,5 @@
 import logging
+from contextlib import nullcontext
 from datetime import datetime, timedelta
 from unittest.mock import Mock
 
@@ -1002,6 +1003,12 @@ class TestGetUSGSCDA:
             lambda *args, **kwargs: None,
         )
 
+        def fake_configure(configuration):
+            captured["usgs_api_key"] = configuration.api_key
+            return nullcontext()
+
+        monkeypatch.setattr(getusgs_cda_module, "configure", fake_configure)
+
         monkeypatch.setattr(
             getusgs_cda_module,
             "get_CMWS_TS_Loc_Data",
@@ -1039,8 +1046,10 @@ class TestGetUSGSCDA:
             office_id="MVP",
             days_back=2,
             api_key="test-api-key",
+            usgs_api_key="test-usgs-api-key",
         )
 
+        assert captured["usgs_api_key"] == "test-usgs-api-key"
         assert "get_usgs_ts" in captured
         assert "write_data" in captured
 

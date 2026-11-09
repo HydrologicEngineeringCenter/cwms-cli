@@ -46,6 +46,13 @@ days_back_option = click.option(
 @api_key_option
 @api_key_loc_option
 @click.option(
+    "--usgs-api-key",
+    default=None,
+    envvar="API_USGS_PAT",
+    type=str,
+    help=("Optional USGS Water Data API key. Can also be provided by " "API_USGS_PAT."),
+)
+@click.option(
     "-b",
     "--backfill",
     default=None,
@@ -67,6 +74,7 @@ def getusgs_timeseries(
     api_root,
     api_key,
     api_key_loc,
+    usgs_api_key,
     backfill,
     backfill_version,
 ):
@@ -77,6 +85,12 @@ def getusgs_timeseries(
     else:
         backfill_list = None
 
+    if not usgs_api_key:
+        logging.warning(
+            "No USGS Water Data API key supplied. Sign up for a key at "
+            "https://api.waterdata.usgs.gov/signup/"
+        )
+
     api_key = get_api_key(api_key, api_key_loc)
     getusgs_cda(
         api_root=api_root,
@@ -84,6 +98,7 @@ def getusgs_timeseries(
         days_back=days_back,
         revision_lookback_days=revision_lookback_days,
         api_key=api_key,
+        usgs_api_key=usgs_api_key,
         backfill_tsids=backfill_list,
         backfill_version=backfill_version,
     )

@@ -1,12 +1,14 @@
 import logging
 import re
+from contextlib import nullcontext
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import cwms
 import numpy as np
 import pandas as pd
-from dataretrieval import waterdata
+from dataretrieval import configure, waterdata
+from dataretrieval.configuration import Configuration
 
 from cwmscli.utils import colors, init_cwms_session
 from cwmscli.utils.friendly_errors import is_fatal_service_error
@@ -50,6 +52,7 @@ def getusgs_cda(
     revision_lookback_days: float | None = None,
     backfill_tsids: list = None,
     backfill_version: str = None,
+    usgs_api_key: str | None = None,
 ):
     """
     Retrieve USGS continuous values through the new USGS Water Data API and
@@ -174,13 +177,19 @@ def getusgs_cda(
     )
 
     # This assignment must occur before CWMS_writeData().
-    usgs_data = getUSGS_ts(
-        usgs_ts=usgs_ts,
-        observation_start_dt=observation_start_dt,
-        observation_end_dt=observation_end_dt,
-        modified_start_dt=modified_start_dt,
-        modified_end_dt=modified_end_dt,
+    usgs_context = (
+        configure(Configuration(api_key=usgs_api_key))
+        if usgs_api_key
+        else nullcontext()
     )
+    with usgs_context:
+        usgs_data = getUSGS_ts(
+            usgs_ts=usgs_ts,
+            observation_start_dt=observation_start_dt,
+            observation_end_dt=observation_end_dt,
+            modified_start_dt=modified_start_dt,
+            modified_end_dt=modified_end_dt,
+        )
 
     CWMS_writeData(
         usgs_ts=usgs_ts,
