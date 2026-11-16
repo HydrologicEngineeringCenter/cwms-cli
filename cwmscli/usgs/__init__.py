@@ -34,6 +34,7 @@ days_back_option = click.option(
 @office_option
 @days_back_option
 @click.option(
+    "-rld",
     "--revision-lookback-days",
     default=None,
     type=click.FloatRange(min=0.0),
@@ -48,9 +49,9 @@ days_back_option = click.option(
 @click.option(
     "--usgs-api-key",
     default=None,
-    envvar="API_USGS_PAT",
+    envvar="USGS_API_KEY",
     type=str,
-    help=("Optional USGS Water Data API key. Can also be provided by " "API_USGS_PAT."),
+    help=("Optional USGS Water Data API key. Can also be provided by " "USGS_API_KEY."),
 )
 @click.option(
     "-b",
@@ -120,9 +121,9 @@ def getusgs_timeseries(
 @click.option(
     "--usgs-api-key",
     default=None,
-    envvar="API_USGS_PAT",
+    envvar="USGS_API_KEY",
     type=str,
-    help=("Optional USGS Water Data API key. Can also be provided by " "API_USGS_PAT."),
+    help=("Optional USGS Water Data API key. Can also be provided by " "USGS_API_KEY."),
 )
 @click.option(
     "--dry-run",

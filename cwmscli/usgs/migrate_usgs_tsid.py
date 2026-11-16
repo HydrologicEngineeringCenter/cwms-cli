@@ -795,7 +795,7 @@ def build_crosswalk(
     configured["USGS_PARAMETER"] = configured["USGS_PARAMETER"].map(
         normalize_parameter_code
     )
-    configured["legacy_method_id"] = configured["USGS_Method_TS"].map(
+    configured["legacy_method_id"] = configured["USGS_Time_Series_ID"].map(
         normalize_method_id
     )
     configured["monitoring_location_id"] = "USGS-" + configured["USGS_St_Num"]
@@ -2796,7 +2796,7 @@ def run_migration(args: SimpleNamespace) -> None:
             len(configured_ts),
         )
 
-    configured_ts["legacy_method_id"] = configured_ts["USGS_Method_TS"].map(
+    configured_ts["legacy_method_id"] = configured_ts["USGS_Time_Series_ID"].map(
         normalize_method_id
     )
 
