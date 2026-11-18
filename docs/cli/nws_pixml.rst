@@ -254,6 +254,7 @@ For each series in the PI-XML:
 If no series resolve, a normal run exits with an error without writing data or
 issued-time status. A dry run still succeeds and reports
 ``resolved_count: 0`` so group and alias configuration can be diagnosed.
+Series with no event rows are skipped as ``empty_series`` before storage.
 
 If two series in one product resolve to the same TSID, only one is stored. A
 series with usable values is preferred over an empty or all-missing one;

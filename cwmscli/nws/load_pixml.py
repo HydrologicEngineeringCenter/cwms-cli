@@ -873,6 +873,16 @@ def load_pixml(
     planned_index: dict[str, int] = {}
     for series_number, record in enumerate(series, start=1):
         series_detail = _series_detail(record, series_number)
+        if series_detail["event_count"] == 0:
+            skipped += 1
+            skipped_by_reason["empty_series"] += 1
+            if not dry_run:
+                logger.warning(
+                    "No events for %s - skipping %s",
+                    _series_source(record),
+                    _format_series_detail(series_detail),
+                )
+            continue
         tsid, skip = resolve_tsid(record, config, nws_to_loc, tsgroup_map, version_part)
         if tsid is None:
             skipped += 1

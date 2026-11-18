@@ -1,6 +1,10 @@
 {
   "build_missing_timeseries": true,
   "parameter_rules": [
+    {"parameter_id": "SQIN", "location_id": "MINN8LOC+DESLACS", "cwms_parameter": "Flow-Local"},
+    {"parameter_id": "SQIN", "location_id": "RAFQ8_IN_noDIV", "cwms_parameter": "Flow-In"},
+    {"parameter_id": "SQIN", "location_id": "ROTW3INF", "cwms_parameter": "Flow-In"},
+    {"parameter_id": "SQIN", "location_id": "DUBW3INF", "cwms_parameter": "Flow-In"},
     {"parameter_id": "SQIN", "location_id_suffix": "LOC", "cwms_parameter": "Flow-Local"},
     {"parameter_id": "SQIN", "location_id_suffix": "INQ", "cwms_parameter": "Flow-In"},
     {"parameter_id": "SQIN", "location_id_suffix": "IN", "cwms_parameter": "Flow-In"},
@@ -12,6 +16,7 @@
     {"location_id_suffix": "NON", "cwms_parameter_suffix": "-Non_contrib"}
   ],
   "duplicate_preference_rules": [
+    {"parameter_id": "SQIN", "location_id": "MINN8LOC+DESLACS", "priority": 100},
     {"parameter_id": "MAP", "location_id_suffix": "ROR", "priority": 100},
     {"parameter_id": "RAIM", "location_id_suffix": "ROR", "priority": 100}
   ],
@@ -55,15 +60,15 @@
   },
   "watersheds": {
     "red": {"label": "Red River of the North Main", "cwms_watershed": "BoisDeSiouxRiver"},
-    "tnd_red_trib": {"label": "Red River of the North Tributaries ND", "cwms_watershed": "BoisDeSiouxRiver, ParkRiver"},
+    "tnd_red_tribs": {"label": "Red River of the North Tributaries ND", "cwms_watershed": "BoisDeSiouxRiver, ParkRiver"},
     "tmn": {"label": "Red River of the North Tributaries MN", "cwms_watershed": "BoisDeSiouxRiver, RedLakeRiver"},
-    "tnd_sheyenne": {"label": "Sheyenne River", "cwms_watershed": "SheyenneRiver"},
+    "tnd_sheyenne_river": {"label": "Sheyenne River", "cwms_watershed": "SheyenneRiver"},
     "min": {"label": "Minnesota River", "cwms_watershed": "MinnesotaRiver"},
     "rdw": {"label": "Mississippi River through Red Wing", "cwms_watershed": "MississippiRiverHeadwaters, MississippiRiverNavigation"},
     "m10_mississippi_river": {"label": "Mississippi River Mainstem", "cwms_watershed": "MississippiRiverNavigation"},
     "m10_tribs": {"label": "Mississippi River MN Tributaries", "cwms_watershed": "MississippiRiverNavigation"},
     "wis_mississippi_tribs": {"label": "Mississippi River WI Tributaries", "cwms_watershed": "MississippiRiverNavigation"},
-    "wis_wisconsin": {"label": "Wisconsin River", "cwms_watershed": "MississippiRiverNavigation"},
+    "wis_wisconsin_river": {"label": "Wisconsin River", "cwms_watershed": "MississippiRiverNavigation"},
     "chp": {"label": "Chippewa River, WI", "cwms_watershed": "MississippiRiverNavigation"},
     "srs": {"label": "Souris River", "cwms_watershed": "SourisRiver"}
   }

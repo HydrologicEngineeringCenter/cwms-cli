@@ -403,6 +403,25 @@ def test_base_dry_run_resolves_and_versions(monkeypatch, tmp_path, capsys):
     ]
 
 
+def test_empty_series_is_reported_and_not_planned(monkeypatch, tmp_path, capsys):
+    empty_xml = PIXML.replace(
+        '    <event date="2024-09-05" time="12:00:00" value="864.1" flag="0"/>\n'
+        '    <event date="2024-09-05" time="18:00:00" value="847.4" flag="0"/>\n',
+        "",
+    )
+
+    _run(monkeypatch, tmp_path, BASE_NAME, dry_run=True, xml=empty_xml)
+    out = json.loads(capsys.readouterr().out)
+
+    assert out["resolved_count"] == 3
+    assert out["skipped"] == 1
+    assert out["skipped_by_reason"] == {"empty_series": 1}
+    assert (
+        "Wabasha.Flow-Sim.Inst.6Hours.0.Fcst-NCRFC-CHIPS"
+        not in out["resolved_timeseries"]
+    )
+
+
 def test_auto_run_unversioned_and_version_part_swapped(monkeypatch, tmp_path, capsys):
     _run(monkeypatch, tmp_path, AUTO_NAME, dry_run=True)
     out = json.loads(capsys.readouterr().out)
