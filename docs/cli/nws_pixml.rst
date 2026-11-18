@@ -255,11 +255,13 @@ If no series resolve, a normal run exits with an error without writing data or
 issued-time status. A dry run still succeeds and reports
 ``resolved_count: 0`` so group and alias configuration can be diagnosed.
 
-If two series in one product resolve to the same TSID, only the first is
-stored; the later one is dropped and reported as an error in the run summary
-(and in the ``duplicates`` list under ``--dry-run``).  This usually means a
-sub-location series fell back to its 5-character Handbook-5 prefix — add a
-timeseries-group alias for it to disambiguate.
+If two series in one product resolve to the same TSID, only one is stored.
+A populated series is preferred over an empty one; otherwise the first is
+kept unless a ``duplicate_preference_rules`` entry selects the later series.
+The dropped series is reported as an error in the run summary (and in the
+``duplicates`` list under ``--dry-run``). This usually means a sub-location
+series fell back to its 5-character Handbook-5 prefix — add a timeseries-group
+alias for it to disambiguate.
 
 Under ``--dry-run``, the JSON report includes summary counts such as
 ``resolved_count``, ``skipped_by_reason``, and ``duplicate_count``.  Duplicate

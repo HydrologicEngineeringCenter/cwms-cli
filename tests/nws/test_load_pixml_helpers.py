@@ -193,6 +193,31 @@ def test_standard_timeseries_aliases_are_parameter_aware(monkeypatch):
     )
 
 
+def test_explicit_timeseries_alias_takes_precedence_over_derived_alias(monkeypatch):
+    rows = [
+        {
+            "timeseries-id": "WR116.Flow.Inst.6Hours.0.LMRFC-NAEFS-FCST",
+            "alias-id": "CLDA4",
+        },
+        {
+            "timeseries-id": "WR116-LCL.Flow.Inst.6Hours.0.LMRFC-NAEFS-FCST",
+            "alias-id": "CLDA4LCL",
+        },
+    ]
+    monkeypatch.setattr(
+        mod,
+        "cwms",
+        SimpleNamespace(
+            get_timeseries_group=lambda **kwargs: SimpleNamespace(df=pd.DataFrame(rows))
+        ),
+    )
+
+    mapping = mod.build_tsgroup_map({}, "MVM", {"WR116-LCL": "CLDA4"})
+
+    assert mapping["CLDA4.FLOW"] == rows[0]["timeseries-id"]
+    assert mapping["CLDA4LCL.FLOW"] == rows[1]["timeseries-id"]
+
+
 def test_series_detail_and_formatting_helpers():
     record = {
         "locationId": "WABM5",
@@ -299,6 +324,22 @@ def test_parameter_and_duplicate_rule_helpers():
     )
     assert mod._param_type_and_duration(config, "Flow-Sim") == ("Ave", "6Hours")
     assert mod._param_type_and_duration(config, "Elev") == ("Inst", "0")
+
+
+def test_populated_duplicate_is_preferred_over_empty_series():
+    populated = {
+        "location_id": "PFAA4",
+        "parameter_id": "STAGE",
+        "event_count": 153,
+    }
+    empty = {
+        "location_id": "PFAA4",
+        "parameter_id": "STAGE",
+        "event_count": 0,
+    }
+
+    assert mod._prefer_duplicate({}, populated, empty)
+    assert not mod._prefer_duplicate({}, empty, populated)
 
 
 def test_date_helpers_cover_supported_and_invalid_values():

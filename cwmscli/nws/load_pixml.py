@@ -304,7 +304,9 @@ def build_tsgroup_map(config: dict, office: str, loc_to_nws: dict) -> dict:
             loc, param = parts[0], parts[1]
             nws = loc_to_nws.get(loc) or loc_to_nws.get(loc.split("-")[0])
             if nws:
-                mapping[f"{nws}.{param.upper()}"] = tsid
+                # Explicit group aliases are authoritative regardless of the
+                # order in which CDA returns the assigned time series.
+                mapping.setdefault(f"{nws}.{param.upper()}", tsid)
     return mapping
 
 
@@ -426,6 +428,16 @@ def _duplicate_priority(config: dict, detail: dict) -> int:
         if _series_rule_matches(rule, detail["location_id"], detail["parameter_id"]):
             return int(rule.get("priority", 0))
     return 0
+
+
+def _prefer_duplicate(config: dict, candidate: dict, incumbent: dict) -> bool:
+    candidate_has_events = candidate["event_count"] > 0
+    incumbent_has_events = incumbent["event_count"] > 0
+    if candidate_has_events != incumbent_has_events:
+        return candidate_has_events
+    return _duplicate_priority(config, candidate) > _duplicate_priority(
+        config, incumbent
+    )
 
 
 def _param_type_and_duration(config: dict, param: str) -> tuple:
@@ -877,9 +889,7 @@ def load_pixml(
             kept = seen[tsid]
             kept_detail = kept["series"]
             dropped_detail = series_detail
-            if _duplicate_priority(config, series_detail) > _duplicate_priority(
-                config, kept_detail
-            ):
+            if _prefer_duplicate(config, series_detail, kept_detail):
                 kept_detail = series_detail
                 dropped_detail = kept["series"]
                 seen[tsid] = entry
