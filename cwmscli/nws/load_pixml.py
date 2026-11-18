@@ -344,6 +344,10 @@ def _series_detail(record: dict, series_number: int) -> dict:
             record.get("timeStep_unit"), record.get("timeStep_multiplier")
         ),
         "event_count": len(record.get("events", [])),
+        "usable_event_count": sum(
+            not _is_missing_value(value, record.get("missVal"))
+            for _, value in record.get("events", [])
+        ),
     }
 
 
@@ -431,10 +435,14 @@ def _duplicate_priority(config: dict, detail: dict) -> int:
 
 
 def _prefer_duplicate(config: dict, candidate: dict, incumbent: dict) -> bool:
-    candidate_has_events = candidate["event_count"] > 0
-    incumbent_has_events = incumbent["event_count"] > 0
-    if candidate_has_events != incumbent_has_events:
-        return candidate_has_events
+    candidate_has_values = (
+        candidate.get("usable_event_count", candidate["event_count"]) > 0
+    )
+    incumbent_has_values = (
+        incumbent.get("usable_event_count", incumbent["event_count"]) > 0
+    )
+    if candidate_has_values != incumbent_has_values:
+        return candidate_has_values
     return _duplicate_priority(config, candidate) > _duplicate_priority(
         config, incumbent
     )

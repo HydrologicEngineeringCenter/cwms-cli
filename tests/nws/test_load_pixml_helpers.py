@@ -232,6 +232,7 @@ def test_series_detail_and_formatting_helpers():
     detail = mod._series_detail(record, 2)
     assert detail["interval"] == "6Hours"
     assert detail["event_count"] == 1
+    assert detail["usable_event_count"] == 1
     assert mod._format_time_step(detail) == "21600 second"
     assert mod._format_series_detail(detail) == (
         "series #2 WABM5.SQIN (6Hours, 1 values, member-1)"
@@ -340,6 +341,33 @@ def test_populated_duplicate_is_preferred_over_empty_series():
 
     assert mod._prefer_duplicate({}, populated, empty)
     assert not mod._prefer_duplicate({}, empty, populated)
+
+
+def test_usable_duplicate_is_preferred_over_all_missing_series():
+    usable = {
+        "location_id": "WABM5",
+        "parameter_id": "RAIM",
+        "event_count": 157,
+        "usable_event_count": 157,
+    }
+    all_missing = {
+        "location_id": "WABM5ROR",
+        "parameter_id": "RAIM",
+        "event_count": 157,
+        "usable_event_count": 0,
+    }
+    config = {
+        "duplicate_preference_rules": [
+            {
+                "parameter_id": "RAIM",
+                "location_id_suffix": "ROR",
+                "priority": 100,
+            }
+        ]
+    }
+
+    assert mod._prefer_duplicate(config, usable, all_missing)
+    assert not mod._prefer_duplicate(config, all_missing, usable)
 
 
 def test_date_helpers_cover_supported_and_invalid_values():
