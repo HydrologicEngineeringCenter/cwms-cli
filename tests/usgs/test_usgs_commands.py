@@ -97,7 +97,7 @@ def test_usgs_timeseries_reads_usgs_api_key_from_environment(monkeypatch):
     monkeypatch.setitem(sys.modules, "cwmscli.usgs.getusgs_cda", fake_module)
     monkeypatch.setattr(deps.importlib, "import_module", lambda name: object())
     monkeypatch.setattr(deps.importlib.metadata, "version", lambda name: "999.0.0")
-    monkeypatch.setenv("API_USGS_PAT", "environment-usgs-key")
+    monkeypatch.setenv("USGS_API_KEY", "environment-usgs-key")
 
     result = CliRunner().invoke(
         cli,
@@ -165,8 +165,8 @@ def test_usgs_ratings_reads_usgs_api_key_from_environment(monkeypatch):
     monkeypatch.setitem(sys.modules, "cwmscli.usgs.getUSGS_ratings_cda", fake_module)
     monkeypatch.setattr(deps.importlib, "import_module", lambda name: object())
     monkeypatch.setattr(deps.importlib.metadata, "version", lambda name: "999.0.0")
-    monkeypatch.delenv("API_USGS_PAT", raising=False)
-    monkeypatch.setenv("API_USGS_PAT", "environment-usgs-key")
+    monkeypatch.delenv("USGS_API_KEY", raising=False)
+    monkeypatch.setenv("USGS_API_KEY", "environment-usgs-key")
 
     result = CliRunner().invoke(
         cli,
@@ -199,7 +199,7 @@ def test_usgs_ratings_warns_and_runs_without_usgs_api_key(monkeypatch):
     monkeypatch.setitem(sys.modules, "cwmscli.usgs.getUSGS_ratings_cda", fake_module)
     monkeypatch.setattr(deps.importlib, "import_module", lambda name: object())
     monkeypatch.setattr(deps.importlib.metadata, "version", lambda name: "999.0.0")
-    monkeypatch.delenv("API_USGS_PAT", raising=False)
+    monkeypatch.delenv("USGS_API_KEY", raising=False)
     monkeypatch.setattr(
         usgs_cli.logging,
         "warning",
