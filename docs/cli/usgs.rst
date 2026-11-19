@@ -165,71 +165,112 @@ in the ``alias-id`` field. The new continuous-value workflow requires USGS
 Water Data API ``time_series_id`` values or blank aliases. The migration
 command builds a crosswalk and is dry-run by default:
 
-.. code-block:: bash
+Full-office dry run
+^^^^^^^^^^^^^^^^^^^
 
-  cwms-cli usgs migrate-timeseries-ids \
-    --office SWT \
-    --api-root https://cwms-data.usace.army.mil/cwms-data \
-    --api-key "$CDA_API_KEY" \
-    --output-dir usgs-migration
+Omit ``--timeseries-ids`` to process every time series in the selected
+office's ``Data Acquisition / USGS TS Data Acquisition`` group that has a
+numeric legacy method ID in ``alias-id``. Other group assignments are not
+migration candidates.
 
-The command obtains legacy method descriptions from the old WaterServices API
-unless ``--legacy-methods-csv`` is supplied. A CSV supplied with that option
-must contain:
+Set the CDA API key and run a full-office dry run:
 
-.. code-block:: text
+.. code-block:: batch
 
-  USGS_St_Num,USGS_PARAMETER,methodID,methodDescription
+   set "CWMS_API_KEY=your-CDA-api-key"
 
-Use ``--timeseries-ids`` to test a comma-separated subset before processing an
-entire office. Review the generated reports, especially the crosswalk and
-update plan, before applying changes.
+   cwms-cli usgs migrate-timeseries-ids ^
+     --office LRL ^
+     --api-root "https://your-cda-host/cwms-data" ^
+     --api-key "%CWMS_API_KEY%" ^
+     --output-dir ".\usgs_tsid_full_dryrun" ^
+     --compare-timeseries ^
+     --dry-run
 
-Optional value comparison provides an additional safety check:
+``--dry-run`` is the default, but is included to make it explicit. No CWMS
+assignments are changed during a dry run. The value-comparison defaults are a
+three-day window, a ``0.001`` absolute tolerance, at least 20 overlapping
+observations, and at least 95 percent agreement. Adjust these with
+``--compare-days``, ``--comparison-tolerance``,
+``--comparison-min-records``, and ``--comparison-min-agreement``.
 
-.. code-block:: bash
+How the migration evaluates candidates
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-  cwms-cli usgs migrate-timeseries-ids \
-    --office SWT \
-    --api-root https://cwms-data.usace.army.mil/cwms-data \
-    --output-dir usgs-migration \
-    --compare-timeseries \
-    --compare-days 3 \
-    --comparison-min-records 20 \
-    --comparison-min-agreement 95
+The command reads the office's USGS acquisition group and uses its location
+alias and parameter ``attribute`` (or the default parameter mapping) to look
+up new USGS metadata. It retrieves legacy method descriptions from the old
+WaterServices API unless ``--legacy-methods-csv`` is supplied. That CSV must
+contain ``USGS_St_Num``, ``USGS_PARAMETER``, ``methodID``, and
+``methodDescription`` columns.
 
-Value comparison matches recent CWMS and USGS observations after unit
-normalization. A mapping is eligible only when the configured minimum overlap
-and agreement thresholds are met. The default comparison settings are three
-days, 20 records, 95 percent agreement, and a maximum absolute difference of
-``0.001``.
+The migration compares each legacy method description with one reconstructed
+from the new metadata, including ``sublocation_identifier`` and
+``web_description``. With ``--compare-timeseries``, it also compares
+candidate observations to CWMS values after unit normalization. If exactly
+one candidate agrees with CWMS, the migration can select its new
+``time_series_id``.
 
-Apply only reviewed mappings with ``--apply``:
+The command also checks whether a direct station-and-parameter query is
+unambiguous and agrees with CWMS. When that check succeeds, the recommended
+update is a blank ``alias-id`` rather than a UUID. If the intended series
+cannot be identified safely, the existing ``alias-id`` is left unchanged.
 
-.. code-block:: bash
+Review the reports
+^^^^^^^^^^^^^^^^^^
 
-  cwms-cli usgs migrate-timeseries-ids \
-    --office SWT \
-    --api-root https://cwms-data.usace.army.mil/cwms-data \
-    --output-dir usgs-migration \
-    --compare-timeseries \
-    --apply
+Review the CSV files in the output directory before applying changes. Report
+names include the office and a timestamp:
 
-Without ``--apply``, the command writes reports but does not change CWMS.
-Only unambiguous mappings are included in the update plan. Existing group
-attributes are preserved when aliases are updated. The output directory can
-contain:
+* ``methodid_to_timeseriesid_crosswalk_<office>_<timestamp>.csv`` is the main
+  audit report. Review ``timeseries-id``, ``legacy_method_id``,
+  ``time_series_id``, ``metadata_mapping_status``, ``mapping_status``,
+  ``comparison_status``, ``agreement_percent``, and
+  ``unaliased_comparison_status``.
+* ``cwms_alias_update_plan_<office>_<timestamp>.csv`` contains only mappings
+  eligible for update. ``matched`` and ``matched_by_value_comparison`` rows
+  propose a new USGS ID in ``new_alias_id``.
+  ``matched_without_alias_by_value_comparison`` proposes a blank
+  ``new_alias_id``; this is sent to CWMS as ``"alias-id": null``.
+* When the update plan is nonempty,
+  ``cwms_alias_patch_<office>_<timestamp>.csv`` contains the exact group
+  records to be sent to CWMS. Confirm ``timeseries-id``, ``alias-id``, and
+  ``attribute``; the existing ``attribute`` is preserved.
+* With ``--compare-timeseries``, the command also writes
+  ``cwms_usgs_value_comparison_<office>_<timestamp>.csv`` and
+  ``cwms_usgs_unaliased_comparison_<office>_<timestamp>.csv``.
+  ``cwms_usgs_value_mismatches_<office>_<timestamp>.csv`` contains aligned
+  observations for candidates whose new-USGS values did not agree with CWMS;
+  legacy WaterServices values are included where available.
 
-* ``legacy_methods_*.csv`` and ``new_usgs_metadata_*.csv`` input reports
-* ``methodid_to_timeseriesid_crosswalk_*.csv`` mapping results
-* ``cwms_alias_update_plan_*.csv`` eligible updates
-* ``cwms_alias_patch_*.csv`` proposed CWMS group changes
-* ``migration_summary_*.csv`` status counts
-* comparison and mismatch reports when ``--compare-timeseries`` is enabled
+The command also writes ``legacy_methods_*.csv``,
+``new_usgs_metadata_*.csv``, and ``migration_summary_*.csv`` reports. Keep
+the dry-run reports as the migration audit record.
 
-Review statuses such as ``matched``, ``matched_by_value_comparison``,
-``matched_without_alias_by_value_comparison``, ambiguous mappings, and
-comparison failures before applying updates.
+Apply approved updates
+^^^^^^^^^^^^^^^^^^^^^^
+
+After reviewing the dry-run reports, rerun with a separate output directory
+and ``--apply``:
+
+.. code-block:: batch
+
+   cwms-cli usgs migrate-timeseries-ids ^
+     --office LRL ^
+     --api-root "https://your-cda-host/cwms-data" ^
+     --api-key "%CWMS_API_KEY%" ^
+     --output-dir ".\usgs_tsid_apply" ^
+     --compare-timeseries ^
+     --apply
+
+The command updates only eligible assignments in
+``Data Acquisition / USGS TS Data Acquisition``. It changes ``alias-id`` and
+preserves the time-series group's ``attribute``. After applying, verify the
+group values: a selected UUID is stored in ``alias-id``; a safe
+station-and-parameter query leaves ``alias-id`` blank; and any mapping without
+a safe match retains its previous value. Keep both dry-run and apply reports
+for auditing.
+
 
 
 
@@ -337,7 +378,6 @@ ratings guide.
 
 See ``cwms-cli usgs <command> --help`` for the complete options for each
 command.
-
 Python support
 --------------
 
