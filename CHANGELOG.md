@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.2](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.9.1...v0.9.2) (2026-11-19)
+
+
+### Features
+
+* pixml loader for rfc forecasts ([#254](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/254)) ([7431b3b](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/7431b3bebac386df2fd3e130ce8752e0591d7fd6))
+
+
+### Bug Fixes
+
+* clarify use of cwms-cli env activate ([#269](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/269)) ([0c4635a](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/0c4635a3886ebad00fc2a0fca61b2de744ea3871))
+* match source offices case-insensitively ([#280](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/280)) ([5620ecb](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/5620ecb25f047b03ed8bcf79110b4b2b6573ce91))
+* return failure status when time-series loads fail ([#279](https://github.com/HydrologicEngineeringCenter/cwms-cli/issues/279)) ([fbcb1d2](https://github.com/HydrologicEngineeringCenter/cwms-cli/commit/fbcb1d2016fdb8b6983dc3d0bf85b051a6a50a0e))
+
 ## [0.9.1](https://github.com/HydrologicEngineeringCenter/cwms-cli/compare/v0.9.0...v0.9.1) (2026-09-23)
 
 
