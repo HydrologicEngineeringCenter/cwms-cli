@@ -330,7 +330,7 @@ def test_build_crosswalk_matches_legacy_description_to_new_timeseries_id():
                 "timeseries-id": ("MammothCave.Stage.Inst.15Minutes.0.USGS-raw"),
                 "USGS_St_Num": "03309000",
                 "USGS_PARAMETER": "00065",
-                "USGS_Method_TS": "220645",
+                "USGS_Time_Series_ID": "220645",
             }
         ]
     )
