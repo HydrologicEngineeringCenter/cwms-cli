@@ -4,7 +4,7 @@ from pathlib import Path
 
 try:
     import tomllib
-except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.9/3.10
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
     import tomli as tomllib
 
 from cwmscli.__main__ import cli

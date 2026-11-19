@@ -32,6 +32,7 @@ default = ["charles", "eric"]
 "update" = "cwms-cli update"
 "load_location_ids_all" = "cwms-cli load"
 "env" = "cwms-cli env"
+"usgs" = "cwms-cli usgs"
 
 [[codeowners.rule]]
 pattern = "*"
@@ -118,10 +119,6 @@ owners = ["eric"]
 
 [[codeowners.rule]]
 pattern = "/tests/usgs/"
-owners = ["eric"]
-
-[[codeowners.rule]]
-pattern = "/tests/cli/test_usgs_*.py"
 owners = ["eric"]
 
 [[codeowners.rule]]

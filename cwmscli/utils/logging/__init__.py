@@ -80,6 +80,29 @@ class ColorLevelFormatter(logging.Formatter):
         return f"{Fore.CYAN}{levelname}{Style.RESET_ALL}"
 
 
+class _ExternalLogFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        if (
+            record.name == "dataretrieval.ogc.shaping"
+            and record.levelno == logging.WARNING
+            and record.getMessage()
+            == "Geopandas not installed. Geometries will be flattened into pandas DataFrames."
+        ):
+            return False
+
+        if record.levelno != logging.INFO or not (
+            record.name == "httpx" or record.name.startswith("httpx.")
+        ):
+            return True
+
+        if not logging.getLogger().isEnabledFor(logging.DEBUG):
+            return False
+
+        record.levelno = logging.DEBUG
+        record.levelname = logging.getLevelName(logging.DEBUG)
+        return True
+
+
 def setup_logging(cfg: LoggingConfig) -> None:
     root = logging.getLogger()
     # Clear existing handlers
@@ -100,10 +123,12 @@ def setup_logging(cfg: LoggingConfig) -> None:
     date_fmt = "%Y-%m-%d %H:%M:%S"
     stream_handler = logging.StreamHandler(sys.stderr)
     stream_handler.setFormatter(ColorLevelFormatter(base_fmt, date_fmt, color_enabled))
+    stream_handler.addFilter(_ExternalLogFilter())
     root.addHandler(stream_handler)
 
     if cfg.log_file:
         file_handler = logging.FileHandler(cfg.log_file, encoding="utf-8")
         file_handler.setFormatter(logging.Formatter(base_fmt, date_fmt))
+        file_handler.addFilter(_ExternalLogFilter())
         root.addHandler(file_handler)
     logging.getLogger().info("logger configured")
