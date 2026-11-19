@@ -16,7 +16,7 @@ jobs:
           # Test the supported Python range on Linux and exercise the primary
           # Python version on each supported desktop operating system.
           - name: Linux
-            os: ubuntu-latest
+            os: ubuntu-22.04
             python-version: "3.9"
           - name: Linux
             os: ubuntu-latest

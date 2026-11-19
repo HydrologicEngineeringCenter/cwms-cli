@@ -127,6 +127,8 @@ simpler command group.
 If you are uploading JSON and want clients to receive it with a JSON media
 type, ``blob upload --media-type application/json`` is usually the better fit.
 
+.. _blob-single-file-upload:
+
 Single file upload
 ~~~~~~~~~~~~~~~~~~
 
