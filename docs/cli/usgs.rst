@@ -3,8 +3,8 @@ USGS workflows
 
 The ``usgs`` command group retrieves USGS data and stores it in CWMS through
 the CWMS Data API (CDA). It includes continuous time-series values, ratings,
-measurements, and migration support for installations moving from legacy USGS
-method IDs to the USGS Water Data API.
+and migration support for installations moving from legacy USGS method IDs to
+the USGS Water Data API.
 
 Prerequisites and authentication
 ---------------------------------
@@ -155,6 +155,84 @@ first-column ``id`` into ``alias-id``. After updating the alias, use
 ``cwms-cli usgs timeseries`` to retrieve data for the configured CWMS time
 series.
 
+.. _migrate-usgs-timeseries-ids:
+
+Migrate legacy time-series IDs
+------------------------------
+
+Older configurations may store numeric USGS WaterServices ``methodID`` values
+in the ``alias-id`` field. The new continuous-value workflow requires USGS
+Water Data API ``time_series_id`` values or blank aliases. The migration
+command builds a crosswalk and is dry-run by default:
+
+.. code-block:: bash
+
+  cwms-cli usgs migrate-timeseries-ids \
+    --office SWT \
+    --api-root https://cwms-data.usace.army.mil/cwms-data \
+    --api-key "$CDA_API_KEY" \
+    --output-dir usgs-migration
+
+The command obtains legacy method descriptions from the old WaterServices API
+unless ``--legacy-methods-csv`` is supplied. A CSV supplied with that option
+must contain:
+
+.. code-block:: text
+
+  USGS_St_Num,USGS_PARAMETER,methodID,methodDescription
+
+Use ``--timeseries-ids`` to test a comma-separated subset before processing an
+entire office. Review the generated reports, especially the crosswalk and
+update plan, before applying changes.
+
+Optional value comparison provides an additional safety check:
+
+.. code-block:: bash
+
+  cwms-cli usgs migrate-timeseries-ids \
+    --office SWT \
+    --api-root https://cwms-data.usace.army.mil/cwms-data \
+    --output-dir usgs-migration \
+    --compare-timeseries \
+    --compare-days 3 \
+    --comparison-min-records 20 \
+    --comparison-min-agreement 95
+
+Value comparison matches recent CWMS and USGS observations after unit
+normalization. A mapping is eligible only when the configured minimum overlap
+and agreement thresholds are met. The default comparison settings are three
+days, 20 records, 95 percent agreement, and a maximum absolute difference of
+``0.001``.
+
+Apply only reviewed mappings with ``--apply``:
+
+.. code-block:: bash
+
+  cwms-cli usgs migrate-timeseries-ids \
+    --office SWT \
+    --api-root https://cwms-data.usace.army.mil/cwms-data \
+    --output-dir usgs-migration \
+    --compare-timeseries \
+    --apply
+
+Without ``--apply``, the command writes reports but does not change CWMS.
+Only unambiguous mappings are included in the update plan. Existing group
+attributes are preserved when aliases are updated. The output directory can
+contain:
+
+* ``legacy_methods_*.csv`` and ``new_usgs_metadata_*.csv`` input reports
+* ``methodid_to_timeseriesid_crosswalk_*.csv`` mapping results
+* ``cwms_alias_update_plan_*.csv`` eligible updates
+* ``cwms_alias_patch_*.csv`` proposed CWMS group changes
+* ``migration_summary_*.csv`` status counts
+* comparison and mismatch reports when ``--compare-timeseries`` is enabled
+
+Review statuses such as ``matched``, ``matched_by_value_comparison``,
+``matched_without_alias_by_value_comparison``, ambiguous mappings, and
+comparison failures before applying updates.
+
+
+
 Ratings
 -------
 
@@ -230,22 +308,25 @@ CWMS:
 
    cwms-cli usgs ratings --office SWT --rating-subset "rating-id-1" --dry-run
 
-Measurements and rating imports
--------------------------------
+Rating-spec imports
+-------------------
 
-The measurements and rating-spec import commands are also available:
+Use ``ratings-ini-file-import`` to update rating specifications listed in a
+legacy ratings INI file:
 
 .. code-block:: bash
 
-   cwms-cli usgs measurements --office SWT
-   cwms-cli usgs ratings-ini-file-import --filename ratings.ini
+   cwms-cli usgs ratings-ini-file-import \
+     --filename ratings.ini \
+     --api-root "$CDA_API_ROOT" \
+     --api-key "$CDA_API_KEY" \
+     --dry-run
 
-The ``ratings-ini-file-import`` command updates rating specifications listed
-in a legacy ratings INI file. For recognized ``store_exsa``, ``store_corr``,
+For recognized ``store_exsa``, ``store_corr``,
 ``store_base``, or ``replace_exsa`` entries, it sets Source Agency to ``USGS``,
 enables Active, Auto Update, and Auto Activate, and adds the matching
 ``USGS-EXSA``, ``USGS-CORR``, or ``USGS-BASE`` description marker. Use
-``--dry-run`` to preview the proposed changes before applying them.
+``--dry-run`` to preview proposed changes. Remove ``--dry-run`` to apply them.
 
 The image below shows an example of the INI file format from the HEC USGS
 ratings guide.
@@ -256,82 +337,6 @@ ratings guide.
 
 See ``cwms-cli usgs <command> --help`` for the complete options for each
 command.
-
-.. _migrate-usgs-timeseries-ids:
-
-Migrate legacy time-series IDs
-------------------------------
-
-Older configurations may store numeric USGS WaterServices ``methodID`` values
-in the ``alias-id`` field. The new continuous-value workflow requires USGS
-Water Data API ``time_series_id`` values or blank aliases. The migration
-command builds a crosswalk and is dry-run by default:
-
-.. code-block:: bash
-
-   cwms-cli usgs migrate-timeseries-ids \
-     --office SWT \
-     --api-root https://cwms-data.usace.army.mil/cwms-data \
-     --api-key "$CDA_API_KEY" \
-     --output-dir usgs-migration
-
-The command obtains legacy method descriptions from the old WaterServices API
-unless ``--legacy-methods-csv`` is supplied. A CSV supplied with that option
-must contain:
-
-.. code-block:: text
-
-   USGS_St_Num,USGS_PARAMETER,methodID,methodDescription
-
-Use ``--timeseries-ids`` to test a comma-separated subset before processing an
-entire office. Review the generated reports, especially the crosswalk and
-update plan, before applying changes.
-
-Optional value comparison provides an additional safety check:
-
-.. code-block:: bash
-
-   cwms-cli usgs migrate-timeseries-ids \
-     --office SWT \
-     --api-root https://cwms-data.usace.army.mil/cwms-data \
-     --output-dir usgs-migration \
-     --compare-timeseries \
-     --compare-days 3 \
-     --comparison-min-records 20 \
-     --comparison-min-agreement 95
-
-Value comparison matches recent CWMS and USGS observations after unit
-normalization. A mapping is eligible only when the configured minimum overlap
-and agreement thresholds are met. The default comparison settings are three
-days, 20 records, 95 percent agreement, and a maximum absolute difference of
-``0.001``.
-
-Apply only reviewed mappings with ``--apply``:
-
-.. code-block:: bash
-
-   cwms-cli usgs migrate-timeseries-ids \
-     --office SWT \
-     --api-root https://cwms-data.usace.army.mil/cwms-data \
-     --output-dir usgs-migration \
-     --compare-timeseries \
-     --apply
-
-Without ``--apply``, the command writes reports but does not change CWMS.
-Only unambiguous mappings are included in the update plan. Existing group
-attributes are preserved when aliases are updated. The output directory can
-contain:
-
-* ``legacy_methods_*.csv`` and ``new_usgs_metadata_*.csv`` input reports
-* ``methodid_to_timeseriesid_crosswalk_*.csv`` mapping results
-* ``cwms_alias_update_plan_*.csv`` eligible updates
-* ``cwms_alias_patch_*.csv`` proposed CWMS group changes
-* ``migration_summary_*.csv`` status counts
-* comparison and mismatch reports when ``--compare-timeseries`` is enabled
-
-Review statuses such as ``matched``, ``matched_by_value_comparison``,
-``matched_without_alias_by_value_comparison``, ambiguous mappings, and
-comparison failures before applying updates.
 
 Python support
 --------------
