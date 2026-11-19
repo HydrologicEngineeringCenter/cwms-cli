@@ -175,32 +175,26 @@ rating specification in CWMS-Vue with:
 The current command selects specifications that are active, have Auto Update
 enabled, and contain one of these markers in the description. The following
 CWMS-Vue screenshot illustrates the rating specification settings. Image
-from the `HEC USGS ratings guide
-<https://www.hec.usace.army.mil/confluence/cwmsdocs/ccm/getusgs-ratings-script-using-cda-286195740.html>`_.
+from the HEC USGS ratings guide.
 
 .. figure:: ../_static/usgs-ratings/rating-specification-settings.png
    :alt: Example CWMS rating specification settings for the USGS ratings command
-   :target: https://www.hec.usace.army.mil/confluence/cwmsdocs/ccm/getusgs-ratings-script-using-cda-286195740.html
    :width: 90%
 
 The **Auto Activate** flag controls whether a newly stored rating is active.
 Disable it if new USGS ratings should be stored inactive. Image from the
-`HEC USGS ratings guide
-<https://www.hec.usace.army.mil/confluence/cwmsdocs/ccm/getusgs-ratings-script-using-cda-286195740.html>`_.
+HEC USGS ratings guide.
 
 .. figure:: ../_static/usgs-ratings/rating-curve-active.png
    :alt: Example of an active CWMS rating curve
-   :target: https://www.hec.usace.army.mil/confluence/cwmsdocs/ccm/getusgs-ratings-script-using-cda-286195740.html
    :width: 90%
 
 When **Auto Migrate** is enabled, extensions on the existing rating
 are migrated to the newly stored rating. This option applies when a rating
-already exists. Image from the `HEC USGS ratings guide
-<https://www.hec.usace.army.mil/confluence/cwmsdocs/ccm/getusgs-ratings-script-using-cda-286195740.html>`_.
+already exists. Image from the HEC USGS ratings guide.
 
 .. figure:: ../_static/usgs-ratings/rating-extension-example.png
    :alt: Example of a CWMS rating extension
-   :target: https://www.hec.usace.army.mil/confluence/cwmsdocs/ccm/getusgs-ratings-script-using-cda-286195740.html
    :width: 90%
 
 Run the ratings command
@@ -253,13 +247,11 @@ enables Active, Auto Update, and Auto Activate, and adds the matching
 ``USGS-EXSA``, ``USGS-CORR``, or ``USGS-BASE`` description marker. Use
 ``--dry-run`` to preview the proposed changes before applying them.
 
-The image below shows an example of the INI file format. Image from the
-`HEC USGS ratings guide
-<https://www.hec.usace.army.mil/confluence/cwmsdocs/ccm/getusgs-ratings-script-using-cda-286195740.html>`_.
+The image below shows an example of the INI file format from the HEC USGS
+ratings guide.
 
 .. figure:: ../_static/usgs-ratings/ratings-ini-example.png
    :alt: Example legacy USGS ratings INI file
-   :target: https://www.hec.usace.army.mil/confluence/cwmsdocs/ccm/getusgs-ratings-script-using-cda-286195740.html
    :width: 90%
 
 See ``cwms-cli usgs <command> --help`` for the complete options for each
